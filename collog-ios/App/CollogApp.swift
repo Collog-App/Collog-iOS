@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FontRegistrar.registerIfNeeded()
+        NavigationBarAppearance.apply()
         callCenter.start()
         return true
     }
