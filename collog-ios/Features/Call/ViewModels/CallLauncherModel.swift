@@ -28,12 +28,10 @@ final class CallLauncherModel {
     private var didActivateByHold = false
 
     private let holdDuration: Duration = .milliseconds(280)
-    private let selectionInnerRadius: CGFloat = 52
-    private let selectionOuterRadius: CGFloat = 190
+    private let selectionInnerRadius: CGFloat = 30
+    private let selectionOuterRadius: CGFloat = 194
 
     let arcRadius: CGFloat = 122
-    private let startAngle = -122.0
-    private let endAngle = -58.0
 
     func configure(targets: [FamilyContact], questions: [String]) {
         self.targets = targets
@@ -73,11 +71,11 @@ final class CallLauncherModel {
         let selected = focusedIndex.flatMap { targets.indices.contains($0) ? targets[$0] : nil }
         guard let selected else {
             withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
-                mode = .sticky
+                mode = .idle
             }
             focusedIndex = nil
             didActivateByHold = false
-            Haptics.blur()
+            Haptics.cancel()
             return nil
         }
 
@@ -112,16 +110,14 @@ final class CallLauncherModel {
 
     func angleRange(for index: Int) -> ClosedRange<Double> {
         let count = max(targets.count, 1)
-        let step = count == 1 ? 56 : abs(endAngle - startAngle) / Double(count - 1)
-        let halfWidth = min(step / 2, 32)
-        let center = angle(for: index)
-        return (center - halfWidth)...(center + halfWidth)
+        let width = 180 / Double(count)
+        let lowerBound = -180 + width * Double(index)
+        return lowerBound...(lowerBound + width)
     }
 
     private func angle(for index: Int) -> Double {
-        let count = max(targets.count, 1)
-        let ratio = count == 1 ? 0.5 : Double(index) / Double(count - 1)
-        return startAngle + (endAngle - startAngle) * ratio
+        let range = angleRange(for: index)
+        return (range.lowerBound + range.upperBound) / 2
     }
 
     private func activateHold() {
@@ -138,7 +134,7 @@ final class CallLauncherModel {
         let point = CGPoint(x: translation.width, y: translation.height)
         let radius = (point.x * point.x + point.y * point.y).squareRoot()
         let angle = atan2(point.y, point.x) * 180 / .pi
-        let nearest: Int? = if selectionInnerRadius...selectionOuterRadius ~= radius {
+        let nearest: Int? = if point.y < 0, selectionInnerRadius...selectionOuterRadius ~= radius {
             targets.indices.first { angleRange(for: $0).contains(angle) }
         } else {
             nil

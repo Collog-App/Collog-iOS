@@ -87,7 +87,7 @@ struct CallLauncherOverlay: View {
             }
         }
         .frame(width: 300)
-        .offset(y: -(model.arcRadius + 130))
+        .offset(y: -(model.arcRadius + 245))
         .allowsHitTesting(false)
     }
 
@@ -110,6 +110,11 @@ struct CallLauncherOverlay: View {
             .spring(response: 0.34, dampingFraction: 0.78).delay(Double(index) * 0.05),
             value: model.isPresented
         )
+        .phaseAnimator([false, true]) { content, phase in
+            content.offset(y: phase ? -3 : 3)
+        } animation: { _ in
+            .easeInOut(duration: 2.7 + Double(index) * 0.32)
+        }
     }
 
     private func hint(_ text: String) -> some View {
@@ -137,27 +142,27 @@ struct CallLauncherOverlay: View {
                 let isFocused = model.focusedIndex == index
 
                 FanSector(
-                    innerRadius: 56,
+                    innerRadius: 34,
                     outerRadius: 178,
                     startAngle: angleRange.lowerBound,
                     endAngle: angleRange.upperBound
                 )
-                .fill(isFocused ? Color.greenLightActive.opacity(0.72) : Color.gray00.opacity(0.4))
+                .fill(isFocused ? Color.greenLightActive.opacity(0.38) : Color.gray00.opacity(0.18))
                 .overlay {
                     FanSector(
-                        innerRadius: 56,
+                        innerRadius: 34,
                         outerRadius: 178,
                         startAngle: angleRange.lowerBound,
                         endAngle: angleRange.upperBound
                     )
                     .stroke(
-                        isFocused ? Color.greenNormal.opacity(0.82) : Color.gray00.opacity(0.55),
-                        lineWidth: isFocused ? 1.5 : 1
+                        isFocused ? Color.greenNormal.opacity(0.45) : Color.gray00.opacity(0.32),
+                        lineWidth: 1
                     )
                 }
                 .contentShape(
                     FanSector(
-                        innerRadius: 56,
+                        innerRadius: 34,
                         outerRadius: 178,
                         startAngle: angleRange.lowerBound,
                         endAngle: angleRange.upperBound
