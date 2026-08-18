@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var navigationManager = NavigationManager()
+    @State private var callingContact: FamilyContact?
 
     var body: some View {
         NavigationStack(path: $navigationManager.path) {
@@ -22,6 +23,7 @@ struct HomeView: View {
                             NextCallCardView(
                                 contact: primaryContact,
                                 questions: viewModel.questions,
+                                onCallTap: { callingContact = primaryContact },
                                 onQuestionsTap: { navigationManager.push(Route.questionPreview) }
                             )
                         }
@@ -37,6 +39,11 @@ struct HomeView: View {
                 .scrollIndicators(.hidden)
             }
             .background(Color.gray50)
+            .fullScreenCover(item: $callingContact) { contact in
+                CallView(contact: contact, questions: viewModel.questions) {
+                    callingContact = nil
+                }
+            }
             .environment(\.navigationManager, navigationManager)
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -56,7 +63,7 @@ struct HomeView: View {
                 SectionHeaderView(title: "다른 가족")
 
                 ForEach(viewModel.otherContacts) { contact in
-                    FamilyContactRowView(contact: contact)
+                    FamilyContactRowView(contact: contact) { callingContact = contact }
                 }
             }
         }

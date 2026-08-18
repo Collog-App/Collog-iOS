@@ -1,5 +1,5 @@
 //
-//  TimelineView.swift
+//  ReportTimelineView.swift
 //  collog-ios
 //
 //  Created by dohyeoplim on 8/18/26.
@@ -7,7 +7,7 @@
 
 import SwiftUI
 
-struct TimelineView: View {
+struct ReportTimelineView: View {
     @State private var viewModel: TimelineViewModel
 
     init(initialTabIndex: Int = 1) {
@@ -59,5 +59,5 @@ struct TimelineView: View {
 }
 
 #Preview {
-    TimelineView()
+    ReportTimelineView()
 }

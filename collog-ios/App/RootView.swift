@@ -17,9 +17,9 @@ struct RootView: View {
                 case .home:
                     HomeView()
                 case .report:
-                    TimelineView(initialTabIndex: 0)
+                    ReportTimelineView(initialTabIndex: 0)
                 case .timeline:
-                    TimelineView(initialTabIndex: 1)
+                    ReportTimelineView(initialTabIndex: 1)
                 default:
                     ComingSoonView(title: tabManager.selectedTab.title)
                 }
