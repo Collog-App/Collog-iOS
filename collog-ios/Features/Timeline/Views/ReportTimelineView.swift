@@ -30,7 +30,8 @@ struct ReportTimelineView: View {
         return NavigationStack(path: $navigator.path) {
             CollapsingHeaderScrollView(
                 title: viewModel.title,
-                onRefresh: refresh
+                onRefresh: refresh,
+                scrollReset: tabManager.reselectionCount
             ) {
                 FilterChipView(label: viewModel.selectedMember)
             } content: {

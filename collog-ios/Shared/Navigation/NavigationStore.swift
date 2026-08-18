@@ -21,4 +21,8 @@ final class NavigationStore {
     func popToRoot(_ tab: MainTab) {
         managers[tab]?.popToRoot()
     }
+
+    func isAtRoot(_ tab: MainTab) -> Bool {
+        managers[tab]?.path.isEmpty ?? true
+    }
 }

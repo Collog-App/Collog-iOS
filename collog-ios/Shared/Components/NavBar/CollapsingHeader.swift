@@ -22,6 +22,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let trailing: Trailing
     private let content: Content
     private let onRefresh: (@MainActor @Sendable () async -> Void)?
+    private let scrollReset: Int
 
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
@@ -36,6 +37,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     init(
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
+        scrollReset: Int = 0,
         @ViewBuilder large: () -> Large,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
@@ -45,6 +47,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.trailing = trailing()
         self.content = content()
         self.onRefresh = onRefresh
+        self.scrollReset = scrollReset
     }
 
     private var collapseProgress: CGFloat {
@@ -61,39 +64,51 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     }
 
     private var contentScrollView: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                if isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(.gray700)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: refreshHoldHeight)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if isRefreshing {
+                        ProgressView()
+                            .controlSize(.small)
+                            .tint(.gray700)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: refreshHoldHeight)
+                            .transition(.opacity.combined(with: .move(edge: .top)))
+                    }
+
+                    large
+                        .padding(.horizontal, Spacing.x5)
+                        .padding(.top, Spacing.x2)
+                        .padding(.bottom, Spacing.x6)
+                        .opacity(1 - collapseProgress)
+
+                    content
                 }
-
-                large
-                    .padding(.horizontal, Spacing.x5)
-                    .padding(.top, Spacing.x2)
-                    .padding(.bottom, Spacing.x6)
-                    .opacity(1 - collapseProgress)
-
-                content
+                .padding(.top, barHeight)
+                .id(ScrollTarget.top)
             }
-            .padding(.top, barHeight)
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.always, axes: .vertical)
+            .onScrollGeometryChange(for: CGFloat.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top
+            } action: { _, offset in
+                scrollOffset = offset
+                updatePullDistance(offset)
+            }
+            .onScrollPhaseChange { oldPhase, newPhase in
+                guard oldPhase == .interacting, newPhase != .interacting else { return }
+                finishPull()
+            }
+            .onChange(of: scrollReset) {
+                withAnimation(.smooth(duration: 0.32)) {
+                    proxy.scrollTo(ScrollTarget.top, anchor: .top)
+                }
+            }
         }
-        .scrollIndicators(.hidden)
-        .scrollBounceBehavior(.always, axes: .vertical)
-        .onScrollGeometryChange(for: CGFloat.self) { geometry in
-            geometry.contentOffset.y + geometry.contentInsets.top
-        } action: { _, offset in
-            scrollOffset = offset
-            updatePullDistance(offset)
-        }
-        .onScrollPhaseChange { oldPhase, newPhase in
-            guard oldPhase == .interacting, newPhase != .interacting else { return }
-            finishPull()
-        }
+    }
+
+    private enum ScrollTarget {
+        case top
     }
 
     private func updatePullDistance(_ offset: CGFloat) {
@@ -151,12 +166,14 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
     init(
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
+        scrollReset: Int = 0,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
     ) {
         self.init(
             title: title,
             onRefresh: onRefresh,
+            scrollReset: scrollReset,
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
             content: content

@@ -163,8 +163,9 @@ struct RootView: View {
     }
 
     private func reselect(_ tab: MainTab) {
+        let isAtRoot = navigation.isAtRoot(tab)
         navigation.popToRoot(tab)
-        tabManager.reselect(tab)
+        if isAtRoot { tabManager.reselect(tab) }
     }
 
     private func startCall(_ contact: FamilyContact) {

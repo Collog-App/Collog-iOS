@@ -9,11 +9,15 @@ import SwiftUI
 
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(TabManager.self) private var tabManager
 
     var body: some View {
         @Bindable var settings = environment.settings
 
-        return CollapsingHeaderScrollView(title: "설정") {
+        return CollapsingHeaderScrollView(
+            title: "설정",
+            scrollReset: tabManager.reselectionCount
+        ) {
             EmptyView()
         } content: {
                 VStack(spacing: Spacing.x6) {
