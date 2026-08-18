@@ -48,7 +48,7 @@ final class CallCenter: NSObject {
     private var answeredCallIds: Set<String> = []
     private var pendingCapture: AudioCaptureOptions?
     private var analysisWriter: AnalysisPCMWriter?
-    private var analysisTrack: LocalAudioTrack?
+    private weak var analysisTrack: LocalAudioTrack?
     private var rawCaptureRequired = false
 
     private var isAudioSessionActive = false
