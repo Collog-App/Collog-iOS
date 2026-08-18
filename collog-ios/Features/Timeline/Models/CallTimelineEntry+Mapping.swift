@@ -67,7 +67,7 @@ extension CallTimelineEntry {
         guard let baseline, baseline.isReady, let median = baseline.median, median != 0 else { return nil }
         let delta = (value - median) / abs(median) * 100
         let trend: StatTrend = abs(delta) < 1 ? .flat : (delta > 0 ? .up : .down)
-        return StatNote(text: String(format: "평소 대비 %+.0f%%", delta), trend: trend)
+        return StatNote(text: String(format: "%.1f%%", abs(delta)), trend: trend)
     }
 
     private static func story(from extraction: ExtractionDTO?) -> String {

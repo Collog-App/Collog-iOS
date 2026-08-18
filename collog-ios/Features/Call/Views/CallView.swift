@@ -32,10 +32,15 @@ struct CallView: View {
                     .padding(.top, Spacing.x4)
             }
 
-            questionList
-                .padding(.top, Spacing.x8)
+            ScrollView {
+                questionList
+                    .padding(.top, Spacing.x8)
+                    .padding(.bottom, Spacing.x4)
+            }
+            .scrollIndicators(.hidden)
+            .scrollBounceBehavior(.basedOnSize)
 
-            Spacer(minLength: Spacing.x6)
+            Spacer(minLength: Spacing.x4)
 
             endButton
                 .padding(.bottom, Spacing.x8)

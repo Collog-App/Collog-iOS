@@ -44,10 +44,12 @@ final class TimelineViewModel {
                 .flatMap { TrendSeries(trend: $0, baseline: baselines["SPEECH_RATE"]) }
 
             report = WeeklyReport(dto: dto, trend: trend)
-            selectedMember = environment.session.user?.name ?? selectedMember
+            selectedMember = environment.family.contacts.first?.name
+                ?? environment.session.user?.name
+                ?? selectedMember
             week = TimelineWeek(
-                title: "\(dto.from) – \(dto.to)",
-                rangeText: "분석된 통화 \(dto.analyzedCallCount)건",
+                title: APIFormat.weekTitle(from: dto.from),
+                rangeText: APIFormat.shortRange(from: dto.from, to: dto.to),
                 entries: week.entries
             )
             isLiveData = true

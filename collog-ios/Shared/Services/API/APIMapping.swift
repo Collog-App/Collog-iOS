@@ -32,6 +32,21 @@ enum APIFormat {
     static func duration(seconds: Int) -> String {
         seconds >= 60 ? "\(seconds / 60)분 \(seconds % 60)초" : "\(seconds)초"
     }
+
+    static func weekTitle(from raw: String) -> String {
+        guard let date = isoDate.date(from: raw) else { return raw }
+        let calendar = Calendar(identifier: .gregorian)
+        let month = calendar.component(.month, from: date)
+        let week = calendar.component(.weekOfMonth, from: date)
+        return "\(month)월 \(week)주"
+    }
+
+    static func shortRange(from: String, to: String) -> String {
+        guard let start = isoDate.date(from: from), let end = isoDate.date(from: to) else {
+            return "\(from) – \(to)"
+        }
+        return "\(shortDate.string(from: start)) – \(shortDate.string(from: end))"
+    }
 }
 
 extension TrendSeries {
@@ -91,18 +106,8 @@ extension WeeklyReport {
             state: Self.state(from: dto.state),
             noticeText: dto.demoDataNotice ?? dto.emptyMessage,
             summaryStats: [
-                CallStat(
-                    label: "분석된 통화",
-                    value: "\(dto.analyzedCallCount)",
-                    unit: "건",
-                    note: StatNote(text: "\(dto.from) – \(dto.to)")
-                ),
-                CallStat(
-                    label: "기록된 대화",
-                    value: "\(itemCount)",
-                    unit: "개",
-                    note: StatNote(text: dto.advisory == nil ? "" : "확인 필요")
-                )
+                CallStat(label: "분석된 통화", value: "\(dto.analyzedCallCount)", unit: "건", note: nil),
+                CallStat(label: "기록된 대화", value: "\(itemCount)", unit: "개", note: nil)
             ],
             changeSignals: signals,
             conversationGroups: groups,
