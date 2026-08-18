@@ -12,12 +12,8 @@ struct DemoModeBanner: View {
 
     var body: some View {
         HStack(spacing: Spacing.x2) {
-            Circle()
-                .fill(Color.orange600)
-                .frame(width: 6, height: 6)
-
-            Text("체험 모드 · 예시 데이터예요")
-                .caption_01_medium(.gray800)
+            Text("DEMO")
+                .caption_01_semibold(.gray800)
 
             Spacer(minLength: Spacing.x2)
 
