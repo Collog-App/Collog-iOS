@@ -45,7 +45,7 @@ struct FamilyHealthOverviewView: View {
                 .caption_01_semibold(.green700)
 
             Text(summary.headline)
-                .headline_02(.gray900)
+                .subtitle_01(.gray900)
                 .fixedSize(horizontal: false, vertical: true)
 
             Text(summary.detail)

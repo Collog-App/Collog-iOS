@@ -32,7 +32,7 @@ struct HealthFeedbackDetailView: View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 Text(feedback.headline)
-                    .headline_02(.gray900)
+                    .subtitle_01(.gray900)
 
                 Text("최근 통화 기록을 가족과 함께 살펴보세요.")
                     .body_03_medium(.gray800)

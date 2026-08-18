@@ -47,7 +47,7 @@ struct HealthStatusCardView: View {
         VStack(alignment: .leading, spacing: Spacing.x3) {
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 Text(summary.headline)
-                    .headline_02(.gray900)
+                    .subtitle_01(.gray900)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(summary.detail)
