@@ -11,55 +11,60 @@ import SwiftUI
 final class TimelineViewModel {
     var selectedTabIndex: Int
 
-    private(set) var week: TimelineWeek = .sample
-    private(set) var report: WeeklyReport = .sample
+    private(set) var pages: [Int: TimelineWeekPage] = [:]
     private(set) var selectedMember = "어머니"
-    private(set) var isLoading = false
-    private(set) var loadError: String?
-    private(set) var isLiveData = false
     private(set) var weekOffset = 0
+    private(set) var loadError: String?
+
+    @ObservationIgnored private var baselines: [String: BaselineDTO] = [:]
+    @ObservationIgnored private var loading: Set<Int> = []
 
     var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
     var canGoForward: Bool { weekOffset < 0 }
 
+    var week: TimelineWeekPage { page(for: weekOffset) }
+
     init(selectedTabIndex: Int = 1) {
         self.selectedTabIndex = selectedTabIndex
+    }
+
+    func page(for offset: Int) -> TimelineWeekPage {
+        pages[offset] ?? TimelineWeekPage(offset: offset)
     }
 
     func setWeek(_ offset: Int) {
         guard offset <= 0 else { return }
         weekOffset = offset
-        applyWeekHeader()
-    }
-
-    private func applyWeekHeader() {
-        let bounds = Self.weekBounds(offset: weekOffset)
-        week = TimelineWeek(
-            title: Self.weekTitle(for: bounds.start),
-            rangeText: APIFormat.shortRange(
-                from: APIFormat.isoDate.string(from: bounds.start),
-                to: APIFormat.isoDate.string(from: bounds.end)
-            ),
-            entries: []
-        )
-        report = WeeklyReport.empty
-        isLiveData = false
     }
 
     func refresh(using environment: AppEnvironment) async {
-        let bounds = Self.weekBounds(offset: weekOffset)
-        applyWeekHeader()
-
         guard let parentId = await environment.subjectParentId() else { return }
-        isLoading = true
-        isLiveData = false
-        loadError = nil
-
         let api = environment.api
-        let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
-            .filter { $0.kind == "ROLLING" && $0.isReady }
-            .reduce(into: [String: BaselineDTO]()) { $0[$1.metric] = $1 }
+
+        if baselines.isEmpty {
+            baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
+                .filter { $0.kind == "ROLLING" && $0.isReady }
+                .reduce(into: [:]) { $0[$1.metric] = $1 }
+        }
+
+        selectedMember = environment.family.contacts.first?.name
+            ?? environment.session.user?.name
+            ?? selectedMember
+
+        let anchor = weekOffset
+        for offset in [anchor, anchor - 1, anchor + 1] where offset <= 0 {
+            await load(offset, parentId: parentId, api: api)
+        }
+    }
+
+    private func load(_ offset: Int, parentId: String, api: CollogAPI) async {
+        guard !loading.contains(offset), pages[offset]?.isLoaded != true else { return }
+        loading.insert(offset)
+        defer { loading.remove(offset) }
+
+        let bounds = TimelineWeekPage.bounds(offset: offset)
+        var page = TimelineWeekPage(offset: offset)
 
         do {
             let dto = try await api.report(
@@ -71,34 +76,30 @@ final class TimelineViewModel {
                 .first { $0.metric == "SPEECH_RATE" }
                 .flatMap { TrendSeries(trend: $0, baseline: baselines["SPEECH_RATE"]) }
 
-            report = WeeklyReport(dto: dto, trend: trend)
-            selectedMember = environment.family.contacts.first?.name
-                ?? environment.session.user?.name
-                ?? selectedMember
-            isLiveData = true
+            page.report = WeeklyReport(dto: dto, trend: trend)
         } catch {
             loadError = error.localizedDescription
         }
 
-        await loadEntries(parentId: parentId, api: api, baselines: baselines, bounds: bounds)
-        isLoading = false
+        page.entries = await entries(parentId: parentId, api: api, bounds: bounds)
+        page.isLoaded = true
+        pages[offset] = page
     }
 
-    private func loadEntries(
+    private func entries(
         parentId: String,
         api: CollogAPI,
-        baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
-    ) async {
+    ) async -> [CallTimelineEntry] {
         let calls = try? await api.calls(
             parentId: parentId,
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
         let analyzed = (calls ?? []).filter(\.isAnalyzed).prefix(5)
-        guard !analyzed.isEmpty else { return }
+        guard !analyzed.isEmpty else { return [] }
 
-        var entries: [CallTimelineEntry] = []
+        var result: [CallTimelineEntry] = []
         for call in analyzed {
             async let features = try? api.acousticFeatures(callId: call.callId)
             async let extraction = try? api.extraction(callId: call.callId)
@@ -110,28 +111,9 @@ final class TimelineViewModel {
                 extraction: extraction,
                 transcript: transcript
             )
-            entries.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
+            result.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
         }
 
-        week = TimelineWeek(title: week.title, rangeText: week.rangeText, entries: entries)
-    }
-
-    private static func weekBounds(offset: Int) -> (anchor: Date, start: Date, end: Date) {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.firstWeekday = 2
-
-        let today = calendar.startOfDay(for: Date())
-        let anchor = calendar.date(byAdding: .weekOfYear, value: offset, to: today) ?? today
-        let start = calendar.dateInterval(of: .weekOfYear, for: anchor)?.start ?? anchor
-        let end = calendar.date(byAdding: .day, value: 6, to: start) ?? anchor
-
-        return (anchor, start, end)
-    }
-
-    private static func weekTitle(for start: Date) -> String {
-        let calendar = Calendar(identifier: .gregorian)
-        let month = calendar.component(.month, from: start)
-        let week = calendar.component(.weekOfMonth, from: start)
-        return "\(month)월 \(week)주"
+        return result
     }
 }

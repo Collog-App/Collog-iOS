@@ -12,10 +12,10 @@ struct ReportTimelineView: View {
     @Environment(NavigationStore.self) private var navigation
 
     @State private var viewModel: TimelineViewModel
-    @State private var pagedOffset: Int?
+    @State private var pagedOffset: Int? = 0
 
     private let tab: MainTab
-    private let pageOffsets = Array((-25...0).reversed())
+    private let pageOffsets = Array(-25...0)
 
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
@@ -43,10 +43,7 @@ struct ReportTimelineView: View {
                 .padding(.bottom, Spacing.x8)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .task {
-                pagedOffset = viewModel.weekOffset
-                await viewModel.refresh(using: environment)
-            }
+            .task { await viewModel.refresh(using: environment) }
         }
     }
 
@@ -54,7 +51,7 @@ struct ReportTimelineView: View {
         ScrollView(.horizontal) {
             LazyHStack(spacing: 0) {
                 ForEach(pageOffsets, id: \.self) { offset in
-                    page(for: offset)
+                    pageView(for: offset)
                         .containerRelativeFrame(.horizontal)
                 }
             }
@@ -62,48 +59,55 @@ struct ReportTimelineView: View {
         }
         .scrollTargetBehavior(.paging)
         .scrollIndicators(.hidden)
+        .defaultScrollAnchor(.trailing)
         .scrollPosition(id: $pagedOffset)
         .onChange(of: pagedOffset) { _, newValue in
             guard let newValue, newValue != viewModel.weekOffset else { return }
-            Haptics.press()
+            Haptics.focus()
             viewModel.setWeek(newValue)
             Task { await viewModel.refresh(using: environment) }
         }
     }
 
     @ViewBuilder
-    private func page(for offset: Int) -> some View {
+    private func pageView(for offset: Int) -> some View {
         Group {
-            if offset == viewModel.weekOffset {
-                weekContent
+            if abs(offset - viewModel.weekOffset) <= 1 {
+                let page = viewModel.page(for: offset)
+
+                if page.isLoaded {
+                    weekContent(page)
+                } else {
+                    loadingContent
+                }
             } else {
                 Color.clear
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 360, alignment: .top)
+        .frame(maxWidth: .infinity, minHeight: 340, alignment: .top)
     }
 
     private func move(by delta: Int) {
         let target = viewModel.weekOffset + delta
         guard pageOffsets.contains(target) else { return }
 
-        withAnimation(.easeInOut(duration: 0.3)) {
+        withAnimation(.smooth(duration: 0.32)) {
             pagedOffset = target
         }
     }
 
     @ViewBuilder
-    private var weekContent: some View {
+    private func weekContent(_ page: TimelineWeekPage) -> some View {
         if viewModel.selectedTabIndex == 1 {
-            timelineEntries
+            timelineEntries(page)
         } else {
-            reportContent
+            reportContent(page)
         }
     }
 
     @ViewBuilder
-    private var reportContent: some View {
-        if viewModel.isLiveData, viewModel.report.summaryStats.isEmpty {
+    private func reportContent(_ page: TimelineWeekPage) -> some View {
+        if page.report.summaryStats.isEmpty {
             EmptyStateView(
                 symbol: "doc.text.magnifyingglass",
                 title: "이번 주 리포트가 아직 없어요",
@@ -111,15 +115,15 @@ struct ReportTimelineView: View {
             )
             .padding(.top, Spacing.x6)
         } else {
-            ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
+            ReportContentView(report: page.report, isLoaded: true)
                 .padding(.horizontal, Spacing.x5)
                 .padding(.top, Spacing.x2)
         }
     }
 
     @ViewBuilder
-    private var timelineEntries: some View {
-        if viewModel.week.entries.isEmpty {
+    private func timelineEntries(_ page: TimelineWeekPage) -> some View {
+        if page.entries.isEmpty {
             EmptyStateView(
                 symbol: "phone.badge.waveform",
                 title: "이번 주에는 분석된 통화가 없어요",
@@ -128,7 +132,7 @@ struct ReportTimelineView: View {
             .padding(.top, Spacing.x6)
         } else {
             VStack(spacing: 0) {
-                ForEach(viewModel.week.entries) { entry in
+                ForEach(page.entries) { entry in
                     CallTimelineDateHeader(entry: entry)
 
                     CallTimelineCardView(entry: entry)
@@ -137,6 +141,18 @@ struct ReportTimelineView: View {
                 }
             }
         }
+    }
+
+    private var loadingContent: some View {
+        VStack(spacing: Spacing.x4) {
+            ForEach(0..<2, id: \.self) { _ in
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .fill(Color.gray100)
+                    .frame(height: 148)
+            }
+        }
+        .padding(.horizontal, Spacing.x5)
+        .padding(.top, Spacing.x4)
     }
 }
 

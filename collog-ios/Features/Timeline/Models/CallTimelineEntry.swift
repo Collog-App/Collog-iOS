@@ -18,12 +18,6 @@ struct CallTimelineEntry: Identifiable {
     let counts: [CallStat]
 }
 
-struct TimelineWeek {
-    let title: String
-    let rangeText: String
-    let entries: [CallTimelineEntry]
-}
-
 extension CallTimelineEntry {
     static let sample = CallTimelineEntry(
         dateText: "8월 14일 금요일",
@@ -48,13 +42,5 @@ extension CallTimelineEntry {
             CallStat(label: "되물으심", value: "2", unit: "회", note: StatNote(text: "평소 1회")),
             CallStat(label: "웃음", value: "6", unit: "회", note: StatNote(text: "평소 6회"))
         ]
-    )
-}
-
-extension TimelineWeek {
-    static let sample = TimelineWeek(
-        title: "8월 3주",
-        rangeText: "8/10 ~ 8/16",
-        entries: [.sample]
     )
 }
