@@ -63,6 +63,7 @@ struct CollapsingHeaderScrollView<Trailing: View, Content: View>: View {
         .frame(maxWidth: .infinity)
         .background {
             Color.gray50
+                .ignoresSafeArea(edges: .top)
                 .overlay(alignment: .bottom) {
                     Rectangle()
                         .fill(Color.gray200)

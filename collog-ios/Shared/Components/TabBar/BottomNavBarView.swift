@@ -32,6 +32,7 @@ struct BottomNavBarView: View {
         .frame(maxWidth: .infinity)
         .background(alignment: .top) {
             Color.gray00
+                .ignoresSafeArea(edges: .bottom)
                 .overlay(alignment: .top) {
                     Rectangle()
                         .fill(Color.gray200)
