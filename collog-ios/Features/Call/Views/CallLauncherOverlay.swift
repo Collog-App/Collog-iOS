@@ -22,7 +22,7 @@ struct CallLauncherOverlay: View {
                 .onTapGesture { onDismiss() }
 
             RadialGradient(
-                colors: [Color.greenNormal.opacity(0.30), Color.greenNormal.opacity(0)],
+                colors: [Color.greenNormal.opacity(0.14), Color.greenNormal.opacity(0)],
                 center: .center,
                 startRadius: 8,
                 endRadius: 300

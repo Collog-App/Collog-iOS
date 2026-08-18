@@ -46,6 +46,7 @@ struct ReportTimelineView: View {
                                 removal: .move(edge: pushFromLeading ? .trailing : .leading)
                             )
                         )
+                        .frame(maxWidth: .infinity, minHeight: 360, alignment: .top)
                         .offset(x: dragTranslation)
                 }
                 .padding(.bottom, Spacing.x8)
@@ -82,10 +83,10 @@ struct ReportTimelineView: View {
 
     private func changeWeek(by delta: Int) {
         pushFromLeading = delta < 0
-        dragTranslation = 0
 
-        let moved = withAnimation(.easeOut(duration: 0.24)) {
-            viewModel.moveWeek(delta)
+        let moved = withAnimation(.easeOut(duration: 0.26)) { () -> Bool in
+            dragTranslation = 0
+            return viewModel.moveWeek(delta)
         }
         guard moved else { return }
 
