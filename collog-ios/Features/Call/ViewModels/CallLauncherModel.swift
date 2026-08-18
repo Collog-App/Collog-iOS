@@ -70,26 +70,27 @@ final class CallLauncherModel {
         }
 
         let selected = focusedIndex.flatMap { targets.indices.contains($0) ? targets[$0] : nil }
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
-            mode = .idle
+        guard let selected else {
+            withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) {
+                mode = .sticky
+            }
+            focusedIndex = nil
+            didActivateByHold = false
+            Haptics.blur()
+            return nil
         }
+
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
-
-        if selected != nil {
-            Haptics.commit()
-        } else {
-            Haptics.cancel()
-        }
+        Haptics.commit()
         return selected
     }
 
     func select(_ index: Int) -> FamilyContact? {
         guard targets.indices.contains(index) else { return nil }
         Haptics.commit()
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
-            mode = .idle
-        }
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         return targets[index]
     }
@@ -98,18 +99,28 @@ final class CallLauncherModel {
         activationTask?.cancel()
         activationTask = nil
         if mode != .idle { Haptics.cancel() }
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-            mode = .idle
-        }
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
     }
 
     func offset(for index: Int) -> CGSize {
+        let radians = angle(for: index) * .pi / 180
+        return CGSize(width: cos(radians) * arcRadius, height: sin(radians) * arcRadius)
+    }
+
+    func angleRange(for index: Int) -> ClosedRange<Double> {
+        let count = max(targets.count, 1)
+        let step = count == 1 ? 56 : abs(endAngle - startAngle) / Double(count - 1)
+        let halfWidth = min(step / 2, 32)
+        let center = angle(for: index)
+        return (center - halfWidth)...(center + halfWidth)
+    }
+
+    private func angle(for index: Int) -> Double {
         let count = max(targets.count, 1)
         let ratio = count == 1 ? 0.5 : Double(index) / Double(count - 1)
-        let radians = (startAngle + (endAngle - startAngle) * ratio) * .pi / 180
-        return CGSize(width: cos(radians) * arcRadius, height: sin(radians) * arcRadius)
+        return startAngle + (endAngle - startAngle) * ratio
     }
 
     private func activateHold() {

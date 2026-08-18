@@ -121,10 +121,42 @@ struct CallLauncherOverlay: View {
 
     private var targetFan: some View {
         ZStack {
+            fanZones
+
             ForEach(Array(model.targets.enumerated()), id: \.element.id) { index, contact in
                 targetBubble(contact, index: index)
             }
         }
+    }
+
+    private var fanZones: some View {
+        ZStack {
+            ForEach(model.targets.indices, id: \.self) { index in
+                let angleRange = model.angleRange(for: index)
+                let isFocused = model.focusedIndex == index
+
+                FanSector(
+                    innerRadius: 56,
+                    outerRadius: 178,
+                    startAngle: angleRange.lowerBound,
+                    endAngle: angleRange.upperBound
+                )
+                .fill(isFocused ? Color.greenNormal.opacity(0.18) : Color.gray00.opacity(0.4))
+                .overlay {
+                    FanSector(
+                        innerRadius: 56,
+                        outerRadius: 178,
+                        startAngle: angleRange.lowerBound,
+                        endAngle: angleRange.upperBound
+                    )
+                    .stroke(Color.gray00.opacity(isFocused ? 0.9 : 0.55), lineWidth: 1)
+                }
+                .animation(.easeOut(duration: 0.14), value: isFocused)
+            }
+        }
+        .frame(width: 356, height: 356)
+        .opacity(model.mode == .dragging ? 1 : 0.78)
+        .transition(.scale(scale: 0.82, anchor: .bottom).combined(with: .opacity))
     }
 
     private func targetBubble(_ contact: FamilyContact, index: Int) -> some View {
@@ -147,12 +179,50 @@ struct CallLauncherOverlay: View {
         .offset(model.offset(for: index))
         .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isFocused)
         .animation(
-            .spring(response: 0.36, dampingFraction: 0.74).delay(Double(index) * 0.04),
+            .spring(response: 0.3, dampingFraction: 0.8)
+                .delay(model.isPresented ? Double(index) * 0.04 : 0),
             value: model.isPresented
         )
         .contentShape(Circle())
         .onTapGesture { onSelect(index) }
         .allowsHitTesting(model.mode == .sticky)
+    }
+}
+
+private struct FanSector: Shape {
+    let innerRadius: CGFloat
+    let outerRadius: CGFloat
+    let startAngle: Double
+    let endAngle: Double
+
+    func path(in rect: CGRect) -> Path {
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let steps = 32
+        var path = Path()
+
+        for step in 0...steps {
+            let progress = Double(step) / Double(steps)
+            let angle = startAngle + (endAngle - startAngle) * progress
+            let point = point(center: center, radius: outerRadius, angle: angle)
+            if step == 0 { path.move(to: point) } else { path.addLine(to: point) }
+        }
+
+        for step in (0...steps).reversed() {
+            let progress = Double(step) / Double(steps)
+            let angle = startAngle + (endAngle - startAngle) * progress
+            path.addLine(to: point(center: center, radius: innerRadius, angle: angle))
+        }
+
+        path.closeSubpath()
+        return path
+    }
+
+    private func point(center: CGPoint, radius: CGFloat, angle: Double) -> CGPoint {
+        let radians = angle * .pi / 180
+        return CGPoint(
+            x: center.x + cos(radians) * radius,
+            y: center.y + sin(radians) * radius
+        )
     }
 }
 

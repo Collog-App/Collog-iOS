@@ -46,8 +46,8 @@ struct BottomNavBarView: View {
                             .frame(height: 1)
                     }
             }
-            .offset(y: launcher.mode == .dragging ? Self.barHeight + Spacing.x8 : 0)
-            .animation(.spring(response: 0.38, dampingFraction: 0.84), value: launcher.mode)
+            .offset(y: launcher.isPresented ? Self.barHeight + Spacing.x8 : 0)
+            .animation(.spring(response: 0.24, dampingFraction: 0.9), value: launcher.isPresented)
 
             callButton
         }
