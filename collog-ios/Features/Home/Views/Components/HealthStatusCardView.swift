@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HealthStatusCardView: View {
     let summary: FamilyHealthSummary
+    var isLoaded = true
     var onTap: () -> Void = {}
 
     var body: some View {
@@ -23,7 +24,13 @@ struct HealthStatusCardView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            TrendChartView(series: summary.trend)
+            if isLoaded {
+                TrendChartView(series: summary.trend)
+            } else {
+                RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
+                    .fill(Color.gray100)
+                    .frame(height: 132)
+            }
 
             DividerLine()
 

@@ -50,7 +50,7 @@ struct ReportTimelineView: View {
         if viewModel.selectedTabIndex == 1 {
             timelineEntries
         } else {
-            ReportContentView(report: viewModel.report)
+            ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
                 .padding(.horizontal, Spacing.x5)
                 .padding(.top, Spacing.x2)
         }

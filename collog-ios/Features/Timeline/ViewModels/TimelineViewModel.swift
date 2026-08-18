@@ -27,6 +27,7 @@ final class TimelineViewModel {
     func refresh(using environment: AppEnvironment) async {
         guard let parentId = await environment.subjectParentId() else { return }
         isLoading = true
+        isLiveData = false
         loadError = nil
 
         let api = environment.api

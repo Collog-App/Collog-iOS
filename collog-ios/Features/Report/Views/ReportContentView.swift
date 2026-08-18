@@ -9,6 +9,7 @@ import SwiftUI
 
 struct ReportContentView: View {
     let report: WeeklyReport
+    var isLoaded = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.x3) {
@@ -24,7 +25,14 @@ struct ReportContentView: View {
             VStack(alignment: .leading, spacing: Spacing.x4) {
                 Text("음향 추세")
                     .caption_01_medium(.gray800)
-                TrendChartView(series: report.acousticTrend)
+
+                if isLoaded {
+                    TrendChartView(series: report.acousticTrend)
+                } else {
+                    RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
+                        .fill(Color.gray100)
+                        .frame(height: 132)
+                }
             }
             .cardSurface()
 

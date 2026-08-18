@@ -37,7 +37,7 @@ struct HomeView: View {
                         )
 
                         VStack(alignment: .leading, spacing: Spacing.x8) {
-                            HealthStatusCardView(summary: viewModel.healthSummary) {
+                            HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
                                 navigation.manager(for: .home).push(Route.familyHealthOverview)
                             }
 
