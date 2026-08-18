@@ -66,12 +66,8 @@ struct HomeNotificationsView: View {
         time: String
     ) -> some View {
         HStack(alignment: .top, spacing: Spacing.x3) {
-            RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
-                .fill(Color.greenLight)
-                .frame(width: 40, height: 40)
-                .overlay {
-                    Icon(name: symbol, size: 18, color: .green700)
-                }
+            Icon(name: symbol, size: 20, color: .gray800)
+                .frame(width: 28)
 
             VStack(alignment: .leading, spacing: Spacing.x1) {
                 HStack(alignment: .firstTextBaseline) {

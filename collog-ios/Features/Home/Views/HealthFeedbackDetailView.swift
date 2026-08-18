@@ -30,13 +30,6 @@ struct HealthFeedbackDetailView: View {
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
-            RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
-                .fill(Color.orangeLight)
-                .frame(width: 44, height: 44)
-                .overlay {
-                    Icon(name: "lightbulb.max", size: 20, color: .orange600)
-                }
-
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 Text(feedback.headline)
                     .headline_02(.gray900)

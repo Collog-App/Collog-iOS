@@ -78,14 +78,8 @@ struct HomeView: View {
                         )
                 case .notifications:
                     HomeNotificationsView()
-                        .navigationTransition(
-                            .zoom(sourceID: Route.notifications, in: detailTransition)
-                        )
                 case .homeMenu:
                     HomeMenuView(contact: selectedContact)
-                        .navigationTransition(
-                            .zoom(sourceID: Route.homeMenu, in: detailTransition)
-                        )
                 }
             }
         }
@@ -128,7 +122,6 @@ struct HomeView: View {
                     }
             }
             .buttonStyle(.plain)
-            .matchedTransitionSource(id: Route.notifications, in: detailTransition)
 
             Button {
                 navigation.manager(for: .home).push(Route.homeMenu)
@@ -137,7 +130,6 @@ struct HomeView: View {
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
-            .matchedTransitionSource(id: Route.homeMenu, in: detailTransition)
         }
     }
 
