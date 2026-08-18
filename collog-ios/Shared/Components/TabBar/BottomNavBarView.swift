@@ -20,27 +20,39 @@ struct BottomNavBarView: View {
     @State private var isPressing = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            tabButton(.home)
-            tabButton(.report)
+        ZStack {
+            HStack(spacing: 0) {
+                tabButton(.home)
+                tabButton(.report)
+                Color.clear
+                    .frame(maxWidth: .infinity)
+                tabButton(.timeline)
+                tabButton(.settings)
+            }
+            .padding(.horizontal, Spacing.x3)
+            .frame(height: Self.barHeight)
+            .frame(maxWidth: .infinity)
+            .background(alignment: .top) {
+                Rectangle()
+                    .fill(.thinMaterial)
+                    .ignoresSafeArea(edges: .bottom)
+                    .overlay {
+                        Color.gray00.opacity(0.72)
+                            .ignoresSafeArea(edges: .bottom)
+                    }
+                    .overlay(alignment: .top) {
+                        Rectangle()
+                            .fill(Color.gray200)
+                            .frame(height: 1)
+                    }
+            }
+            .offset(y: launcher.mode == .dragging ? Self.barHeight + Spacing.x8 : 0)
+            .animation(.spring(response: 0.38, dampingFraction: 0.84), value: launcher.mode)
+
             callButton
-            tabButton(.timeline)
-            tabButton(.settings)
         }
-        .padding(.horizontal, Spacing.x3)
         .frame(height: Self.barHeight)
         .frame(maxWidth: .infinity)
-        .background(alignment: .top) {
-            Color.gray00
-                .ignoresSafeArea(edges: .bottom)
-                .overlay(alignment: .top) {
-                    Rectangle()
-                        .fill(Color.gray200)
-                        .frame(height: 1)
-                }
-        }
-        .offset(y: launcher.mode == .dragging ? Self.barHeight + Spacing.x8 : 0)
-        .animation(.spring(response: 0.38, dampingFraction: 0.84), value: launcher.mode)
     }
 
     private func tabButton(_ tab: MainTab) -> some View {
