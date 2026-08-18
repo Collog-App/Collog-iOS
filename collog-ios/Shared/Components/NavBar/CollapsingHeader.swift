@@ -24,6 +24,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let onRefresh: (@MainActor @Sendable () async -> Void)?
 
     @State private var scrollOffset: CGFloat = 0
+    @State private var isRefreshing = false
 
     private let collapseDistance: CGFloat = 44
     private let barHeight: CGFloat = 52
@@ -60,6 +61,8 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         if let onRefresh {
             contentScrollView
                 .refreshable {
+                    isRefreshing = true
+                    defer { isRefreshing = false }
                     await onRefresh()
                 }
         } else {
@@ -95,6 +98,12 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
                 .opacity(collapseProgress)
 
             Spacer(minLength: Spacing.x2)
+
+            if isRefreshing {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(.gray700)
+            }
 
             trailing
         }
