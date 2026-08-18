@@ -17,6 +17,18 @@ struct ConsentDocument: Decodable {
     let requiredItems: [String]
 }
 
+enum ConsentItemLabel {
+    static func korean(for code: String) -> String {
+        switch code {
+        case "SENSITIVE_HEALTH_COLLECTION": "건강 민감정보 수집·이용"
+        case "VOICE_FEATURE_EXTRACTION": "음성 특징값 추출"
+        case "CALL_RECORDING": "통화 녹음과 분석"
+        case "REPORT_SHARING_WITH_CHILD": "자녀와 리포트 공유"
+        default: code
+        }
+    }
+}
+
 struct ConsentRecordDTO: Decodable {
     let consentId: String
     let userId: String

@@ -47,7 +47,7 @@ final class HomeViewModel {
         }
 
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
-            .filter { $0.kind == "ROLLING" }
+            .filter { $0.kind == "ROLLING" && $0.isReady }
             .reduce(into: [String: BaselineDTO]()) { $0[$1.metric] = $1 }
 
         guard let dto = try? await api.report(parentId: parentId) else { return }

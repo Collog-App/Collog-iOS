@@ -16,7 +16,7 @@ struct CollogAPIClient {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let raw = try decoder.singleValueContainer().decode(String.self)
-            guard let date = ISO8601DateFormatter.collog.date(from: raw) else {
+            guard let date = Date.fromCollogTimestamp(raw) else {
                 throw APIError.decoding(raw)
             }
             return date
@@ -119,4 +119,24 @@ extension ISO8601DateFormatter {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
     }()
+
+    static let collogWholeSecond: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+}
+
+extension Date {
+    static func fromCollogTimestamp(_ raw: String) -> Date? {
+        let normalized = hasTimeZone(raw) ? raw : raw + "Z"
+        return ISO8601DateFormatter.collog.date(from: normalized)
+            ?? ISO8601DateFormatter.collogWholeSecond.date(from: normalized)
+    }
+
+    private static func hasTimeZone(_ raw: String) -> Bool {
+        guard let timeStart = raw.firstIndex(of: "T") else { return false }
+        let time = raw[timeStart...]
+        return time.hasSuffix("Z") || time.contains("+") || time.dropFirst().contains("-")
+    }
 }

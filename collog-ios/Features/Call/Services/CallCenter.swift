@@ -281,7 +281,7 @@ extension CallCenter: PKPushRegistryDelegate {
                 return
             }
             if let expiresAt = call["expiresAt"] as? String,
-               let expiry = ISO8601DateFormatter.collog.date(from: expiresAt),
+               let expiry = Date.fromCollogTimestamp(expiresAt),
                expiry < Date() {
                 log("만료된 push 무시: \(callId)")
                 reportAndImmediatelyEnd(uuid: uuid, completion: completion)

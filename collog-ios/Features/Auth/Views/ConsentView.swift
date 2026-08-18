@@ -124,7 +124,7 @@ struct ConsentView: View {
                     .fill(agreedItems.contains(item) ? Color.greenNormal : Color.gray400)
                     .frame(width: 20, height: 20)
 
-                Text(item)
+                Text(ConsentItemLabel.korean(for: item))
                     .body_02_medium(.gray900)
                     .fixedSize(horizontal: false, vertical: true)
 

@@ -31,7 +31,7 @@ final class TimelineViewModel {
 
         let api = environment.api
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
-            .filter { $0.kind == "ROLLING" }
+            .filter { $0.kind == "ROLLING" && $0.isReady }
             .reduce(into: [String: BaselineDTO]()) { result, item in
                 result[item.metric] = item
             }
