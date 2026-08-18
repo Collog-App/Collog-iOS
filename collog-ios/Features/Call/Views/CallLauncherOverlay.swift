@@ -48,7 +48,7 @@ struct CallLauncherOverlay: View {
                 }
             }
         }
-        .frame(maxWidth: 300, alignment: .leading)
+        .frame(maxWidth: 300)
         .offset(y: -(model.arcRadius + 130))
         .allowsHitTesting(false)
     }
