@@ -21,10 +21,12 @@ final class CallLauncherModel {
     private(set) var focusedIndex: Int?
     private(set) var targets: [FamilyContact] = []
     private(set) var questions: [String] = []
+    private(set) var showsHoldHint = false
 
     var isPresented: Bool { mode != .idle }
 
     private var activationTask: Task<Void, Never>?
+    private var hintTask: Task<Void, Never>?
     private var didActivateByHold = false
 
     private let holdDuration: Duration = .milliseconds(280)
@@ -40,6 +42,7 @@ final class CallLauncherModel {
 
     func pressBegan() {
         guard mode != .sticky else { return }
+        hideHoldHint()
         Haptics.prepare()
         Haptics.press()
         didActivateByHold = false
@@ -61,9 +64,7 @@ final class CallLauncherModel {
         activationTask = nil
 
         guard didActivateByHold else {
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-                mode = mode == .sticky ? .idle : .sticky
-            }
+            showHoldHint()
             focusedIndex = nil
             return nil
         }
@@ -97,6 +98,7 @@ final class CallLauncherModel {
     func dismiss() {
         activationTask?.cancel()
         activationTask = nil
+        hideHoldHint()
         if mode != .idle { Haptics.cancel() }
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
@@ -128,6 +130,28 @@ final class CallLauncherModel {
         withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { mode = .dragging }
         didActivateByHold = true
         Haptics.open()
+    }
+
+    private func showHoldHint() {
+        hintTask?.cancel()
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
+            showsHoldHint = true
+        }
+        hintTask = Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(1600))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.18)) {
+                self?.showsHoldHint = false
+            }
+        }
+    }
+
+    private func hideHoldHint() {
+        hintTask?.cancel()
+        hintTask = nil
+        if showsHoldHint {
+            withAnimation(.easeOut(duration: 0.12)) { showsHoldHint = false }
+        }
     }
 
     private func updateFocus(for translation: CGSize) {

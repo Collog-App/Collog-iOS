@@ -147,7 +147,7 @@ struct CallLauncherOverlay: View {
                     startAngle: angleRange.lowerBound,
                     endAngle: angleRange.upperBound
                 )
-                .fill(isFocused ? Color.greenLightActive.opacity(0.38) : Color.gray00.opacity(0.18))
+                .fill(isFocused ? Color.greenLightActive.opacity(0.28) : Color.gray00.opacity(0.16))
                 .overlay {
                     FanSector(
                         innerRadius: 34,
@@ -156,8 +156,8 @@ struct CallLauncherOverlay: View {
                         endAngle: angleRange.upperBound
                     )
                     .stroke(
-                        isFocused ? Color.greenNormal.opacity(0.45) : Color.gray00.opacity(0.32),
-                        lineWidth: 1
+                        Color.gray00.opacity(isFocused ? 0.42 : 0.28),
+                        lineWidth: 0.75
                     )
                 }
                 .contentShape(
@@ -170,7 +170,8 @@ struct CallLauncherOverlay: View {
                 )
                 .onTapGesture { onSelect(index) }
                 .allowsHitTesting(model.mode == .sticky)
-                .animation(.easeOut(duration: 0.14), value: isFocused)
+                .scaleEffect(isFocused ? 1.025 : 1, anchor: .bottom)
+                .animation(.spring(response: 0.2, dampingFraction: 0.88), value: isFocused)
             }
         }
         .frame(width: 356, height: 356)
@@ -187,16 +188,16 @@ struct CallLauncherOverlay: View {
                 .frame(width: 56, height: 56)
                 .overlay(
                     Circle()
-                        .stroke(Color.greenNormal, lineWidth: isFocused ? 3 : 0)
+                        .stroke(Color.greenNormal.opacity(0.55), lineWidth: isFocused ? 1.5 : 0)
                 )
-                .shadow(color: .black.opacity(isFocused ? 0.16 : 0.08), radius: isFocused ? 16 : 8, y: 4)
-                .scaleEffect(isFocused ? 1.16 : 1)
+                .shadow(color: .black.opacity(isFocused ? 0.12 : 0.07), radius: isFocused ? 12 : 8, y: 4)
+                .scaleEffect(isFocused ? 1.06 : 1)
 
             Text(contact.name)
                 .caption_01_semibold(isFocused ? .gray900 : .gray800)
         }
         .offset(model.offset(for: index))
-        .animation(.spring(response: 0.28, dampingFraction: 0.72), value: isFocused)
+        .animation(.spring(response: 0.2, dampingFraction: 0.88), value: isFocused)
         .animation(
             .spring(response: 0.3, dampingFraction: 0.8)
                 .delay(model.isPresented ? Double(index) * 0.04 : 0),
