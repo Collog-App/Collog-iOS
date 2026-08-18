@@ -21,6 +21,8 @@ struct CallLauncherOverlay: View {
                 .ignoresSafeArea()
                 .onTapGesture { onDismiss() }
 
+            ambientGradient
+
             RadialGradient(
                 colors: [Color.greenNormal.opacity(0.14), Color.greenNormal.opacity(0)],
                 center: .center,
@@ -39,6 +41,30 @@ struct CallLauncherOverlay: View {
         }
         .transition(.opacity)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: model.isPresented)
+    }
+
+    private var ambientGradient: some View {
+        ZStack {
+            Circle()
+                .fill(Color.greenNormal.opacity(0.14))
+                .frame(width: 360, height: 360)
+                .blur(radius: 70)
+                .offset(x: -120, y: 160)
+
+            Circle()
+                .fill(Color.greenLightActive.opacity(0.24))
+                .frame(width: 300, height: 300)
+                .blur(radius: 64)
+                .offset(x: 140, y: -100)
+        }
+        .phaseAnimator([false, true]) { content, phase in
+            content
+                .rotationEffect(.degrees(phase ? 7 : -5))
+                .scaleEffect(phase ? 1.06 : 0.96)
+        } animation: { _ in
+            .easeInOut(duration: 3.8)
+        }
+        .allowsHitTesting(false)
     }
 
     private var questionStack: some View {

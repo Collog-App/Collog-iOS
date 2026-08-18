@@ -39,6 +39,8 @@ struct BottomNavBarView: View {
                         .frame(height: 1)
                 }
         }
+        .offset(y: launcher.mode == .dragging ? Self.barHeight + Spacing.x8 : 0)
+        .animation(.spring(response: 0.38, dampingFraction: 0.84), value: launcher.mode)
     }
 
     private func tabButton(_ tab: MainTab) -> some View {
@@ -89,7 +91,10 @@ struct BottomNavBarView: View {
         .contentShape(Circle())
         .gesture(pressGesture)
         .accessibilityLabel("가족에게 전화")
-        .accessibilityHint("길게 누른 채 원하는 가족으로 손가락을 옮긴 뒤 떼면 전화를 걸어요")
+        .accessibilityHint(
+            "길게 누른 채 원하는 가족으로 "
+            + "손가락을 옮긴 뒤 떼면 전화를 걸어요"
+        )
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: scale)
     }
 
