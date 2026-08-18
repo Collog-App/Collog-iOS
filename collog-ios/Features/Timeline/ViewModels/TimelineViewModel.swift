@@ -18,7 +18,7 @@ final class TimelineViewModel {
     private(set) var loadError: String?
     private(set) var isLiveData = false
 
-    let tabTitles = ["리포트", "타임라인"]
+    var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
     init(selectedTabIndex: Int = 1) {
         self.selectedTabIndex = selectedTabIndex

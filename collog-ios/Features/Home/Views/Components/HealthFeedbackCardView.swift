@@ -13,7 +13,7 @@ struct HealthFeedbackCardView: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: Spacing.x3) {
-            AssetPlaceholder(size: 14)
+            Icon(name: "cross.case.fill", size: 15, color: .gray00)
                 .frame(width: IconSize.chip, height: IconSize.chip)
                 .background(Color.greenNormal, in: RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous))
 
@@ -31,7 +31,7 @@ struct HealthFeedbackCardView: View {
             Spacer(minLength: Spacing.x2)
 
             Button(action: onMoreTap) {
-                AssetPlaceholder(size: IconSize.small)
+                Icon(name: "ellipsis", size: IconSize.small, color: .gray600)
             }
             .buttonStyle(.plain)
         }

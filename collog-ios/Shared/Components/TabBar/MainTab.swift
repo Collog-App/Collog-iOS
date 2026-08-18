@@ -23,4 +23,13 @@ enum MainTab: String, CaseIterable, Identifiable {
         case .settings: "설정"
         }
     }
+
+    var symbol: String {
+        switch self {
+        case .home: "house.fill"
+        case .report: "doc.text.fill"
+        case .timeline: "chart.xyaxis.line"
+        case .settings: "gearshape.fill"
+        }
+    }
 }

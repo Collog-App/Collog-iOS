@@ -44,7 +44,7 @@ struct NextCallCardView: View {
                             HStack(spacing: Spacing.x1) {
                                 Text("질문 \(questions.count - 1)개 더 보기")
                                     .caption_01_medium(.gray700)
-                                AssetPlaceholder(size: 12)
+                                Icon(name: "chevron.right", size: 12, color: .gray600)
                             }
                         }
                     }
@@ -57,7 +57,7 @@ struct NextCallCardView: View {
 
             Button(action: onCallTap) {
                 HStack(spacing: Spacing.x2) {
-                    AssetPlaceholder(size: 18)
+                    Icon(name: "phone.fill", size: 18, weight: .semibold, color: .gray00)
                     Text("전화 걸기")
                         .body_01_semibold(.gray00)
                 }

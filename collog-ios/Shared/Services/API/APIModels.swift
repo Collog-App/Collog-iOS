@@ -30,6 +30,14 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
 
     var id: String { memberId }
     var isCallable: Bool { userId != nil }
+
+    var relationTitle: String {
+        switch relation {
+        case "MOTHER": "어머니"
+        case "FATHER": "아버지"
+        default: name
+        }
+    }
 }
 
 struct FamilyMembersResponse: Decodable {

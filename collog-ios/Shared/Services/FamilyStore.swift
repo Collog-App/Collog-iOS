@@ -20,7 +20,7 @@ final class FamilyStore {
         do {
             let members = try await environment.api.members(familyId: familyId).filter(\.isCallable)
             if !members.isEmpty {
-                contacts = members.map { FamilyContact(member: $0, lastCallText: "") }
+                contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
             }
             loadError = nil
         } catch {

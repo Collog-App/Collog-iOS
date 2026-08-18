@@ -70,7 +70,7 @@ struct ReportContentView: View {
 
     private func noticeBanner(_ text: String) -> some View {
         HStack(alignment: .top, spacing: Spacing.x2) {
-            AssetPlaceholder(size: IconSize.small)
+            Icon(name: "info.circle", size: IconSize.small, color: .gray700)
             Text(text)
                 .caption_01_medium(.gray800)
                 .fixedSize(horizontal: false, vertical: true)

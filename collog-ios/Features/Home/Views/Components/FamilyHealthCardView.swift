@@ -40,7 +40,7 @@ struct FamilyHealthCardView: View {
                     Text("가족 모두 보기")
                         .body_02_semibold(.gray800)
                     Spacer()
-                    AssetPlaceholder(size: IconSize.small)
+                    Icon(name: "chevron.right", size: IconSize.small, color: .gray600)
                 }
                 .contentShape(Rectangle())
             }

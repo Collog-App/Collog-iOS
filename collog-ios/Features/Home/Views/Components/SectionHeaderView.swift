@@ -13,8 +13,6 @@ struct SectionHeaderView: View {
 
     var body: some View {
         HStack(spacing: Spacing.x2) {
-            AssetPlaceholder(size: IconSize.medium)
-
             Text(title)
                 .pretendard(.semiBold, 18, .gray900)
 

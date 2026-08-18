@@ -19,29 +19,32 @@ struct HomeTopBarView: View {
                     .fill(LinearGradient.avatar)
                     .frame(width: IconSize.avatar, height: IconSize.avatar)
                     .overlay(alignment: .topTrailing) {
-                        AssetPlaceholder(size: 6, cornerRadius: 3)
+                        NotificationDot().offset(x: -3, y: 3)
                     }
             }
             .buttonStyle(.plain)
 
             Spacer(minLength: Spacing.x3)
 
-            iconButton(hasBadge: true, action: onNotificationTap)
-            iconButton(hasBadge: false, action: onMenuTap)
+            iconButton(symbol: "bell", hasBadge: true, action: onNotificationTap)
+            iconButton(symbol: "line.3.horizontal", hasBadge: false, action: onMenuTap)
         }
         .padding(.horizontal, Spacing.x5)
         .frame(height: 56)
         .frame(maxWidth: .infinity)
     }
 
-    private func iconButton(hasBadge: Bool, action: @escaping () -> Void) -> some View {
+    private func iconButton(
+        symbol: String,
+        hasBadge: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
         Button(action: action) {
-            AssetPlaceholder(size: IconSize.medium)
+            Icon(name: symbol, color: .gray900)
                 .frame(width: 36, height: 36)
                 .overlay(alignment: .topTrailing) {
                     if hasBadge {
-                        AssetPlaceholder(size: 6, cornerRadius: 3)
-                            .offset(x: -2, y: 2)
+                        NotificationDot().offset(x: -2, y: 2)
                     }
                 }
         }

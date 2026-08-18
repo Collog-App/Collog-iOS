@@ -91,7 +91,7 @@ struct CallView: View {
 
             ForEach(Array(questions.enumerated()), id: \.offset) { _, question in
                 HStack(spacing: Spacing.x3) {
-                    AssetPlaceholder(size: 13)
+                    Icon(name: "cross.case.fill", size: 13, color: .gray00)
                         .frame(width: IconSize.medium, height: IconSize.medium)
                         .background(
                             Color.greenNormal,
@@ -112,7 +112,7 @@ struct CallView: View {
 
     private var endButton: some View {
         Button(action: onEnd) {
-            AssetPlaceholder(size: 28)
+            Icon(name: "phone.down.fill", size: 30, weight: .semibold, color: .gray00)
                 .frame(width: 72, height: 72)
                 .background(Color.red500, in: Circle())
         }

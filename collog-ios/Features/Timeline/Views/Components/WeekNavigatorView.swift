@@ -16,7 +16,7 @@ struct WeekNavigatorView: View {
     var body: some View {
         HStack(spacing: Spacing.x2) {
             Button(action: onPrevious) {
-                AssetPlaceholder(size: IconSize.medium)
+                Icon(name: "chevron.left", size: IconSize.medium, color: .gray800)
             }
             .buttonStyle(.plain)
 
@@ -32,7 +32,7 @@ struct WeekNavigatorView: View {
             Spacer(minLength: Spacing.x2)
 
             Button(action: onNext) {
-                AssetPlaceholder(size: IconSize.medium)
+                Icon(name: "chevron.right", size: IconSize.medium, color: .gray800)
             }
             .buttonStyle(.plain)
         }

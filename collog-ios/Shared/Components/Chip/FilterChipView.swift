@@ -16,7 +16,7 @@ struct FilterChipView: View {
             HStack(spacing: Spacing.x1) {
                 Text(label)
                     .body_02_medium(.gray800)
-                AssetPlaceholder(size: IconSize.small)
+                Icon(name: "chevron.down", size: IconSize.small, color: .gray700)
             }
             .padding(.horizontal, Spacing.x3)
             .padding(.vertical, 6)

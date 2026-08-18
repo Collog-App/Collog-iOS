@@ -43,12 +43,9 @@ struct ReportTimelineView: View {
     }
 
     private var header: some View {
-        HStack(alignment: .bottom, spacing: Spacing.x2) {
-            UnderlineTabsView(
-                titles: viewModel.tabTitles,
-                selection: $viewModel.selectedTabIndex,
-                size: 20
-            )
+        HStack(alignment: .center, spacing: Spacing.x2) {
+            Text(viewModel.title)
+                .subtitle_01(.gray900)
 
             Spacer(minLength: Spacing.x2)
 

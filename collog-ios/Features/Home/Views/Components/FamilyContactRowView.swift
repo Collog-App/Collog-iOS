@@ -27,7 +27,7 @@ struct FamilyContactRowView: View {
 
                 Spacer(minLength: Spacing.x2)
 
-                AssetPlaceholder(size: IconSize.medium)
+                Icon(name: "phone.fill", size: 18, color: .greenNormal)
                     .frame(width: 36, height: 36)
             }
             .cardSurface(padding: Spacing.x3)

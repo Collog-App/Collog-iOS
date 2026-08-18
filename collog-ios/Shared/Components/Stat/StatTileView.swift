@@ -12,13 +12,7 @@ enum StatTrend {
     case down
     case flat
 
-    var color: Color {
-        switch self {
-        case .up: .greenDark
-        case .down: .orange600
-        case .flat: .gray700
-        }
-    }
+    var color: Color { .gray700 }
 }
 
 struct StatNote {
@@ -78,7 +72,11 @@ struct StatTileView: View {
         if let note = stat.note {
             HStack(spacing: 1) {
                 if note.trend != .flat {
-                    AssetPlaceholder(size: 8)
+                    Icon(
+                        name: note.trend == .up ? "arrowtriangle.up.fill" : "arrowtriangle.down.fill",
+                        size: 9,
+                        color: note.trend.color
+                    )
                 }
                 Text(note.text)
                     .caption_02_medium(note.trend == .flat ? .gray700 : note.trend.color)

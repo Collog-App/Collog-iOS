@@ -43,7 +43,7 @@ struct SettingsNavigationRow: View {
                         .caption_01_medium(.gray700)
                 }
 
-                AssetPlaceholder(size: IconSize.small)
+                Icon(name: "chevron.right", size: IconSize.small, color: .gray600)
             }
             .padding(.horizontal, Spacing.x4)
             .frame(height: 52)

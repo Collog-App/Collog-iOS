@@ -28,7 +28,7 @@ extension CallTimelineEntry {
                 label: "통화 길이",
                 value: "\(max(durationSec / 60, 0))",
                 unit: "분",
-                note: StatNote(text: APIFormat.duration(seconds: durationSec))
+                note: nil
             )
         ]
         if let speechRate, let value = speechRate.value {

@@ -26,11 +26,15 @@ struct CallTimelineCardView: View {
 
             storyCard
 
-            RangeGaugeRowView(gauges: entry.gauges)
-                .cardSurface()
+            if !entry.gauges.isEmpty {
+                RangeGaugeRowView(gauges: entry.gauges)
+                    .cardSurface()
+            }
 
-            StatTileRowView(stats: entry.counts, layout: .stacked)
-                .cardSurface()
+            if !entry.counts.isEmpty {
+                StatTileRowView(stats: entry.counts, layout: .stacked)
+                    .cardSurface()
+            }
         }
     }
 
@@ -43,9 +47,11 @@ struct CallTimelineCardView: View {
                 .body_03_medium(.gray900)
                 .fixedSize(horizontal: false, vertical: true)
 
-            DividerLine()
+            if !entry.keywords.isEmpty {
+                DividerLine()
 
-            KeywordTimelineView(marks: entry.keywords)
+                KeywordTimelineView(marks: entry.keywords)
+            }
         }
         .cardSurface()
     }

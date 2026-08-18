@@ -43,7 +43,11 @@ struct BottomNavBarView: View {
             Haptics.press()
         } label: {
             VStack(spacing: 2) {
-                AssetPlaceholder(size: IconSize.medium)
+                Icon(
+                    name: tab.symbol,
+                    size: IconSize.medium,
+                    color: selection == tab ? .greenNormal : .gray600
+                )
                 Text(tab.title)
                     .caption_01_medium(selection == tab ? .greenNormal : .gray600)
             }
@@ -64,7 +68,7 @@ struct BottomNavBarView: View {
                     y: 6
                 )
 
-            AssetPlaceholder(size: 24)
+            Icon(name: "phone.fill", size: 26, weight: .semibold, color: .gray00)
         }
         .scaleEffect(scale)
         .frame(maxWidth: .infinity)

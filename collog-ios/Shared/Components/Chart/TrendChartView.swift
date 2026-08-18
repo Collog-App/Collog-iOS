@@ -86,7 +86,7 @@ struct TrendChartView: View {
         .chartYAxis(.hidden)
         .chartXAxis {
             AxisMarks(values: axisDates) { value in
-                AxisValueLabel {
+                AxisValueLabel(anchor: value.index == 0 ? .topLeading : .topTrailing) {
                     if let date = value.as(Date.self), let point = series.nearest(to: date) {
                         Text(point.label)
                             .caption_02_medium(.gray700)
