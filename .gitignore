@@ -1,3 +1,6 @@
+.gitmodules
+/server/
+
 .DS_Store
 xcuserdata/
 *.xcuserstate
