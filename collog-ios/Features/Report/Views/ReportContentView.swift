@@ -17,7 +17,7 @@ struct ReportContentView: View {
             }
 
             if report.state == .baselineCollecting {
-                noticeBanner("아직 기준선을 모으는 중이에요. 통화가 쌓이면 변화를 보여드릴게요.")
+                noticeBanner("아직 평소 범위를 모으는 중이에요. 통화가 쌓이면 변화를 보여드릴게요.")
             }
 
             StatTileRowView(stats: report.summaryStats)

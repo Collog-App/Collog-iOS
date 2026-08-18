@@ -42,6 +42,8 @@ struct LoginView: View {
 
                 primaryButton
 
+                guestButton
+
                 SettingsSection(title: "개발") {
                     SettingsFieldRow(
                         label: "서버 주소",
@@ -128,6 +130,31 @@ struct LoginView: View {
         }
         .buttonStyle(.plain)
         .disabled(!isEnabled)
+    }
+
+    private var guestButton: some View {
+        VStack(spacing: Spacing.x2) {
+            Button {
+                environment.settings.isGuestMode = true
+                onSignedIn()
+            } label: {
+                Text("가입 없이 둘러보기")
+                    .body_02_semibold(.gray800)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                            .stroke(Color.gray300, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
+
+            Text("예시 데이터로 앱을 먼저 둘러볼 수 있어요")
+                .caption_02_medium(.gray700)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
     }
 
     private var isEnabled: Bool {

@@ -32,7 +32,7 @@ final class HomeViewModel {
         let signal = dto.promotedSignals.first ?? dto.acuteSignals.first
         healthSummary = FamilyHealthSummary(
             memberName: environment.family.contacts.first?.name ?? "가족",
-            periodText: "\(dto.from) – \(dto.to)",
+            periodText: "\(dto.from) ~ \(dto.to)",
             headline: signal.map { MetricLabel.korean(for: $0.metric) + "에 변화가 보여요" }
                 ?? "평소 범위 안에서 지내고 계세요",
             detail: signal?.summaryText ?? signal?.acuteText
@@ -53,7 +53,7 @@ final class HomeViewModel {
             healthFeedback = HealthFeedback(
                 title: "건강 피드백",
                 headline: advisory,
-                tags: ["최근 리포트", "\(dto.from) – \(dto.to)"]
+                tags: ["최근 리포트", "\(dto.from) ~ \(dto.to)"]
             )
         }
     }

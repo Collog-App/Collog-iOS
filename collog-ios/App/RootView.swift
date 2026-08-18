@@ -15,6 +15,12 @@ struct RootView: View {
     @State private var authFlow = AuthFlowViewModel()
     @State private var launcher = CallLauncherModel()
 
+    @State private var simulatedContact: FamilyContact?
+    @State private var simulatedPhase: CallPhase = .connecting
+    @State private var simulationTask: Task<Void, Never>?
+
+    private var isGuest: Bool { environment.settings.isGuestMode }
+
     var body: some View {
         Group {
             switch authFlow.step {
@@ -41,14 +47,8 @@ struct RootView: View {
             }
         }
         .task { await authFlow.resolve(using: environment) }
-        .fullScreenCover(item: Binding(get: { callCenter.activeCall }, set: { _ in })) { call in
-            CallView(
-                peerName: call.peerName,
-                phase: call.phase,
-                questions: call.questions.map(\.text),
-                notice: call.notice,
-                onEnd: { callCenter.endActiveCall() }
-            )
+        .fullScreenCover(isPresented: callPresentation) {
+            callScreen
         }
         .environment(tabManager)
     }
@@ -56,6 +56,10 @@ struct RootView: View {
     private var mainTabs: some View {
         ZStack {
             VStack(spacing: 0) {
+                if isGuest {
+                    DemoModeBanner(onExit: exitGuestMode)
+                }
+
                 tabContent
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -107,21 +111,83 @@ struct RootView: View {
         }
     }
 
+    @ViewBuilder
+    private var callScreen: some View {
+        if let call = callCenter.activeCall {
+            CallView(
+                peerName: call.peerName,
+                phase: call.phase,
+                questions: call.questions.map(\.text),
+                notice: call.notice,
+                onEnd: { callCenter.endActiveCall() }
+            )
+        } else if let simulatedContact {
+            CallView(
+                peerName: simulatedContact.name,
+                phase: simulatedPhase,
+                questions: environment.family.questions.map(\.text),
+                notice: "체험 모드예요. 실제로 전화가 걸리지는 않아요",
+                onEnd: endSimulatedCall
+            )
+        }
+    }
+
+    private var callPresentation: Binding<Bool> {
+        Binding(
+            get: { callCenter.activeCall != nil || simulatedContact != nil },
+            set: { isPresented in
+                if !isPresented { endSimulatedCall() }
+            }
+        )
+    }
+
     private var launcherNotice: String? {
-        environment.family.callableContacts.isEmpty ? "로그인하면 실제로 전화가 걸려요" : nil
+        if isGuest { return "체험 모드에서는 실제로 전화가 걸리지 않아요" }
+        return environment.family.callableContacts.isEmpty ? "로그인하면 실제로 전화가 걸려요" : nil
     }
 
     private func syncLauncher() {
         let callable = environment.family.callableContacts
         launcher.configure(
-            targets: callable.isEmpty ? environment.family.contacts : callable,
+            targets: isGuest || callable.isEmpty ? environment.family.contacts : callable,
             questions: environment.family.questions.map(\.text)
         )
     }
 
     private func startCall(_ contact: FamilyContact) {
+        guard !isGuest else {
+            startSimulatedCall(contact)
+            return
+        }
         guard let userId = contact.userId else { return }
         callCenter.startOutgoingCall(calleeId: userId, name: contact.name)
+    }
+
+    private func startSimulatedCall(_ contact: FamilyContact) {
+        simulationTask?.cancel()
+        simulatedPhase = .connecting
+        simulatedContact = contact
+        simulationTask = Task {
+            try? await Task.sleep(for: .seconds(1.6))
+            guard !Task.isCancelled else { return }
+            simulatedPhase = .ringing
+            try? await Task.sleep(for: .seconds(2.0))
+            guard !Task.isCancelled else { return }
+            simulatedPhase = .active
+            Haptics.commit()
+        }
+    }
+
+    private func endSimulatedCall() {
+        simulationTask?.cancel()
+        simulationTask = nil
+        simulatedContact = nil
+    }
+
+    private func exitGuestMode() {
+        endSimulatedCall()
+        environment.settings.isGuestMode = false
+        Task { await authFlow.resolve(using: environment) }
     }
 }
 

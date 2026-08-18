@@ -43,9 +43,9 @@ enum APIFormat {
 
     static func shortRange(from: String, to: String) -> String {
         guard let start = isoDate.date(from: from), let end = isoDate.date(from: to) else {
-            return "\(from) – \(to)"
+            return "\(from) ~ \(to)"
         }
-        return "\(shortDate.string(from: start)) – \(shortDate.string(from: end))"
+        return "\(shortDate.string(from: start)) ~ \(shortDate.string(from: end))"
     }
 }
 

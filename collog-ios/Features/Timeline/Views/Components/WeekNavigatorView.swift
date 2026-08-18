@@ -47,6 +47,6 @@ struct WeekNavigatorView: View {
 }
 
 #Preview {
-    WeekNavigatorView(title: "8월 3주", rangeText: "8/10 – 8/16")
+    WeekNavigatorView(title: "8월 3주", rangeText: "8/10 ~ 8/16")
         .background(Color.gray50)
 }

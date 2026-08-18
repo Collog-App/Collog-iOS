@@ -15,6 +15,7 @@ final class AppSettings {
         static let reportNotificationsEnabled = "settings.reportNotificationsEnabled"
         static let questionVoiceEnabled = "settings.questionVoiceEnabled"
         static let onboardingCompleted = "settings.onboardingCompleted"
+        static let guestMode = "settings.guestMode"
     }
 
     enum Default {
@@ -43,6 +44,10 @@ final class AppSettings {
         didSet { defaults.set(onboardingCompleted, forKey: Key.onboardingCompleted) }
     }
 
+    var isGuestMode: Bool {
+        didSet { defaults.set(isGuestMode, forKey: Key.guestMode) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         backendBaseURL = defaults.string(forKey: Key.backendBaseURL) ?? Default.backendBaseURL
@@ -50,6 +55,7 @@ final class AppSettings {
         reportNotificationsEnabled = defaults.object(forKey: Key.reportNotificationsEnabled) as? Bool ?? true
         questionVoiceEnabled = defaults.object(forKey: Key.questionVoiceEnabled) as? Bool ?? true
         onboardingCompleted = defaults.bool(forKey: Key.onboardingCompleted)
+        isGuestMode = defaults.bool(forKey: Key.guestMode)
     }
 
     var resolvedBaseURL: URL {

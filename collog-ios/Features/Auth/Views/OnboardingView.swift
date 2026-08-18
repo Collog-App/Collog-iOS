@@ -21,7 +21,7 @@ struct OnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             title: "통화 한 번이 건강 기록이 됩니다",
-            body: "부모님과의 통화에서 개인 기준선 대비 변화를 차분하게 확인하세요.\n진단이 아닌, 우리 가족만의 기록입니다."
+            body: "부모님과의 통화에서 평소와 달라진 점을 차분하게 확인하세요.\n진단이 아닌, 우리 가족만의 기록입니다."
         ),
         OnboardingPage(
             title: "오늘의 질문으로 시작해요",
@@ -29,7 +29,7 @@ struct OnboardingView: View {
         ),
         OnboardingPage(
             title: "원본 음성은 남기지 않아요",
-            body: "통화 음성은 분석 직후 바로 폐기하고, 구조화된 기록과 변화값만 보관해요."
+            body: "통화 음성은 분석 직후 바로 지우고, 정리된 기록과 변화값만 보관해요."
         )
     ]
 

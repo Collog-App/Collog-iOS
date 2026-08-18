@@ -28,6 +28,10 @@ final class AuthFlowViewModel {
             step = .onboarding
             return
         }
+        guard !environment.settings.isGuestMode else {
+            step = .ready
+            return
+        }
         guard environment.session.isAuthenticated, let user = environment.session.user else {
             step = .login
             return

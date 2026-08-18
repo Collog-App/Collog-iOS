@@ -54,7 +54,7 @@ extension CallTimelineEntry {
 extension TimelineWeek {
     static let sample = TimelineWeek(
         title: "8월 3주",
-        rangeText: "8/10 – 8/16",
+        rangeText: "8/10 ~ 8/16",
         entries: [.sample]
     )
 }
