@@ -30,12 +30,12 @@ final class CallCenter: NSObject {
         var notice: String?
     }
 
-    private let environment: AppEnvironment
-    private let registry = PKPushRegistry(queue: .main)
-    private let callController = CXCallController()
-    private let room = Room()
+    @ObservationIgnored private let environment: AppEnvironment
+    @ObservationIgnored private let registry = PKPushRegistry(queue: .main)
+    @ObservationIgnored private let callController = CXCallController()
+    @ObservationIgnored private let room = Room()
 
-    private lazy var provider: CXProvider = {
+    @ObservationIgnored private lazy var provider: CXProvider = {
         let configuration = CXProviderConfiguration()
         configuration.supportsVideo = false
         configuration.maximumCallsPerCallGroup = 1
@@ -44,15 +44,15 @@ final class CallCenter: NSObject {
         return CXProvider(configuration: configuration)
     }()
 
-    private var pendingOutgoing: (uuid: UUID, calleeId: String, name: String)?
-    private var answeredCallIds: Set<String> = []
-    private var pendingCapture: AudioCaptureOptions?
-    private var analysisWriter: AnalysisPCMWriter?
-    private weak var analysisTrack: LocalAudioTrack?
-    private var rawCaptureRequired = false
+    @ObservationIgnored private var pendingOutgoing: (uuid: UUID, calleeId: String, name: String)?
+    @ObservationIgnored private var answeredCallIds: Set<String> = []
+    @ObservationIgnored private var pendingCapture: AudioCaptureOptions?
+    @ObservationIgnored private var analysisWriter: AnalysisPCMWriter?
+    @ObservationIgnored private weak var analysisTrack: LocalAudioTrack?
+    @ObservationIgnored private var rawCaptureRequired = false
 
-    private var isAudioSessionActive = false
-    private var didPublishMicrophone = false
+    @ObservationIgnored private var isAudioSessionActive = false
+    @ObservationIgnored private var didPublishMicrophone = false
 
     private(set) var activeCall: ActiveCall?
     private(set) var voipToken: String?
