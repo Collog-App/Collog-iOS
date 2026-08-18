@@ -9,17 +9,29 @@ import SwiftUI
 
 struct SectionHeaderView: View {
     let title: String
+    var trailingText: String?
 
     var body: some View {
-        HStack(spacing: Spacing.x1) {
+        HStack(spacing: Spacing.x2) {
             AssetPlaceholder(size: IconSize.medium)
+
             Text(title)
-                .subtitle_01(.gray1000)
+                .pretendard(.semiBold, 18, .gray900)
+
+            Spacer(minLength: Spacing.x2)
+
+            if let trailingText {
+                Text(trailingText)
+                    .body_02_medium(.gray700)
+            }
         }
     }
 }
 
 #Preview {
-    SectionHeaderView(title: "가족 전화하기")
-        .padding()
+    VStack(alignment: .leading, spacing: 16) {
+        SectionHeaderView(title: "가족 전화하기")
+        SectionHeaderView(title: "우리 가족 건강", trailingText: "8월 3주")
+    }
+    .padding()
 }

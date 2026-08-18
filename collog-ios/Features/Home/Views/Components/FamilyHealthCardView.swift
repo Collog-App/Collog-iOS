@@ -9,70 +9,64 @@ import SwiftUI
 
 struct FamilyHealthCardView: View {
     let summary: FamilyHealthSummary
-    let feedback: HealthFeedback
     var onSeeAllTap: () -> Void = {}
-    var onFeedbackMoreTap: () -> Void = {}
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
-            SectionHeaderView(title: "우리 가족 건강")
+            HStack(spacing: Spacing.x2) {
+                BadgeView(label: summary.memberName)
 
-            VStack(alignment: .leading, spacing: Spacing.x2) {
-                VStack(alignment: .leading, spacing: 10) {
-                    statusSection
-                    chartSection
+                Spacer(minLength: Spacing.x2)
+
+                HStack(spacing: Spacing.x1) {
+                    AssetPlaceholder(size: IconSize.small)
+                    Text(summary.location)
+                        .caption_01_medium(.gray700)
                 }
-
-                seeAllButton
             }
 
-            HealthFeedbackCardView(feedback: feedback, onMoreTap: onFeedbackMoreTap)
+            statusSection
+
+            chartSection
+
+            DividerLine()
+
+            seeAllButton
         }
-        .padding(Spacing.x4)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+        .cardSurface()
     }
 
     private var statusSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x2) {
-            BadgeView(label: summary.memberName)
+        VStack(alignment: .leading, spacing: Spacing.x1) {
+            Text(summary.statusPrefix)
+                .body_02_medium(.gray800)
 
-            VStack(alignment: .leading, spacing: Spacing.x1) {
-                Text(summary.statusPrefix)
-                    .body_02_medium(.gray800)
-
-                Text(summary.statusHeadline)
-                    .body_01_semibold(.gray900)
-
-                HStack(spacing: Spacing.x1) {
-                    Text(summary.highlight.prefix)
-                        .body_02_semibold(.gray600)
-                    Text(summary.highlight.value)
-                        .body_02_semibold(.greenNormal)
-                    Text(summary.highlight.suffix)
-                        .body_02_semibold(.gray600)
-                }
-            }
+            Text(summary.statusHeadline)
+                .body_01_semibold(.gray900)
 
             HStack(spacing: Spacing.x1) {
-                AssetPlaceholder(size: IconSize.small)
-                Text(summary.location)
-                    .body_02_regular(.gray600)
+                Text(summary.highlight.prefix)
+                    .caption_01_medium(.gray700)
+                Text(summary.highlight.value)
+                    .caption_01_semibold(.greenNormal)
+                Text(summary.highlight.suffix)
+                    .caption_01_medium(.gray700)
             }
+            .padding(.top, Spacing.x1)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var chartSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x1) {
+        VStack(alignment: .leading, spacing: Spacing.x2) {
             AssetPlaceholder(height: 73)
 
             HStack {
                 Text(summary.chartStartLabel)
-                    .caption_02_regular(.gray600)
+                    .caption_02_medium(.gray700)
                 Spacer()
                 Text(summary.chartEndLabel)
-                    .caption_02_regular(.gray600)
+                    .caption_02_medium(.gray700)
             }
         }
     }
@@ -81,11 +75,10 @@ struct FamilyHealthCardView: View {
         Button(action: onSeeAllTap) {
             HStack(spacing: Spacing.x1) {
                 Text("가족 모두 보기")
-                    .body_02_semibold(.gray700)
-                AssetPlaceholder(size: IconSize.medium)
+                    .body_02_semibold(.gray800)
+                Spacer()
+                AssetPlaceholder(size: IconSize.small)
             }
-            .frame(maxWidth: .infinity)
-            .frame(height: 44)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -93,6 +86,7 @@ struct FamilyHealthCardView: View {
 }
 
 #Preview {
-    FamilyHealthCardView(summary: .sample, feedback: .sample)
+    FamilyHealthCardView(summary: .sample)
         .padding()
+        .background(Color.gray50)
 }

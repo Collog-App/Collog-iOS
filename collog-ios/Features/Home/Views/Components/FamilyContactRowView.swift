@@ -13,41 +13,40 @@ struct FamilyContactRowView: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 11) {
+            HStack(spacing: Spacing.x3) {
                 Circle()
                     .fill(LinearGradient.avatar)
                     .frame(width: IconSize.contactAvatar, height: IconSize.contactAvatar)
 
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: Spacing.x1) {
                     Text(contact.name)
-                        .pretendard(.medium, 18, .black)
+                        .body_01_semibold(.gray900)
 
-                    HStack(spacing: 6) {
-                        AssetPlaceholder(width: 9, height: 10)
+                    HStack(spacing: Spacing.x1) {
+                        AssetPlaceholder(width: 9, height: 9)
                         Text(contact.line)
-                            .body_02_medium(.gray700)
+                            .caption_01_medium(.gray800)
                     }
                 }
 
                 Spacer(minLength: Spacing.x2)
 
                 Text(contact.lastCallText)
-                    .body_02_medium(.gray700)
+                    .caption_01_medium(.gray700)
             }
-            .padding(.horizontal, Spacing.x2)
-            .frame(height: 75)
-            .frame(maxWidth: .infinity)
-            .background(Color.gray100, in: RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous))
+            .cardSurface()
+            .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 }
 
 #Preview {
-    VStack(spacing: Spacing.x4) {
+    VStack(spacing: Spacing.x3) {
         ForEach(FamilyContact.samples) { contact in
             FamilyContactRowView(contact: contact)
         }
     }
     .padding()
+    .background(Color.gray50)
 }

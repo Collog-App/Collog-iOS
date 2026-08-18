@@ -15,7 +15,7 @@ enum Pretendard: String {
 }
 
 enum Typography {
-    static let letterSpacingRatio: CGFloat = -0.01
+    static let letterSpacingRatio: CGFloat = -0.025
     static let lineHeightRatio: CGFloat = 1.45
     static let fontLineHeightRatio: CGFloat = 1.2
 

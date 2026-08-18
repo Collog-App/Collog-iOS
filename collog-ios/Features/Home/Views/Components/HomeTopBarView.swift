@@ -13,40 +13,35 @@ struct HomeTopBarView: View {
     var onMenuTap: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: Spacing.x2) {
             Button(action: onProfileTap) {
-                AssetPlaceholder(size: IconSize.medium)
+                Circle()
+                    .fill(LinearGradient.avatar)
                     .frame(width: IconSize.avatar, height: IconSize.avatar)
-                    .background(Color.gray00, in: Circle())
-                    .overlay(Circle().stroke(Color.greenNormal, lineWidth: 1))
                     .overlay(alignment: .topTrailing) {
                         AssetPlaceholder(size: 6, cornerRadius: 3)
-                            .offset(x: 1, y: -1)
                     }
             }
             .buttonStyle(.plain)
 
             Spacer(minLength: Spacing.x3)
 
-            HStack(spacing: 0) {
-                iconButton(hasBadge: true, action: onNotificationTap)
-                iconButton(hasBadge: false, action: onMenuTap)
-            }
+            iconButton(hasBadge: true, action: onNotificationTap)
+            iconButton(hasBadge: false, action: onMenuTap)
         }
-        .frame(height: 44)
         .padding(.horizontal, Spacing.x5)
-        .frame(height: 64)
+        .frame(height: 56)
         .frame(maxWidth: .infinity)
-        .background(Color.gray00)
     }
 
     private func iconButton(hasBadge: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             AssetPlaceholder(size: IconSize.medium)
-                .frame(width: IconSize.button, height: IconSize.button, alignment: .trailing)
+                .frame(width: 36, height: 36)
                 .overlay(alignment: .topTrailing) {
                     if hasBadge {
                         AssetPlaceholder(size: 6, cornerRadius: 3)
+                            .offset(x: -2, y: 2)
                     }
                 }
         }
@@ -56,4 +51,5 @@ struct HomeTopBarView: View {
 
 #Preview {
     HomeTopBarView()
+        .background(Color.gray50)
 }

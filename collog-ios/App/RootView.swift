@@ -24,7 +24,7 @@ struct RootView: View {
 
             BottomNavBarView(selection: $tabManager.selectedTab)
         }
-        .background(Color.gray00)
+        .background(Color.gray50)
         .environment(tabManager)
     }
 }
@@ -36,7 +36,7 @@ private struct ComingSoonView: View {
         Text(title)
             .subtitle_01(.gray600)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.gray00)
+            .background(Color.gray50)
     }
 }
 

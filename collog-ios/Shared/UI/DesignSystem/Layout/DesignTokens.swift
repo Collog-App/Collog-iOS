@@ -23,9 +23,11 @@ enum Spacing {
 
 enum Radius {
     static let badgeMedium: CGFloat = 6
+    static let chip: CGFloat = 8
     static let listItem: CGFloat = 10
     static let btnXsmall: CGFloat = 12
     static let btnSmall: CGFloat = 16
+    static let card: CGFloat = 20
     static let btnMedium: CGFloat = 20
     static let btnLarge: CGFloat = 26
 }
@@ -33,7 +35,8 @@ enum Radius {
 enum IconSize {
     static let small: CGFloat = 16
     static let medium: CGFloat = 24
+    static let chip: CGFloat = 28
     static let button: CGFloat = 40
-    static let avatar: CGFloat = 42
-    static let contactAvatar: CGFloat = 50
+    static let avatar: CGFloat = 40
+    static let contactAvatar: CGFloat = 44
 }

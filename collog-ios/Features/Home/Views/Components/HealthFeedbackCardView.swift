@@ -12,40 +12,35 @@ struct HealthFeedbackCardView: View {
     var onMoreTap: () -> Void = {}
 
     var body: some View {
-        HStack(alignment: .top, spacing: Spacing.x2) {
-            AssetPlaceholder(size: 13.09)
-                .frame(width: IconSize.medium, height: IconSize.medium)
-                .background(Color.greenNormal, in: RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous))
+        HStack(alignment: .top, spacing: Spacing.x3) {
+            AssetPlaceholder(size: 14)
+                .frame(width: IconSize.chip, height: IconSize.chip)
+                .background(Color.greenNormal, in: RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous))
 
             VStack(alignment: .leading, spacing: Spacing.x2) {
-                HStack {
-                    Text(feedback.title)
-                        .body_01_semibold(.gray800)
-                    Spacer(minLength: Spacing.x2)
-                    Button(action: onMoreTap) {
-                        AssetPlaceholder(size: IconSize.small)
-                    }
-                    .buttonStyle(.plain)
-                }
+                Text(feedback.title)
+                    .caption_01_medium(.gray800)
 
                 Text(feedback.headline)
                     .body_01_semibold(.gray900)
 
-                HStack(spacing: Spacing.x1) {
-                    ForEach(feedback.tags, id: \.self) { tag in
-                        Text(tag)
-                            .body_02_semibold(.gray600)
-                    }
-                }
+                Text(feedback.tags.joined(separator: " · "))
+                    .caption_02_medium(.gray700)
             }
+
+            Spacer(minLength: Spacing.x2)
+
+            Button(action: onMoreTap) {
+                AssetPlaceholder(size: IconSize.small)
+            }
+            .buttonStyle(.plain)
         }
-        .padding(Spacing.x4)
-        .frame(maxWidth: .infinity)
-        .background(Color.gray100, in: RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous))
+        .cardSurface()
     }
 }
 
 #Preview {
     HealthFeedbackCardView(feedback: .sample)
         .padding()
+        .background(Color.gray50)
 }
