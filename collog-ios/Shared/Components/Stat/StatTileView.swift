@@ -79,7 +79,7 @@ struct StatTileView: View {
                     )
                 }
                 Text(note.text)
-                    .caption_02_medium(note.trend == .flat ? .gray700 : note.trend.color)
+                    .caption_01_medium(note.trend == .flat ? .gray700 : note.trend.color)
             }
         }
     }

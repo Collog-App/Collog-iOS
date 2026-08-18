@@ -12,10 +12,6 @@ struct ReportContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.x3) {
-            if let noticeText = report.noticeText {
-                noticeBanner(noticeText)
-            }
-
             if report.state == .baselineCollecting {
                 noticeBanner("아직 평소 범위를 모으는 중이에요. 통화가 쌓이면 변화를 보여드릴게요.")
             }
@@ -37,7 +33,7 @@ struct ReportContentView: View {
             repeatCard
 
             Text(report.disclaimer)
-                .caption_02_medium(.gray700)
+                .caption_01_medium(.gray700)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, Spacing.x1)
         }
@@ -59,11 +55,11 @@ struct ReportContentView: View {
                 Spacer(minLength: Spacing.x1)
 
                 Text(report.repeatObservation.perMinuteText)
-                    .caption_02_medium(.gray700)
+                    .caption_01_medium(.gray700)
             }
 
             Text(report.repeatObservation.caption)
-                .caption_02_medium(.gray700)
+                .caption_01_medium(.gray700)
         }
         .cardSurface()
     }

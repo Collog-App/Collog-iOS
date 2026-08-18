@@ -12,6 +12,7 @@ struct TrendChartView: View {
     let series: TrendSeries
 
     @State private var selectedDate: Date?
+    @State private var revealProgress: CGFloat = 0
 
     private var focusedPoint: TrendPoint? {
         guard let selectedDate else { return series.latest }
@@ -24,6 +25,16 @@ struct TrendChartView: View {
 
             chart
                 .frame(height: 132)
+                .mask(alignment: .leading) {
+                    GeometryReader { proxy in
+                        Rectangle()
+                            .frame(width: proxy.size.width * revealProgress)
+                    }
+                }
+                .onAppear {
+                    guard revealProgress == 0 else { return }
+                    withAnimation(.easeOut(duration: 0.9)) { revealProgress = 1 }
+                }
         }
     }
 
@@ -43,7 +54,7 @@ struct TrendChartView: View {
                 }
 
                 Text(series.isWithinNormalRange(focusedPoint) ? "평소 범위" : "평소와 다름")
-                    .caption_02_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
+                    .caption_01_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
             }
         }
     }
@@ -89,7 +100,7 @@ struct TrendChartView: View {
                 AxisValueLabel(anchor: value.index == 0 ? .topLeading : .topTrailing) {
                     if let date = value.as(Date.self), let point = series.nearest(to: date) {
                         Text(point.label)
-                            .caption_02_medium(.gray700)
+                            .caption_01_medium(.gray700)
                     }
                 }
             }

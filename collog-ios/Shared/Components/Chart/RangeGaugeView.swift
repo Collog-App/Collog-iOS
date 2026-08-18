@@ -48,7 +48,7 @@ struct RangeGaugeView: View {
                 .frame(height: 9)
 
                 Text(gauge.caption)
-                    .caption_02_medium(.gray700)
+                    .caption_01_medium(.gray700)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

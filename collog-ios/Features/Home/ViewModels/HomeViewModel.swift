@@ -11,12 +11,16 @@ import SwiftUI
 final class HomeViewModel {
     private(set) var healthSummary: FamilyHealthSummary = .sample
     private(set) var healthFeedback: HealthFeedback = .sample
+    private(set) var lastCallText = "아직 통화 기록이 없어요"
 
-    func refresh(using environment: AppEnvironment) async {
+    func refresh(using environment: AppEnvironment, contact: FamilyContact?) async {
         guard environment.session.isAuthenticated else { return }
-        guard let parentId = await environment.subjectParentId() else { return }
+        let resolvedId = if let userId = contact?.userId { userId } else { await environment.subjectParentId() }
+        guard let parentId = resolvedId else { return }
 
         let api = environment.api
+        await loadLastCall(api: api, parentId: parentId)
+
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
             .filter { $0.kind == "ROLLING" && $0.isReady }
             .reduce(into: [String: BaselineDTO]()) { $0[$1.metric] = $1 }
@@ -31,7 +35,7 @@ final class HomeViewModel {
 
         let signal = dto.promotedSignals.first ?? dto.acuteSignals.first
         healthSummary = FamilyHealthSummary(
-            memberName: environment.family.contacts.first?.name ?? "가족",
+            memberName: contact?.name ?? "가족",
             periodText: APIFormat.shortRange(from: dto.from, to: dto.to),
             headline: signal.map { MetricLabel.korean(for: $0.metric) + "에 변화가 보여요" }
                 ?? "평소 범위 안에서 지내고 계세요",
@@ -53,8 +57,29 @@ final class HomeViewModel {
             healthFeedback = HealthFeedback(
                 title: "건강 피드백",
                 headline: advisory,
-                tags: ["최근 리포트", "\(dto.from) ~ \(dto.to)"]
+                tags: ["최근 리포트", APIFormat.shortRange(from: dto.from, to: dto.to)]
             )
+        }
+    }
+
+    private func loadLastCall(api: CollogAPI, parentId: String) async {
+        guard
+            let calls = try? await api.calls(parentId: parentId),
+            let latest = calls.first
+        else { return }
+
+        let calendar = Calendar.current
+        let days = calendar.dateComponents(
+            [.day],
+            from: calendar.startOfDay(for: latest.startedAt),
+            to: calendar.startOfDay(for: Date())
+        ).day ?? 0
+
+        lastCallText = switch days {
+        case ..<1: "오늘 통화했어요"
+        case 1: "어제 통화했어요"
+        case 2: "그저께 통화했어요"
+        default: "\(days)일 전에 통화했어요"
         }
     }
 }

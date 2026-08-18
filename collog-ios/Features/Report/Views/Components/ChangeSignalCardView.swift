@@ -34,11 +34,6 @@ struct ChangeSignalCardView: View {
 
     private func row(for signal: ChangeSignalItem) -> some View {
         HStack(alignment: .top, spacing: Spacing.x3) {
-            Circle()
-                .fill(signal.tone == .watch ? Color.orange600 : Color.greenNormal)
-                .frame(width: 8, height: 8)
-                .padding(.top, 6)
-
             VStack(alignment: .leading, spacing: Spacing.x1) {
                 HStack(spacing: Spacing.x2) {
                     Text(signal.metricName)

@@ -31,7 +31,7 @@ struct CallLauncherOverlay: View {
     }
 
     private var questionStack: some View {
-        VStack(alignment: .leading, spacing: Spacing.x2) {
+        VStack(alignment: .center, spacing: Spacing.x2) {
             if let notice {
                 hint(notice)
             }
@@ -40,7 +40,7 @@ struct CallLauncherOverlay: View {
                 hint("오늘의 질문이 아직 없어요")
             } else {
                 Text("이 질문으로 시작해보세요")
-                    .caption_02_medium(.gray700)
+                    .caption_01_medium(.gray700)
                     .padding(.leading, Spacing.x2)
 
                 ForEach(Array(model.questions.prefix(3).enumerated()), id: \.offset) { index, question in

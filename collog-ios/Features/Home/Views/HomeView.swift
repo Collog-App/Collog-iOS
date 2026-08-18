@@ -9,43 +9,51 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
-    @Environment(CallCenter.self) private var callCenter
+
+    @Environment(NavigationStore.self) private var navigation
 
     @State private var viewModel = HomeViewModel()
-    @State private var navigationManager = NavigationManager()
+    @State private var selectedContactId: String?
 
     private var contacts: [FamilyContact] { environment.family.contacts }
-    private var questions: [PreviewQuestion] { environment.family.questions }
+
+    private var selectedContact: FamilyContact? {
+        contacts.first { $0.id == selectedContactId } ?? contacts.first
+    }
 
     var body: some View {
-        NavigationStack(path: $navigationManager.path) {
-            VStack(spacing: 0) {
-                HomeTopBarView(onNotificationTap: { navigationManager.push(Route.notifications) })
+        @Bindable var navigator = navigation.manager(for: .home)
 
-                ScrollView {
-                    VStack(alignment: .leading, spacing: Spacing.x6) {
-                        if let primaryContact = contacts.first {
-                            NextCallCardView(
-                                contact: primaryContact,
-                                questions: questions,
-                                onCallTap: { startCall(primaryContact) },
-                                onQuestionsTap: { navigationManager.push(Route.questionPreview) }
-                            )
+        return NavigationStack(path: $navigator.path) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: Spacing.x8) {
+                    if let selectedContact {
+                        HomeHeaderView(
+                            contacts: contacts,
+                            selected: selectedContact,
+                            subtitle: viewModel.lastCallText,
+                            onSelect: { select($0) },
+                            onNotificationTap: { navigation.manager(for: .home).push(Route.notifications) }
+                        )
+
+                        VStack(alignment: .leading, spacing: Spacing.x8) {
+                            HealthStatusCardView(summary: viewModel.healthSummary) {
+                                navigation.manager(for: .home).push(Route.familyHealthOverview)
+                            }
+
+                            QuestionListView(questions: environment.family.questions)
+
+                            feedbackRow
                         }
-
-                        otherFamilySection
-
-                        healthSection
+                        .padding(.horizontal, Spacing.x5)
                     }
-                    .padding(.horizontal, Spacing.x5)
-                    .padding(.top, Spacing.x2)
-                    .padding(.bottom, Spacing.x8)
                 }
-                .scrollIndicators(.hidden)
+                .padding(.bottom, Spacing.x8)
             }
+            .scrollIndicators(.hidden)
             .background(Color.gray50)
-            .task { await viewModel.refresh(using: environment) }
-            .environment(\.navigationManager, navigationManager)
+            .task { await refresh() }
+            .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .familyHealthOverview: Text("가족 건강 전체 보기")
@@ -57,40 +65,41 @@ struct HomeView: View {
         }
     }
 
-    private func startCall(_ contact: FamilyContact) {
-        guard let userId = contact.userId else { return }
-        callCenter.startOutgoingCall(calleeId: userId, name: contact.name)
-    }
+    private var feedbackRow: some View {
+        Button {
+            navigation.manager(for: .home).push(Route.healthFeedbackDetail)
+        } label: {
+            VStack(alignment: .leading, spacing: Spacing.x3) {
+                DividerLine()
 
-    @ViewBuilder
-    private var otherFamilySection: some View {
-        let others = Array(contacts.dropFirst())
+                HStack(spacing: Spacing.x2) {
+                    VStack(alignment: .leading, spacing: Spacing.x1) {
+                        Text(viewModel.healthFeedback.title)
+                            .body_02_semibold(.gray900)
 
-        if !others.isEmpty {
-            VStack(alignment: .leading, spacing: Spacing.x2) {
-                SectionHeaderView(title: "다른 가족")
+                        Text(viewModel.healthFeedback.headline)
+                            .body_03_medium(.gray700)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
-                ForEach(others) { contact in
-                    FamilyContactRowView(contact: contact) { startCall(contact) }
+                    Spacer(minLength: Spacing.x2)
+
+                    Icon(name: "chevron.right", size: 14, color: .gray500)
                 }
             }
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.plain)
     }
 
-    private var healthSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x3) {
-            SectionHeaderView(title: "건강 변화")
+    private func select(_ contact: FamilyContact) {
+        selectedContactId = contact.id
+        Task { await refresh() }
+    }
 
-            FamilyHealthCardView(
-                summary: viewModel.healthSummary,
-                onSeeAllTap: { navigationManager.push(Route.familyHealthOverview) }
-            )
-
-            HealthFeedbackCardView(
-                feedback: viewModel.healthFeedback,
-                onMoreTap: { navigationManager.push(Route.healthFeedbackDetail) }
-            )
-        }
+    private func refresh() async {
+        await environment.family.refresh(using: environment)
+        await viewModel.refresh(using: environment, contact: selectedContact)
     }
 }
 

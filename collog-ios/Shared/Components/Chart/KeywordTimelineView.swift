@@ -93,7 +93,7 @@ struct KeywordTimelineView: View {
 
     private func chip(for mark: KeywordMark) -> some View {
         Text(mark.label ?? "")
-            .caption_02_semibold(mark.tone.chipForeground)
+            .caption_01_semibold(mark.tone.chipForeground)
             .padding(.horizontal, Spacing.x3)
             .padding(.vertical, Spacing.x1)
             .background(mark.tone.chipBackground, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))

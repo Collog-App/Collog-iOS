@@ -7,20 +7,31 @@
 
 import SwiftUI
 
+struct CallTimelineDateHeader: View {
+    let entry: CallTimelineEntry
+
+    var body: some View {
+        HStack {
+            Text(entry.dateText)
+                .body_01_semibold(.gray900)
+
+            Spacer(minLength: Spacing.x2)
+
+            Text(entry.durationText)
+                .body_02_medium(.gray700)
+        }
+        .padding(.horizontal, Spacing.x5)
+        .padding(.vertical, Spacing.x3)
+        .frame(maxWidth: .infinity)
+        .background(Color.gray50)
+    }
+}
+
 struct CallTimelineCardView: View {
     let entry: CallTimelineEntry
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
-            HStack {
-                Text(entry.dateText)
-                    .body_01_semibold(.gray900)
-                Spacer(minLength: Spacing.x2)
-                Text(entry.durationText)
-                    .body_02_medium(.gray800)
-            }
-            .padding(.vertical, Spacing.x2)
-
             StatTileRowView(stats: entry.summaryStats)
                 .cardSurface()
 
@@ -59,8 +70,11 @@ struct CallTimelineCardView: View {
 
 #Preview {
     ScrollView {
-        CallTimelineCardView(entry: .sample)
-            .padding(.horizontal, Spacing.x5)
+        VStack(spacing: 0) {
+            CallTimelineDateHeader(entry: .sample)
+            CallTimelineCardView(entry: .sample)
+                .padding(.horizontal, Spacing.x5)
+        }
     }
     .background(Color.gray50)
 }

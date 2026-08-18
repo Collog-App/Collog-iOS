@@ -15,26 +15,29 @@ struct ConversationCardView: View {
             Text("나눈 이야기")
                 .caption_01_medium(.gray800)
 
-            VStack(alignment: .leading, spacing: Spacing.x3) {
+            VStack(alignment: .leading, spacing: Spacing.x4) {
                 ForEach(Array(groups.enumerated()), id: \.element.id) { index, group in
                     if index > 0 {
                         DividerLine()
                     }
 
-                    HStack(alignment: .top, spacing: Spacing.x3) {
-                        BadgeView(label: group.category)
-                            .frame(width: 56, alignment: .leading)
+                    VStack(alignment: .leading, spacing: Spacing.x2) {
+                        HStack(spacing: Spacing.x2) {
+                            Icon(name: group.symbol, size: 15, color: .gray700)
+
+                            Text(group.category)
+                                .caption_01_semibold(.gray700)
+                        }
 
                         VStack(alignment: .leading, spacing: Spacing.x1) {
                             ForEach(group.items, id: \.self) { item in
                                 Text(item)
-                                    .body_03_medium(.gray900)
+                                    .body_02_medium(.gray900)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
                         }
-
-                        Spacer(minLength: 0)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
         }
@@ -44,6 +47,6 @@ struct ConversationCardView: View {
 
 #Preview {
     ConversationCardView(groups: WeeklyReport.sample.conversationGroups)
-        .padding()
+        .padding(Spacing.x5)
         .background(Color.gray50)
 }

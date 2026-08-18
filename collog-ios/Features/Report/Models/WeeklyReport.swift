@@ -29,6 +29,7 @@ struct ChangeSignalItem: Identifiable {
 struct ConversationGroup: Identifiable {
     let id = UUID()
     let category: String
+    let symbol: String
     let items: [String]
 }
 
@@ -72,10 +73,10 @@ extension WeeklyReport {
             )
         ],
         conversationGroups: [
-            ConversationGroup(category: "증상", items: ["수면이 얕고 자주 깬다고 하셨어요"]),
-            ConversationGroup(category: "복약", items: ["혈압약은 꾸준히 복용 중이라고 하셨어요"]),
-            ConversationGroup(category: "활동", items: ["주말에 가벼운 산책을 하셨어요"]),
-            ConversationGroup(category: "수면", items: ["잠드는 데 오래 걸린다고 하셨어요"])
+            ConversationGroup(category: "증상", symbol: "stethoscope", items: ["허리가 조금 불편하다고 하셨어요"]),
+            ConversationGroup(category: "복약", symbol: "pills", items: ["혈압약은 꾸준히 복용 중이라고 하셨어요"]),
+            ConversationGroup(category: "활동", symbol: "figure.walk", items: ["주말에 가벼운 산책을 하셨어요"]),
+            ConversationGroup(category: "수면", symbol: "moon", items: ["잠드는 데 오래 걸린다고 하셨어요"])
         ],
         repeatObservation: RepeatObservation(
             countText: "3",

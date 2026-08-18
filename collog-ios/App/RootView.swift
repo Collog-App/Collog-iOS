@@ -12,6 +12,7 @@ struct RootView: View {
     @Environment(CallCenter.self) private var callCenter
 
     @State private var tabManager = TabManager()
+    @State private var navigation = NavigationStore()
     @State private var authFlow = AuthFlowViewModel()
     @State private var launcher = CallLauncherModel()
 
@@ -51,6 +52,7 @@ struct RootView: View {
             callScreen
         }
         .environment(tabManager)
+        .environment(navigation)
     }
 
     private var mainTabs: some View {
@@ -84,7 +86,8 @@ struct RootView: View {
                 BottomNavBarView(
                     selection: $tabManager.selectedTab,
                     launcher: launcher,
-                    onLaunch: startCall
+                    onLaunch: startCall,
+                    onReselect: { navigation.popToRoot($0) }
                 )
             }
         }

@@ -16,30 +16,46 @@ struct ReportTimelineView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
+        ScrollView {
+            LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                header
 
-            WeekNavigatorView(title: viewModel.week.title, rangeText: viewModel.week.rangeText)
+                WeekNavigatorView(title: viewModel.week.title, rangeText: viewModel.week.rangeText)
 
-            ScrollView {
                 if viewModel.selectedTabIndex == 1 {
-                    VStack(alignment: .leading, spacing: Spacing.x6) {
-                        ForEach(viewModel.week.entries) { entry in
-                            CallTimelineCardView(entry: entry)
-                        }
-                    }
-                    .padding(.horizontal, Spacing.x5)
-                    .padding(.bottom, Spacing.x8)
+                    timelineSections
                 } else {
                     ReportContentView(report: viewModel.report)
                         .padding(.horizontal, Spacing.x5)
-                        .padding(.bottom, Spacing.x8)
+                        .padding(.top, Spacing.x2)
                 }
             }
-            .scrollIndicators(.hidden)
+            .padding(.bottom, Spacing.x8)
         }
+        .scrollIndicators(.hidden)
         .background(Color.gray50)
         .task { await viewModel.refresh(using: environment) }
+    }
+
+    @ViewBuilder
+    private var timelineSections: some View {
+        if viewModel.week.entries.isEmpty {
+            Text("이번 주에는 분석된 통화가 없어요")
+                .body_02_medium(.gray700)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, Spacing.x5)
+                .padding(.top, Spacing.x6)
+        } else {
+            ForEach(viewModel.week.entries) { entry in
+                Section {
+                    CallTimelineCardView(entry: entry)
+                        .padding(.horizontal, Spacing.x5)
+                        .padding(.bottom, Spacing.x6)
+                } header: {
+                    CallTimelineDateHeader(entry: entry)
+                }
+            }
+        }
     }
 
     private var header: some View {

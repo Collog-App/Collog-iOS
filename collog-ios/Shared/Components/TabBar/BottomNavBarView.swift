@@ -11,6 +11,7 @@ struct BottomNavBarView: View {
     @Binding var selection: MainTab
     let launcher: CallLauncherModel
     var onLaunch: (FamilyContact) -> Void
+    var onReselect: (MainTab) -> Void = { _ in }
 
     static let barHeight: CGFloat = 64
     static let buttonLift: CGFloat = 14
@@ -29,17 +30,24 @@ struct BottomNavBarView: View {
         .padding(.horizontal, Spacing.x3)
         .frame(height: Self.barHeight)
         .frame(maxWidth: .infinity)
-        .background(Color.gray00)
-        .overlay(alignment: .top) {
-            Rectangle()
-                .fill(Color.gray200)
-                .frame(height: 1)
+        .background(alignment: .top) {
+            Color.gray00
+                .overlay(alignment: .top) {
+                    Rectangle()
+                        .fill(Color.gray200)
+                        .frame(height: 1)
+                }
         }
     }
 
     private func tabButton(_ tab: MainTab) -> some View {
         Button {
-            selection = tab
+            launcher.dismiss()
+            if selection == tab {
+                onReselect(tab)
+            } else {
+                selection = tab
+            }
             Haptics.press()
         } label: {
             VStack(spacing: 2) {
@@ -59,6 +67,10 @@ struct BottomNavBarView: View {
 
     private var callButton: some View {
         ZStack {
+            Circle()
+                .fill(Color.gray50)
+                .frame(width: 68, height: 68)
+
             Circle()
                 .fill(Color.greenNormal)
                 .frame(width: 58, height: 58)

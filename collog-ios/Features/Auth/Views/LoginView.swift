@@ -84,7 +84,7 @@ struct LoginView: View {
             field(title: "인증번호", placeholder: "000000", text: $viewModel.code, keyboard: .numberPad)
 
             Text("개발 서버의 인증번호는 000000이에요")
-                .caption_02_medium(.gray700)
+                .caption_01_medium(.gray700)
         }
     }
 
@@ -151,7 +151,7 @@ struct LoginView: View {
             .buttonStyle(.plain)
 
             Text("예시 데이터로 앱을 먼저 둘러볼 수 있어요")
-                .caption_02_medium(.gray700)
+                .caption_01_medium(.gray700)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
         }

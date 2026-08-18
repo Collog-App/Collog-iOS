@@ -100,7 +100,7 @@ struct SettingsView: View {
         }
 
         Text("콜록 \(Bundle.main.appVersion)")
-            .caption_02_medium(.gray700)
+            .caption_01_medium(.gray700)
             .frame(maxWidth: .infinity)
     }
 }

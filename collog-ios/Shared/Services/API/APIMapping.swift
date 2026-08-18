@@ -84,10 +84,20 @@ extension TrendSeries {
 
 extension WeeklyReport {
     init(dto: ReportDTO, trend: TrendSeries?) {
-        let conversationOrder = ["symptom": "증상", "medication": "복약", "activity": "활동", "sleep": "수면"]
+        let labels = ["symptom": "증상", "medication": "복약", "activity": "활동", "sleep": "수면"]
+        let symbols = [
+            "symptom": "stethoscope",
+            "medication": "pills",
+            "activity": "figure.walk",
+            "sleep": "moon"
+        ]
         let groups = ["symptom", "medication", "activity", "sleep"].compactMap { key -> ConversationGroup? in
             guard let items = dto.conversationItems[key], !items.isEmpty else { return nil }
-            return ConversationGroup(category: conversationOrder[key] ?? key, items: items)
+            return ConversationGroup(
+                category: labels[key] ?? key,
+                symbol: symbols[key] ?? "text.bubble",
+                items: items
+            )
         }
 
         let signals = (dto.promotedSignals.map { ($0, true) } + dto.acuteSignals.map { ($0, false) })
@@ -104,7 +114,7 @@ extension WeeklyReport {
 
         self.init(
             state: Self.state(from: dto.state),
-            noticeText: dto.demoDataNotice ?? dto.emptyMessage,
+            noticeText: dto.emptyMessage,
             summaryStats: [
                 CallStat(label: "분석된 통화", value: "\(dto.analyzedCallCount)", unit: "건", note: nil),
                 CallStat(label: "기록된 대화", value: "\(itemCount)", unit: "개", note: nil)

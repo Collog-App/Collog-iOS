@@ -65,7 +65,7 @@ struct SettingsToggleRow: View {
                     .body_02_medium(.gray900)
                 if let caption {
                     Text(caption)
-                        .caption_02_medium(.gray700)
+                        .caption_01_medium(.gray700)
                 }
             }
 
