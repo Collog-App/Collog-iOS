@@ -34,7 +34,10 @@ struct ReportTimelineView: View {
                         content
                             .id(viewModel.weekOffset)
                             .transition(
-                                .push(from: pushFromLeading ? .leading : .trailing)
+                                .asymmetric(
+                                    insertion: .move(edge: pushFromLeading ? .leading : .trailing),
+                                    removal: .move(edge: pushFromLeading ? .trailing : .leading)
+                                )
                             )
                             .offset(x: dragTranslation)
                             .highPriorityGesture(weekSwipe)
@@ -83,7 +86,7 @@ struct ReportTimelineView: View {
         pushFromLeading = delta < 0
         dragTranslation = 0
 
-        withAnimation(.easeInOut(duration: 0.28)) {
+        withAnimation(.easeOut(duration: 0.22)) {
             guard viewModel.moveWeek(delta) else { return }
         }
         Haptics.press()
