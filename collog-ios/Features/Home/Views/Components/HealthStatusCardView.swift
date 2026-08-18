@@ -27,18 +27,14 @@ struct HealthStatusCardView: View {
 
                 DividerLine()
 
-                Button(action: onTap) {
-                    HStack(spacing: Spacing.x2) {
-                        Text(footnote)
-                            .caption_01_medium(.gray700)
+                HStack(spacing: Spacing.x2) {
+                    Text(footnote)
+                        .caption_01_medium(.gray700)
 
-                        Spacer(minLength: Spacing.x2)
+                    Spacer(minLength: Spacing.x2)
 
-                        Icon(name: "chevron.right", size: 14, color: .gray500)
-                    }
-                    .contentShape(Rectangle())
+                    Icon(name: "chevron.right", size: 14, color: .gray500)
                 }
-                .buttonStyle(.plain)
             }
             .padding(Spacing.x5)
             .background(Color.gray00)
@@ -49,15 +45,14 @@ struct HealthStatusCardView: View {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .stroke(Color.gray200, lineWidth: 1)
         }
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .onTapGesture(perform: onTap)
+        .accessibilityAddTraits(.isButton)
     }
 
     private var hero: some View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
             HStack(spacing: Spacing.x2) {
-                Circle()
-                    .fill(Color.greenDark)
-                    .frame(width: 7, height: 7)
-
                 Text("이번 주 안부")
                     .caption_01_semibold(.green700)
 

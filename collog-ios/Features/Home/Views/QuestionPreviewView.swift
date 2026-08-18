@@ -45,9 +45,10 @@ struct QuestionPreviewView: View {
             .padding(.vertical, Spacing.x4)
         }
         .background(Color.gray50)
-        .navigationTitle("오늘의 질문")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HomeDetailHeader(title: "오늘의 질문")
+        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private var uniqueQuestions: [PreviewQuestion] {

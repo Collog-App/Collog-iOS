@@ -53,9 +53,10 @@ struct HomeNotificationsView: View {
             .padding(.vertical, Spacing.x4)
         }
         .background(Color.gray50)
-        .navigationTitle("알림")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.visible, for: .navigationBar)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            HomeDetailHeader(title: "알림")
+        }
+        .toolbar(.hidden, for: .navigationBar)
     }
 
     private func notificationRow(

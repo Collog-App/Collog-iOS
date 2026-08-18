@@ -66,9 +66,8 @@ struct QuestionListView: View {
 
     private func questionPill(_ text: String, index: Int) -> some View {
         HStack(spacing: Spacing.x2) {
-            Circle()
-                .fill(index == 1 ? Color.gray00.opacity(0.18) : Color.greenNormal)
-                .frame(width: 8, height: 8)
+            Text(String(format: "%02d", index + 1))
+                .caption_01_semibold(index == 1 ? .gray500 : .green700)
 
             Text(text)
                 .body_03_medium(index == 1 ? .gray00 : .gray900)
