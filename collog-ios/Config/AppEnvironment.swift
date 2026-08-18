@@ -35,7 +35,7 @@ final class AppEnvironment {
         CollogAPI(
             client: CollogAPIClient(
                 baseURL: settings.resolvedBaseURL,
-                accessToken: { [session] in session.accessToken }
+                accessToken: session.accessToken
             )
         )
     }

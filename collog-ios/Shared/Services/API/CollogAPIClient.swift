@@ -9,7 +9,7 @@ import Foundation
 
 struct CollogAPIClient {
     var baseURL: URL
-    var accessToken: @Sendable () -> String?
+    var accessToken: String?
     var session: URLSession = .shared
 
     private static let decoder: JSONDecoder = {
@@ -50,8 +50,8 @@ struct CollogAPIClient {
         request.httpMethod = endpoint.method.rawValue
 
         if endpoint.requiresAuth {
-            guard let token = accessToken() else { throw APIError.unauthenticated }
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            guard let accessToken else { throw APIError.unauthenticated }
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
         }
 
         if let body = endpoint.body {
