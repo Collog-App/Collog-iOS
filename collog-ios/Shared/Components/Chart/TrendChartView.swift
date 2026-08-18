@@ -11,6 +11,7 @@ import SwiftUI
 struct TrendChartView: View {
     let series: TrendSeries
     var showsReadout = true
+    var chartHeight: CGFloat = 132
 
     @State private var selectedDate: Date?
     @State private var revealProgress: CGFloat = 0
@@ -27,7 +28,7 @@ struct TrendChartView: View {
             }
 
             chart
-                .frame(height: 132)
+                .frame(height: chartHeight)
                 .mask(alignment: .leading) {
                     GeometryReader { proxy in
                         Rectangle()

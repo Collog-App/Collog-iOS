@@ -22,14 +22,7 @@ struct QuestionListView: View {
 
     private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.x5) {
-            HStack(spacing: Spacing.x3) {
-                RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
-                    .fill(Color.greenLight)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Icon(name: "bubble.left.and.text.bubble.right", size: 18, color: .green700)
-                    }
-
+            HStack(spacing: Spacing.x2) {
                 VStack(alignment: .leading, spacing: Spacing.x1) {
                     Text("오늘의 질문")
                         .body_01_semibold(.gray900)
@@ -60,28 +53,32 @@ struct QuestionListView: View {
                     }
             }
         }
-        .frame(height: 164)
+        .frame(height: 144)
         .frame(maxWidth: .infinity)
     }
 
     private func questionPill(_ text: String, index: Int) -> some View {
         HStack(spacing: Spacing.x2) {
             Text(String(format: "%02d", index + 1))
-                .caption_01_semibold(index == 1 ? .gray500 : .green700)
+                .caption_01_semibold(.green700)
 
             Text(text)
-                .body_03_medium(index == 1 ? .gray00 : .gray900)
+                .body_03_medium(.gray900)
                 .lineLimit(1)
         }
         .padding(.horizontal, Spacing.x4)
-        .frame(height: 48)
+        .frame(height: 44)
         .background(pillColor(for: index), in: Capsule())
-        .shadow(color: .black.opacity(0.07), radius: 12, y: 5)
+        .overlay {
+            Capsule()
+                .stroke(index == 1 ? Color.green200 : Color.gray200, lineWidth: 1)
+        }
+        .shadow(color: .black.opacity(0.035), radius: 8, y: 3)
     }
 
     private func pillColor(for index: Int) -> Color {
         switch index {
-        case 1: .gray900
+        case 1: .greenLight
         case 2: .greenLight
         default: .gray00
         }
@@ -96,14 +93,14 @@ struct QuestionListView: View {
     }
 
     private func verticalOffset(for index: Int) -> CGFloat {
-        CGFloat(index - 1) * 50
+        CGFloat(index - 1) * 44
     }
 
     private func rotation(for index: Int) -> Double {
         switch index {
-        case 1: 1.8
-        case 2: -1.2
-        default: -2.4
+        case 1: 1.0
+        case 2: -0.8
+        default: -1.4
         }
     }
 

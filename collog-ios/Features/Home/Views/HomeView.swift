@@ -10,6 +10,7 @@ import SwiftUI
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NavigationStore.self) private var navigation
+    @Environment(TabManager.self) private var tabManager
 
     @State private var viewModel = HomeViewModel()
     @State private var selectedContactId: String?
@@ -27,7 +28,8 @@ struct HomeView: View {
         return NavigationStack(path: $navigator.path) {
             CollapsingHeaderScrollView(
                 title: selectedContact?.name ?? "가족",
-                onRefresh: refresh
+                onRefresh: refresh,
+                scrollReset: tabManager.reselectionCount
             ) {
                 largeTitle
             } trailing: {
@@ -38,7 +40,7 @@ struct HomeView: View {
                         navigation.manager(for: .home).push(Route.familyHealthOverview)
                     }
                     .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
-                    .padding(.bottom, Spacing.x6)
+                    .padding(.bottom, Spacing.x5)
 
                     QuestionListView(questions: environment.family.questions) {
                         navigation.manager(for: .home).push(Route.questionPreview)
@@ -144,13 +146,6 @@ struct HomeView: View {
             navigation.manager(for: .home).push(Route.healthFeedbackDetail)
         } label: {
             HStack(spacing: Spacing.x3) {
-                RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
-                    .fill(Color.orangeLight)
-                    .frame(width: 40, height: 40)
-                    .overlay {
-                        Icon(name: "lightbulb.max", size: 18, color: .orange600)
-                    }
-
                 VStack(alignment: .leading, spacing: Spacing.x1) {
                     Text(viewModel.healthFeedback.title)
                         .caption_01_medium(.gray800)

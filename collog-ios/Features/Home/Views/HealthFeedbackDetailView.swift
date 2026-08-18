@@ -17,14 +17,6 @@ struct HealthFeedbackDetailView: View {
                 hero
                 reasonCard
                 checklistCard
-
-                Text(
-                    "이 내용은 의료 진단이 아니에요. "
-                    + "통화에서 관찰된 내용을 가족이 살펴볼 수 있게 정리했어요."
-                )
-                    .caption_01_medium(.gray700)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, Spacing.x1)
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x4)

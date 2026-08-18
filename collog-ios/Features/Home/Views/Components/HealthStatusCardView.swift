@@ -16,13 +16,20 @@ struct HealthStatusCardView: View {
         VStack(alignment: .leading, spacing: 0) {
             hero
 
-            VStack(alignment: .leading, spacing: Spacing.x5) {
+            DividerLine()
+                .padding(.horizontal, Spacing.x4)
+
+            VStack(alignment: .leading, spacing: Spacing.x4) {
                 if isLoaded {
-                    TrendChartView(series: summary.trend, showsReadout: false)
+                    TrendChartView(
+                        series: summary.trend,
+                        showsReadout: false,
+                        chartHeight: 104
+                    )
                 } else {
                     RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
                         .fill(Color.gray100)
-                        .frame(height: 132)
+                        .frame(height: 104)
                 }
 
                 DividerLine()
@@ -36,7 +43,7 @@ struct HealthStatusCardView: View {
                     Icon(name: "chevron.right", size: 14, color: .gray500)
                 }
             }
-            .padding(Spacing.x5)
+            .padding(Spacing.x4)
             .background(Color.gray00)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -51,11 +58,8 @@ struct HealthStatusCardView: View {
     }
 
     private var hero: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
+        VStack(alignment: .leading, spacing: Spacing.x3) {
             HStack(spacing: Spacing.x2) {
-                Text("이번 주 안부")
-                    .caption_01_semibold(.green700)
-
                 Spacer(minLength: Spacing.x2)
 
                 Text(summary.periodText)
@@ -75,7 +79,7 @@ struct HealthStatusCardView: View {
             if let latest = summary.trend.latest {
                 HStack(alignment: .lastTextBaseline, spacing: Spacing.x1) {
                     Text("\(Int(latest.value.rounded()))")
-                        .pretendard(.bold, 36, .gray1000)
+                        .pretendard(.bold, 32, .gray1000)
 
                     Text(summary.trend.unit)
                         .body_03_medium(.gray800)
@@ -93,13 +97,7 @@ struct HealthStatusCardView: View {
             }
         }
         .padding(Spacing.x5)
-        .background {
-            LinearGradient(
-                colors: [.greenLightActive.opacity(0.78), .green100],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        }
+        .background(Color.gray00)
     }
 
     private var footnote: String {
