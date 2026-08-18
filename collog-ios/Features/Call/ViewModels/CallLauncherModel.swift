@@ -29,7 +29,10 @@ final class CallLauncherModel {
 
     private let holdDuration: Duration = .milliseconds(280)
     private let hitRadius: CGFloat = 58
-    private let arcRadius: CGFloat = 118
+
+    let arcRadius: CGFloat = 132
+    private let startAngle = -138.0
+    private let endAngle = -42.0
 
     func configure(targets: [FamilyContact], questions: [String]) {
         self.targets = targets
@@ -96,8 +99,6 @@ final class CallLauncherModel {
 
     func offset(for index: Int) -> CGSize {
         let count = max(targets.count, 1)
-        let startAngle = -148.0
-        let endAngle = -32.0
         let ratio = count == 1 ? 0.5 : Double(index) / Double(count - 1)
         let radians = (startAngle + (endAngle - startAngle) * ratio) * .pi / 180
         return CGSize(width: cos(radians) * arcRadius, height: sin(radians) * arcRadius)
