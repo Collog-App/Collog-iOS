@@ -63,9 +63,19 @@ struct NextCallCardView: View {
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
-                .background(Color.greenNormal, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+                .background(
+                    contact.isCallable ? Color.greenNormal : Color.gray500,
+                    in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                )
             }
             .buttonStyle(.plain)
+            .disabled(!contact.isCallable)
+
+            if !contact.isCallable {
+                Text("로그인하면 실제로 전화를 걸 수 있어요")
+                    .caption_02_medium(.gray700)
+                    .frame(maxWidth: .infinity)
+            }
         }
         .cardSurface()
     }

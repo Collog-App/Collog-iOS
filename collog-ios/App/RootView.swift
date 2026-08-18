@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct RootView: View {
+    @Environment(CallCenter.self) private var callCenter
     @State private var tabManager = TabManager()
 
     var body: some View {
@@ -29,6 +30,15 @@ struct RootView: View {
             BottomNavBarView(selection: $tabManager.selectedTab)
         }
         .background(Color.gray50)
+        .fullScreenCover(item: Binding(get: { callCenter.activeCall }, set: { _ in })) { call in
+            CallView(
+                peerName: call.peerName,
+                phase: call.phase,
+                questions: call.questions.map(\.text),
+                notice: call.notice,
+                onEnd: { callCenter.endActiveCall() }
+            )
+        }
         .environment(tabManager)
     }
 }
@@ -45,5 +55,9 @@ private struct ComingSoonView: View {
 }
 
 #Preview {
+    let environment = AppEnvironment()
+
     RootView()
+        .environment(environment)
+        .environment(CallCenter(environment: environment))
 }

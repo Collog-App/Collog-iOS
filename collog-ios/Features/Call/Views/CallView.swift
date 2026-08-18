@@ -8,20 +8,29 @@
 import SwiftUI
 
 struct CallView: View {
-    @State private var viewModel: CallViewModel
+    let peerName: String
+    let phase: CallPhase
+    let questions: [String]
+    var notice: String?
     var onEnd: () -> Void
 
-    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    @State private var connectedAt: Date?
+    @State private var elapsed: TimeInterval = 0
 
-    init(contact: FamilyContact, questions: [PreviewQuestion], onEnd: @escaping () -> Void) {
-        _viewModel = State(initialValue: CallViewModel(contact: contact, questions: questions))
-        self.onEnd = onEnd
-    }
+    private let ticker = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(spacing: 0) {
             header
                 .padding(.top, Spacing.x8)
+
+            if let notice {
+                Text(notice)
+                    .caption_01_medium(.gray700)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x4)
+            }
 
             questionList
                 .padding(.top, Spacing.x8)
@@ -33,7 +42,15 @@ struct CallView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.gray50)
-        .onReceive(ticker) { _ in viewModel.tick() }
+        .onChange(of: phase, initial: true) { _, newPhase in
+            if newPhase == .active, connectedAt == nil {
+                connectedAt = Date()
+            }
+        }
+        .onReceive(ticker) { _ in
+            guard let connectedAt else { return }
+            elapsed = Date().timeIntervalSince(connectedAt)
+        }
     }
 
     private var header: some View {
@@ -43,15 +60,15 @@ struct CallView: View {
                 .frame(width: 120, height: 120)
 
             VStack(spacing: Spacing.x2) {
-                Text(viewModel.contact.name)
+                Text(peerName)
                     .headline_02(.gray900)
 
-                if viewModel.phase.showsTimer {
-                    Text(viewModel.durationText)
+                if phase.showsTimer {
+                    Text(CallDurationFormatter.text(for: elapsed))
                         .pretendard(.medium, 16, .gray700)
                         .monospacedDigit()
                 } else {
-                    Text(viewModel.phase.statusText)
+                    Text(phase.statusText)
                         .pretendard(.medium, 16, .gray700)
                 }
             }
@@ -60,11 +77,13 @@ struct CallView: View {
 
     private var questionList: some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
-            Text("오늘의 건강 질문")
-                .caption_01_medium(.gray800)
-                .padding(.horizontal, Spacing.x1)
+            if !questions.isEmpty {
+                Text("오늘의 건강 질문")
+                    .caption_01_medium(.gray800)
+                    .padding(.horizontal, Spacing.x1)
+            }
 
-            ForEach(viewModel.questions) { question in
+            ForEach(Array(questions.enumerated()), id: \.offset) { _, question in
                 HStack(spacing: Spacing.x3) {
                     AssetPlaceholder(size: 13)
                         .frame(width: IconSize.medium, height: IconSize.medium)
@@ -73,7 +92,7 @@ struct CallView: View {
                             in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
                         )
 
-                    Text(question.text)
+                    Text(question)
                         .body_02_medium(.gray900)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -86,10 +105,7 @@ struct CallView: View {
     }
 
     private var endButton: some View {
-        Button {
-            viewModel.end()
-            onEnd()
-        } label: {
+        Button(action: onEnd) {
             AssetPlaceholder(size: 28)
                 .frame(width: 72, height: 72)
                 .background(Color.red500, in: Circle())
@@ -100,5 +116,9 @@ struct CallView: View {
 }
 
 #Preview {
-    CallView(contact: FamilyContact.samples[0], questions: PreviewQuestion.samples) {}
+    CallView(
+        peerName: "어머니",
+        phase: .active,
+        questions: PreviewQuestion.samples.map(\.text)
+    ) {}
 }
