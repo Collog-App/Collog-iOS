@@ -14,13 +14,19 @@ final class HomeViewModel {
     private(set) var lastCallText = "아직 통화 기록이 없어요"
     private(set) var isLoaded = true
 
-    func refresh(using environment: AppEnvironment, contact: FamilyContact?) async {
+    func refresh(
+        using environment: AppEnvironment,
+        contact: FamilyContact?,
+        showsLoading: Bool = false
+    ) async {
         guard environment.session.isAuthenticated else { return }
         let resolvedId = if let userId = contact?.userId { userId } else { await environment.subjectParentId() }
         guard let parentId = resolvedId else { return }
 
-        isLoaded = false
-        defer { isLoaded = true }
+        if showsLoading { isLoaded = false }
+        defer {
+            if showsLoading { isLoaded = true }
+        }
 
         let api = environment.api
         await loadLastCall(api: api, parentId: parentId)

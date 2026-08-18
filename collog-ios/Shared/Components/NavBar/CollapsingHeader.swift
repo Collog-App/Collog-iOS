@@ -21,6 +21,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let large: Large
     private let trailing: Trailing
     private let content: Content
+    private let onRefresh: (@MainActor @Sendable () async -> Void)?
 
     @State private var scrollOffset: CGFloat = 0
 
@@ -29,6 +30,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
     init(
         title: String,
+        onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         @ViewBuilder large: () -> Large,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
@@ -37,6 +39,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.large = large()
         self.trailing = trailing()
         self.content = content()
+        self.onRefresh = onRefresh
     }
 
     private var collapseProgress: CGFloat {
@@ -45,28 +48,44 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
     var body: some View {
         ZStack(alignment: .top) {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    large
-                        .padding(.horizontal, Spacing.x5)
-                        .padding(.top, Spacing.x2)
-                        .padding(.bottom, Spacing.x6)
-                        .opacity(1 - collapseProgress)
-
-                    content
-                }
-                .padding(.top, barHeight)
-            }
-            .scrollIndicators(.hidden)
-            .onScrollGeometryChange(for: CGFloat.self) { geometry in
-                geometry.contentOffset.y + geometry.contentInsets.top
-            } action: { _, offset in
-                scrollOffset = offset
-            }
+            refreshableScrollView
 
             compactBar
         }
         .background(Color.gray50)
+    }
+
+    @ViewBuilder
+    private var refreshableScrollView: some View {
+        if let onRefresh {
+            contentScrollView
+                .refreshable {
+                    await onRefresh()
+                }
+        } else {
+            contentScrollView
+        }
+    }
+
+    private var contentScrollView: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                large
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x2)
+                    .padding(.bottom, Spacing.x6)
+                    .opacity(1 - collapseProgress)
+
+                content
+            }
+            .padding(.top, barHeight)
+        }
+        .scrollIndicators(.hidden)
+        .onScrollGeometryChange(for: CGFloat.self) { geometry in
+            geometry.contentOffset.y + geometry.contentInsets.top
+        } action: { _, offset in
+            scrollOffset = offset
+        }
     }
 
     private var compactBar: some View {
@@ -92,11 +111,13 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
     init(
         title: String,
+        onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
     ) {
         self.init(
             title: title,
+            onRefresh: onRefresh,
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
             content: content

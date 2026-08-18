@@ -24,7 +24,10 @@ struct HomeView: View {
         @Bindable var navigator = navigation.manager(for: .home)
 
         return NavigationStack(path: $navigator.path) {
-            CollapsingHeaderScrollView(title: selectedContact?.name ?? "가족") {
+            CollapsingHeaderScrollView(
+                title: selectedContact?.name ?? "가족",
+                onRefresh: refresh
+            ) {
                 largeTitle
             } trailing: {
                 trailingIcons
@@ -44,7 +47,7 @@ struct HomeView: View {
                 .padding(.bottom, Spacing.x8)
             }
             .toolbar(.hidden, for: .navigationBar)
-            .task { await refresh() }
+            .task { await initialRefresh() }
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
                 switch route {
@@ -136,6 +139,15 @@ struct HomeView: View {
     private func refresh() async {
         await environment.family.refresh(using: environment)
         await viewModel.refresh(using: environment, contact: selectedContact)
+    }
+
+    private func initialRefresh() async {
+        await environment.family.refresh(using: environment)
+        await viewModel.refresh(
+            using: environment,
+            contact: selectedContact,
+            showsLoading: true
+        )
     }
 }
 

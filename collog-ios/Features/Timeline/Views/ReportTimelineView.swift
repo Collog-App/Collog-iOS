@@ -27,7 +27,10 @@ struct ReportTimelineView: View {
         @Bindable var navigator = navigation.manager(for: tab)
 
         return NavigationStack(path: $navigator.path) {
-            CollapsingHeaderScrollView(title: viewModel.title) {
+            CollapsingHeaderScrollView(
+                title: viewModel.title,
+                onRefresh: refresh
+            ) {
                 FilterChipView(label: viewModel.selectedMember)
             } content: {
                 VStack(spacing: 0) {
@@ -100,6 +103,10 @@ struct ReportTimelineView: View {
         Haptics.focus()
         viewModel.setWeek(pagedOffset)
         Task { await viewModel.refresh(using: environment) }
+    }
+
+    private func refresh() async {
+        await viewModel.refresh(using: environment, forceReload: true)
     }
 
     private func move(by delta: Int) {

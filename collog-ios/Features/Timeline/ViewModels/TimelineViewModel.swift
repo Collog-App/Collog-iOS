@@ -38,7 +38,7 @@ final class TimelineViewModel {
         weekOffset = offset
     }
 
-    func refresh(using environment: AppEnvironment) async {
+    func refresh(using environment: AppEnvironment, forceReload: Bool = false) async {
         guard let parentId = await environment.subjectParentId() else { return }
         let api = environment.api
 
@@ -53,18 +53,30 @@ final class TimelineViewModel {
             ?? selectedMember
 
         let anchor = weekOffset
-        for offset in [anchor, anchor - 1, anchor + 1] where offset <= 0 {
-            await load(offset, parentId: parentId, api: api)
+        let offsets = forceReload ? [anchor] : [anchor, anchor - 1, anchor + 1]
+        for offset in offsets where offset <= 0 {
+            await load(
+                offset,
+                parentId: parentId,
+                api: api,
+                forceReload: forceReload
+            )
         }
     }
 
-    private func load(_ offset: Int, parentId: String, api: CollogAPI) async {
-        guard !loading.contains(offset), pages[offset]?.isLoaded != true else { return }
+    private func load(
+        _ offset: Int,
+        parentId: String,
+        api: CollogAPI,
+        forceReload: Bool = false
+    ) async {
+        guard !loading.contains(offset) else { return }
+        guard forceReload || pages[offset]?.isLoaded != true else { return }
         loading.insert(offset)
         defer { loading.remove(offset) }
 
         let bounds = TimelineWeekPage.bounds(offset: offset)
-        var page = TimelineWeekPage(offset: offset)
+        var page = pages[offset] ?? TimelineWeekPage(offset: offset)
 
         do {
             let dto = try await api.report(
@@ -81,7 +93,9 @@ final class TimelineViewModel {
             loadError = error.localizedDescription
         }
 
-        page.entries = await entries(parentId: parentId, api: api, bounds: bounds)
+        if let entries = await entries(parentId: parentId, api: api, bounds: bounds) {
+            page.entries = entries
+        }
         page.isLoaded = true
         pages[offset] = page
     }
@@ -90,13 +104,13 @@ final class TimelineViewModel {
         parentId: String,
         api: CollogAPI,
         bounds: (anchor: Date, start: Date, end: Date)
-    ) async -> [CallTimelineEntry] {
-        let calls = try? await api.calls(
+    ) async -> [CallTimelineEntry]? {
+        guard let calls = try? await api.calls(
             parentId: parentId,
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
-        )
-        let analyzed = (calls ?? []).filter(\.isAnalyzed).prefix(5)
+        ) else { return nil }
+        let analyzed = calls.filter(\.isAnalyzed).prefix(5)
         guard !analyzed.isEmpty else { return [] }
 
         var result: [CallTimelineEntry] = []
