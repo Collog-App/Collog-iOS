@@ -13,6 +13,7 @@ struct ReportTimelineView: View {
 
     @State private var viewModel: TimelineViewModel
     @State private var pagedOffset: Int? = 0
+    @State private var pageHeights: [Int: CGFloat] = [:]
 
     private let tab: MainTab
     private let pageOffsets = Array(-25...0)
@@ -49,7 +50,7 @@ struct ReportTimelineView: View {
 
     private var weekPager: some View {
         ScrollView(.horizontal) {
-            LazyHStack(spacing: 0) {
+            LazyHStack(alignment: .top, spacing: 0) {
                 ForEach(pageOffsets, id: \.self) { offset in
                     pageView(for: offset)
                         .containerRelativeFrame(.horizontal)
@@ -61,12 +62,15 @@ struct ReportTimelineView: View {
         .scrollIndicators(.hidden)
         .defaultScrollAnchor(.trailing)
         .scrollPosition(id: $pagedOffset)
-        .onChange(of: pagedOffset) { _, newValue in
-            guard let newValue, newValue != viewModel.weekOffset else { return }
-            Haptics.focus()
-            viewModel.setWeek(newValue)
-            Task { await viewModel.refresh(using: environment) }
+        .frame(height: currentPageHeight)
+        .onScrollPhaseChange { _, phase in
+            guard phase == .idle else { return }
+            settlePage()
         }
+    }
+
+    private var currentPageHeight: CGFloat {
+        max(pageHeights[viewModel.weekOffset] ?? 340, 240)
     }
 
     @ViewBuilder
@@ -84,7 +88,18 @@ struct ReportTimelineView: View {
                 Color.clear
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 340, alignment: .top)
+        .frame(maxWidth: .infinity, alignment: .top)
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            guard height > 0 else { return }
+            pageHeights[offset] = height
+        }
+    }
+
+    private func settlePage() {
+        guard let pagedOffset, pagedOffset != viewModel.weekOffset else { return }
+        Haptics.focus()
+        viewModel.setWeek(pagedOffset)
+        Task { await viewModel.refresh(using: environment) }
     }
 
     private func move(by delta: Int) {
