@@ -72,7 +72,10 @@ struct HomeView: View {
                         .zoom(sourceID: Route.healthFeedbackDetail, in: detailTransition)
                     )
                 case .questionPreview:
-                    QuestionPreviewView(questions: environment.family.questions)
+                    QuestionPreviewView(
+                        questions: environment.family.questions,
+                        memberName: selectedContact?.name ?? "가족"
+                    )
                         .navigationTransition(
                             .zoom(sourceID: Route.questionPreview, in: detailTransition)
                         )
