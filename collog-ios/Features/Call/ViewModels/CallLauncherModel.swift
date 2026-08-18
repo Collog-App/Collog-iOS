@@ -30,9 +30,9 @@ final class CallLauncherModel {
     private let holdDuration: Duration = .milliseconds(280)
     private let hitRadius: CGFloat = 58
 
-    let arcRadius: CGFloat = 132
-    private let startAngle = -138.0
-    private let endAngle = -42.0
+    let arcRadius: CGFloat = 122
+    private let startAngle = -122.0
+    private let endAngle = -58.0
 
     func configure(targets: [FamilyContact], questions: [String]) {
         self.targets = targets
@@ -62,13 +62,17 @@ final class CallLauncherModel {
         activationTask = nil
 
         guard didActivateByHold else {
-            mode = mode == .sticky ? .idle : .sticky
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+                mode = mode == .sticky ? .idle : .sticky
+            }
             focusedIndex = nil
             return nil
         }
 
         let selected = focusedIndex.flatMap { targets.indices.contains($0) ? targets[$0] : nil }
-        mode = .idle
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+            mode = .idle
+        }
         focusedIndex = nil
         didActivateByHold = false
 
@@ -83,7 +87,9 @@ final class CallLauncherModel {
     func select(_ index: Int) -> FamilyContact? {
         guard targets.indices.contains(index) else { return nil }
         Haptics.commit()
-        mode = .idle
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.84)) {
+            mode = .idle
+        }
         focusedIndex = nil
         return targets[index]
     }
@@ -92,7 +98,9 @@ final class CallLauncherModel {
         activationTask?.cancel()
         activationTask = nil
         if mode != .idle { Haptics.cancel() }
-        mode = .idle
+        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
+            mode = .idle
+        }
         focusedIndex = nil
         didActivateByHold = false
     }
@@ -106,10 +114,10 @@ final class CallLauncherModel {
 
     private func activateHold() {
         guard !targets.isEmpty else {
-            mode = .sticky
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { mode = .sticky }
             return
         }
-        mode = .dragging
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { mode = .dragging }
         didActivateByHold = true
         Haptics.open()
     }

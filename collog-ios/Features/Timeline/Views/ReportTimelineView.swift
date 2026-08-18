@@ -29,30 +29,28 @@ struct ReportTimelineView: View {
             CollapsingHeaderScrollView(title: viewModel.title) {
                 FilterChipView(label: viewModel.selectedMember)
             } content: {
-                LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
-                    Section {
-                        content
-                            .id(viewModel.weekOffset)
-                            .transition(
-                                .asymmetric(
-                                    insertion: .move(edge: pushFromLeading ? .leading : .trailing),
-                                    removal: .move(edge: pushFromLeading ? .trailing : .leading)
-                                )
+                VStack(spacing: 0) {
+                    WeekNavigatorView(
+                        title: viewModel.week.title,
+                        rangeText: viewModel.week.rangeText,
+                        canGoForward: viewModel.canGoForward,
+                        onPrevious: { changeWeek(by: -1) },
+                        onNext: { changeWeek(by: 1) }
+                    )
+
+                    content
+                        .id(viewModel.weekOffset)
+                        .transition(
+                            .asymmetric(
+                                insertion: .move(edge: pushFromLeading ? .leading : .trailing),
+                                removal: .move(edge: pushFromLeading ? .trailing : .leading)
                             )
-                            .offset(x: dragTranslation)
-                            .highPriorityGesture(weekSwipe)
-                    } header: {
-                        WeekNavigatorView(
-                            title: viewModel.week.title,
-                            rangeText: viewModel.week.rangeText,
-                            canGoForward: viewModel.canGoForward,
-                            onPrevious: { changeWeek(by: -1) },
-                            onNext: { changeWeek(by: 1) }
                         )
-                        .background(Color.gray50)
-                    }
+                        .offset(x: dragTranslation)
                 }
                 .padding(.bottom, Spacing.x8)
+                .clipped()
+                .highPriorityGesture(weekSwipe)
                 .clipped()
             }
             .toolbar(.hidden, for: .navigationBar)
@@ -86,9 +84,11 @@ struct ReportTimelineView: View {
         pushFromLeading = delta < 0
         dragTranslation = 0
 
-        withAnimation(.easeOut(duration: 0.22)) {
-            guard viewModel.moveWeek(delta) else { return }
+        let moved = withAnimation(.easeOut(duration: 0.24)) {
+            viewModel.moveWeek(delta)
         }
+        guard moved else { return }
+
         Haptics.press()
         Task { await viewModel.refresh(using: environment) }
     }

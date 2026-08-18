@@ -21,6 +21,16 @@ struct CallLauncherOverlay: View {
                 .ignoresSafeArea()
                 .onTapGesture { onDismiss() }
 
+            RadialGradient(
+                colors: [Color.greenNormal.opacity(0.30), Color.greenNormal.opacity(0)],
+                center: .center,
+                startRadius: 8,
+                endRadius: 300
+            )
+            .frame(width: 600, height: 600)
+            .offset(y: 300 - anchorInset)
+            .allowsHitTesting(false)
+
             ZStack {
                 questionStack
                 targetFan
@@ -28,6 +38,7 @@ struct CallLauncherOverlay: View {
             .padding(.bottom, anchorInset)
         }
         .transition(.opacity)
+        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: model.isPresented)
     }
 
     private var questionStack: some View {
