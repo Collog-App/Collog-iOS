@@ -7,15 +7,37 @@
 
 import SwiftUI
 
-struct CollapsingHeaderScrollView<Trailing: View, Content: View>: View {
+struct CollapsingLargeTitle: View {
     let title: String
-    @ViewBuilder var trailing: Trailing
-    @ViewBuilder var content: Content
+
+    var body: some View {
+        Text(title)
+            .headline_02(.gray900)
+    }
+}
+
+struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: View {
+    private let title: String
+    private let large: Large
+    private let trailing: Trailing
+    private let content: Content
 
     @State private var scrollOffset: CGFloat = 0
 
     private let collapseDistance: CGFloat = 44
     private let barHeight: CGFloat = 52
+
+    init(
+        title: String,
+        @ViewBuilder large: () -> Large,
+        @ViewBuilder trailing: () -> Trailing,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.large = large()
+        self.trailing = trailing()
+        self.content = content()
+    }
 
     private var collapseProgress: CGFloat {
         min(max(scrollOffset / collapseDistance, 0), 1)
@@ -25,11 +47,10 @@ struct CollapsingHeaderScrollView<Trailing: View, Content: View>: View {
         ZStack(alignment: .top) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(title)
-                        .headline_02(.gray900)
+                    large
                         .padding(.horizontal, Spacing.x5)
                         .padding(.top, Spacing.x2)
-                        .padding(.bottom, Spacing.x4)
+                        .padding(.bottom, Spacing.x5)
                         .opacity(1 - collapseProgress)
 
                     content
@@ -64,13 +85,22 @@ struct CollapsingHeaderScrollView<Trailing: View, Content: View>: View {
         .background {
             Color.gray50
                 .ignoresSafeArea(edges: .top)
-                .overlay(alignment: .bottom) {
-                    Rectangle()
-                        .fill(Color.gray200)
-                        .frame(height: 1)
-                        .opacity(collapseProgress)
-                }
         }
+    }
+}
+
+extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
+    init(
+        title: String,
+        @ViewBuilder trailing: () -> Trailing,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title,
+            large: { CollapsingLargeTitle(title: title) },
+            trailing: trailing,
+            content: content
+        )
     }
 }
 

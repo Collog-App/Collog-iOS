@@ -13,10 +13,9 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = environment.settings
 
-        VStack(spacing: 0) {
-            header
-
-            ScrollView {
+        return CollapsingHeaderScrollView(title: "설정") {
+            EmptyView()
+        } content: {
                 VStack(spacing: Spacing.x6) {
                     accountSection
 
@@ -53,23 +52,8 @@ struct SettingsView: View {
                     footer
                 }
                 .padding(.horizontal, Spacing.x5)
-                .padding(.top, Spacing.x2)
                 .padding(.bottom, Spacing.x8)
-            }
-            .scrollIndicators(.hidden)
         }
-        .background(Color.gray50)
-    }
-
-    private var header: some View {
-        HStack {
-            Text("설정")
-                .subtitle_01(.gray900)
-            Spacer()
-        }
-        .padding(.horizontal, Spacing.x5)
-        .padding(.top, Spacing.x2)
-        .padding(.bottom, Spacing.x4)
     }
 
     private var accountSection: some View {

@@ -9,7 +9,6 @@ import SwiftUI
 
 struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
-
     @Environment(NavigationStore.self) private var navigation
 
     @State private var viewModel = HomeViewModel()
@@ -25,33 +24,24 @@ struct HomeView: View {
         @Bindable var navigator = navigation.manager(for: .home)
 
         return NavigationStack(path: $navigator.path) {
-            ScrollView {
+            CollapsingHeaderScrollView(title: selectedContact?.name ?? "가족") {
+                largeTitle
+            } trailing: {
+                trailingIcons
+            } content: {
                 VStack(alignment: .leading, spacing: Spacing.x8) {
-                    if let selectedContact {
-                        HomeHeaderView(
-                            contacts: contacts,
-                            selected: selectedContact,
-                            subtitle: viewModel.lastCallText,
-                            onSelect: { select($0) },
-                            onNotificationTap: { navigation.manager(for: .home).push(Route.notifications) }
-                        )
-
-                        VStack(alignment: .leading, spacing: Spacing.x8) {
-                            HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
-                                navigation.manager(for: .home).push(Route.familyHealthOverview)
-                            }
-
-                            QuestionListView(questions: environment.family.questions)
-
-                            feedbackRow
-                        }
-                        .padding(.horizontal, Spacing.x5)
+                    HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
+                        navigation.manager(for: .home).push(Route.familyHealthOverview)
                     }
+
+                    QuestionListView(questions: environment.family.questions)
+
+                    feedbackRow
                 }
+                .padding(.horizontal, Spacing.x5)
                 .padding(.bottom, Spacing.x8)
             }
-            .scrollIndicators(.hidden)
-            .background(Color.gray50)
+            .toolbar(.hidden, for: .navigationBar)
             .task { await refresh() }
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
@@ -62,6 +52,52 @@ struct HomeView: View {
                 case .notifications: Text("알림")
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private var largeTitle: some View {
+        VStack(alignment: .leading, spacing: Spacing.x1) {
+            if contacts.count > 1 {
+                Menu {
+                    ForEach(contacts) { contact in
+                        Button(contact.name) { select(contact) }
+                    }
+                } label: {
+                    HStack(spacing: Spacing.x1) {
+                        Text(selectedContact?.name ?? "가족")
+                            .headline_02(.gray900)
+                        Icon(name: "chevron.down", size: 18, weight: .semibold, color: .gray700)
+                    }
+                }
+            } else {
+                Text(selectedContact?.name ?? "가족")
+                    .headline_02(.gray900)
+            }
+
+            Text(viewModel.lastCallText)
+                .body_02_medium(.gray700)
+        }
+    }
+
+    private var trailingIcons: some View {
+        HStack(spacing: 0) {
+            Button {
+                navigation.manager(for: .home).push(Route.notifications)
+            } label: {
+                Icon(name: "bell", color: .gray900)
+                    .frame(width: 40, height: 40)
+                    .overlay(alignment: .topTrailing) {
+                        NotificationDot().offset(x: -4, y: 4)
+                    }
+            }
+            .buttonStyle(.plain)
+
+            Button {} label: {
+                Icon(name: "line.3.horizontal", color: .gray900)
+                    .frame(width: 40, height: 40)
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -109,4 +145,5 @@ struct HomeView: View {
     HomeView()
         .environment(environment)
         .environment(CallCenter(environment: environment))
+        .environment(NavigationStore())
 }
