@@ -1,0 +1,52 @@
+//
+//  AppSettings.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 8/18/26.
+//
+
+import SwiftUI
+
+@Observable
+final class AppSettings {
+    enum Key {
+        static let backendBaseURL = "settings.backendBaseURL"
+        static let callNotificationsEnabled = "settings.callNotificationsEnabled"
+        static let reportNotificationsEnabled = "settings.reportNotificationsEnabled"
+        static let questionVoiceEnabled = "settings.questionVoiceEnabled"
+    }
+
+    enum Default {
+        static let backendBaseURL = "http://127.0.0.1:8080"
+    }
+
+    private let defaults: UserDefaults
+
+    var backendBaseURL: String {
+        didSet { defaults.set(backendBaseURL, forKey: Key.backendBaseURL) }
+    }
+
+    var callNotificationsEnabled: Bool {
+        didSet { defaults.set(callNotificationsEnabled, forKey: Key.callNotificationsEnabled) }
+    }
+
+    var reportNotificationsEnabled: Bool {
+        didSet { defaults.set(reportNotificationsEnabled, forKey: Key.reportNotificationsEnabled) }
+    }
+
+    var questionVoiceEnabled: Bool {
+        didSet { defaults.set(questionVoiceEnabled, forKey: Key.questionVoiceEnabled) }
+    }
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        backendBaseURL = defaults.string(forKey: Key.backendBaseURL) ?? Default.backendBaseURL
+        callNotificationsEnabled = defaults.object(forKey: Key.callNotificationsEnabled) as? Bool ?? true
+        reportNotificationsEnabled = defaults.object(forKey: Key.reportNotificationsEnabled) as? Bool ?? true
+        questionVoiceEnabled = defaults.object(forKey: Key.questionVoiceEnabled) as? Bool ?? true
+    }
+
+    var resolvedBaseURL: URL {
+        URL(string: backendBaseURL) ?? URL(string: Default.backendBaseURL)!
+    }
+}
