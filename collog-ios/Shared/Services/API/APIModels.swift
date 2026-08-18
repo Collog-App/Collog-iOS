@@ -123,3 +123,23 @@ struct RawAudioUploadBody: Encodable {
 struct RawAudioCompleteBody: Encodable {
     let assetId: String
 }
+
+struct ConsentSubmitBody: Encodable {
+    let documentVersion: String
+    let decision: String
+    let scrolledToEnd: Bool
+    let agreedItems: [String]
+}
+
+struct ProfilePutBody: Encodable {
+    let conditions: [String]
+}
+
+struct InvitationCreateBody: Encodable {
+    let name: String
+    let relation: String
+}
+
+struct InvitationAcceptBody: Encodable {
+    let code: String
+}

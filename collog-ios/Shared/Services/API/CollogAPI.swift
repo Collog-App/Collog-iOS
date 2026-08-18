@@ -56,6 +56,95 @@ struct CollogAPI {
         return response.questions
     }
 
+    func consentDocument() async throws -> ConsentDocument {
+        try await client.send(APIEndpoint(path: "/v1/consents/document", requiresAuth: false))
+    }
+
+    func submitConsent(
+        documentVersion: String,
+        agreedItems: [String],
+        decision: String = "GRANT"
+    ) async throws -> ConsentRecordDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/consents",
+                method: .post,
+                body: ConsentSubmitBody(
+                    documentVersion: documentVersion,
+                    decision: decision,
+                    scrolledToEnd: true,
+                    agreedItems: agreedItems
+                )
+            )
+        )
+    }
+
+    func myConsent() async throws -> ConsentRecordDTO {
+        try await client.send(APIEndpoint(path: "/v1/consents/me"))
+    }
+
+    func profile(parentId: String) async throws -> ProfileDTO {
+        try await client.send(APIEndpoint(path: "/v1/parents/\(parentId)/profile"))
+    }
+
+    func updateProfile(parentId: String, conditions: [String]) async throws -> ProfileDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/parents/\(parentId)/profile",
+                method: .put,
+                body: ProfilePutBody(conditions: conditions)
+            )
+        )
+    }
+
+    func createInvitation(familyId: String, name: String, relation: String) async throws -> InvitationDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/families/\(familyId)/invitations",
+                method: .post,
+                body: InvitationCreateBody(name: name, relation: relation)
+            )
+        )
+    }
+
+    func acceptInvitation(code: String) async throws {
+        try await client.sendRaw(
+            APIEndpoint(
+                path: "/v1/invitations/accept",
+                method: .post,
+                body: InvitationAcceptBody(code: code)
+            )
+        )
+    }
+
+    func calls(parentId: String) async throws -> [CallSummaryDTO] {
+        let response: CallsResponse = try await client.send(
+            APIEndpoint(path: "/v1/parents/\(parentId)/calls")
+        )
+        return response.calls
+    }
+
+    func report(parentId: String, period: String = "WEEKLY") async throws -> ReportDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/parents/\(parentId)/reports",
+                query: [URLQueryItem(name: "period", value: period)]
+            )
+        )
+    }
+
+    func acousticFeatures(callId: String) async throws -> AcousticFeaturesDTO {
+        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)/acoustic-features"))
+    }
+
+    func extraction(callId: String) async throws -> ExtractionDTO {
+        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)/extraction"))
+    }
+
+    func transcript(callId: String) async throws -> TranscriptDTO {
+        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)/transcript"))
+    }
+
     func createCall(calleeId: String) async throws -> CallCreated {
         try await client.send(
             APIEndpoint(path: "/v1/calls", method: .post, body: CallCreateBody(calleeId: calleeId))

@@ -1,0 +1,141 @@
+//
+//  LoginView.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 8/18/26.
+//
+
+import SwiftUI
+
+struct LoginView: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State private var viewModel = LoginViewModel()
+
+    var onSignedIn: () -> Void
+
+    var body: some View {
+        @Bindable var settings = environment.settings
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: Spacing.x6) {
+                VStack(alignment: .leading, spacing: Spacing.x2) {
+                    Text(viewModel.step == .identity ? "전화번호로 시작하기" : "인증번호를 입력해주세요")
+                        .headline_02(.gray900)
+                    Text(viewModel.step == .identity
+                         ? "가족을 연결하고 통화를 기록하려면 번호가 필요해요."
+                         : "\(viewModel.phone)로 보낸 6자리 숫자를 입력해주세요.")
+                        .body_02_medium(.gray800)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                if viewModel.step == .identity {
+                    identityFields
+                } else {
+                    codeFields
+                }
+
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .caption_01_medium(.red500)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                primaryButton
+
+                SettingsSection(title: "개발") {
+                    SettingsFieldRow(
+                        label: "서버 주소",
+                        placeholder: AppSettings.Default.backendBaseURL,
+                        text: $settings.backendBaseURL
+                    )
+                }
+            }
+            .padding(.horizontal, Spacing.x5)
+            .padding(.top, Spacing.x8)
+            .padding(.bottom, Spacing.x8)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .background(Color.gray50)
+    }
+
+    private var identityFields: some View {
+        VStack(alignment: .leading, spacing: Spacing.x4) {
+            VStack(alignment: .leading, spacing: Spacing.x2) {
+                Text("역할")
+                    .caption_01_medium(.gray800)
+
+                Picker("역할", selection: $viewModel.role) {
+                    ForEach(UserRoleOption.allCases) { option in
+                        Text(option.title).tag(option)
+                    }
+                }
+                .pickerStyle(.segmented)
+            }
+
+            field(title: "이름", placeholder: "김콜록", text: $viewModel.name, keyboard: .default)
+            field(title: "전화번호", placeholder: "01000000001", text: $viewModel.phone, keyboard: .numberPad)
+        }
+    }
+
+    private var codeFields: some View {
+        VStack(alignment: .leading, spacing: Spacing.x2) {
+            field(title: "인증번호", placeholder: "000000", text: $viewModel.code, keyboard: .numberPad)
+
+            Text("개발 서버의 인증번호는 000000이에요")
+                .caption_02_medium(.gray700)
+        }
+    }
+
+    private func field(
+        title: String,
+        placeholder: String,
+        text: Binding<String>,
+        keyboard: UIKeyboardType
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.x2) {
+            Text(title)
+                .caption_01_medium(.gray800)
+
+            TextField(placeholder, text: text)
+                .pretendardStyle(.medium, 16)
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .padding(.horizontal, Spacing.x4)
+                .frame(height: 52)
+                .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+        }
+    }
+
+    private var primaryButton: some View {
+        Button {
+            Task {
+                if viewModel.step == .identity {
+                    await viewModel.requestCode(using: environment)
+                } else if await viewModel.verify(using: environment) {
+                    onSignedIn()
+                }
+            }
+        } label: {
+            Text(viewModel.step == .identity ? "인증번호 받기" : "확인")
+                .body_01_semibold(.gray00)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    isEnabled ? Color.greenNormal : Color.gray500,
+                    in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                )
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled)
+    }
+
+    private var isEnabled: Bool {
+        viewModel.step == .identity ? viewModel.canRequestCode : viewModel.canVerify
+    }
+}
+
+#Preview {
+    LoginView {}
+        .environment(AppEnvironment())
+}

@@ -14,6 +14,7 @@ final class AppSettings {
         static let callNotificationsEnabled = "settings.callNotificationsEnabled"
         static let reportNotificationsEnabled = "settings.reportNotificationsEnabled"
         static let questionVoiceEnabled = "settings.questionVoiceEnabled"
+        static let onboardingCompleted = "settings.onboardingCompleted"
     }
 
     enum Default {
@@ -38,12 +39,17 @@ final class AppSettings {
         didSet { defaults.set(questionVoiceEnabled, forKey: Key.questionVoiceEnabled) }
     }
 
+    var onboardingCompleted: Bool {
+        didSet { defaults.set(onboardingCompleted, forKey: Key.onboardingCompleted) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         backendBaseURL = defaults.string(forKey: Key.backendBaseURL) ?? Default.backendBaseURL
         callNotificationsEnabled = defaults.object(forKey: Key.callNotificationsEnabled) as? Bool ?? true
         reportNotificationsEnabled = defaults.object(forKey: Key.reportNotificationsEnabled) as? Bool ?? true
         questionVoiceEnabled = defaults.object(forKey: Key.questionVoiceEnabled) as? Bool ?? true
+        onboardingCompleted = defaults.bool(forKey: Key.onboardingCompleted)
     }
 
     var resolvedBaseURL: URL {
