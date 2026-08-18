@@ -7,20 +7,13 @@
 
 import Foundation
 
-struct MetricHighlight {
-    let prefix: String
-    let value: String
-    let suffix: String
-}
-
 struct FamilyHealthSummary {
     let memberName: String
-    let statusPrefix: String
-    let statusHeadline: String
-    let highlight: MetricHighlight
-    let location: String
-    let chartStartLabel: String
-    let chartEndLabel: String
+    let periodText: String
+    let headline: String
+    let detail: String
+    let trend: TrendSeries
+    let stats: [CallStat]
 }
 
 struct HealthFeedback {
@@ -32,12 +25,11 @@ struct HealthFeedback {
 extension FamilyHealthSummary {
     static let sample = FamilyHealthSummary(
         memberName: "어머니",
-        statusPrefix: "정상이지만",
-        statusHeadline: "정기적인 점검이 필요해요",
-        highlight: MetricHighlight(prefix: "저번주보다 휴지 비율이", value: "4% 더", suffix: "높아요"),
-        location: "경기도 과천시",
-        chartStartLabel: "일요일",
-        chartEndLabel: "토요일"
+        periodText: "최근 6주",
+        headline: "말씀 속도가 평소 범위 안이에요",
+        detail: "6주 동안 큰 변화 없이 유지되고 있어요.",
+        trend: .speechRateSample,
+        stats: CallStat.samples
     )
 }
 

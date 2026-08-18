@@ -15,7 +15,7 @@ enum CallDirection {
 struct FamilyContact: Identifiable, Hashable {
     let id = UUID()
     let name: String
-    let line: String
+    let relation: String
     let lastCallText: String
     let direction: CallDirection
 
@@ -30,7 +30,7 @@ struct FamilyContact: Identifiable, Hashable {
 
 extension FamilyContact {
     static let samples: [FamilyContact] = [
-        FamilyContact(name: "아버지", line: "휴대전화", lastCallText: "그저께", direction: .incoming),
-        FamilyContact(name: "어머니", line: "휴대전화", lastCallText: "어제", direction: .outgoing)
+        FamilyContact(name: "어머니", relation: "어머니", lastCallText: "3일 전 통화", direction: .outgoing),
+        FamilyContact(name: "아버지", relation: "아버지", lastCallText: "그저께 통화", direction: .incoming)
     ]
 }

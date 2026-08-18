@@ -18,23 +18,19 @@ struct FamilyContactRowView: View {
                     .fill(LinearGradient.avatar)
                     .frame(width: IconSize.contactAvatar, height: IconSize.contactAvatar)
 
-                VStack(alignment: .leading, spacing: Spacing.x1) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(contact.name)
                         .body_01_semibold(.gray900)
-
-                    HStack(spacing: Spacing.x1) {
-                        AssetPlaceholder(width: 9, height: 9)
-                        Text(contact.line)
-                            .caption_01_medium(.gray800)
-                    }
+                    Text(contact.lastCallText)
+                        .caption_01_medium(.gray700)
                 }
 
                 Spacer(minLength: Spacing.x2)
 
-                Text(contact.lastCallText)
-                    .caption_01_medium(.gray700)
+                AssetPlaceholder(size: IconSize.medium)
+                    .frame(width: 36, height: 36)
             }
-            .cardSurface()
+            .cardSurface(padding: Spacing.x3)
             .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -42,7 +38,7 @@ struct FamilyContactRowView: View {
 }
 
 #Preview {
-    VStack(spacing: Spacing.x3) {
+    VStack(spacing: Spacing.x2) {
         ForEach(FamilyContact.samples) { contact in
             FamilyContactRowView(contact: contact)
         }
