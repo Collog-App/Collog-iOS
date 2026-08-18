@@ -28,6 +28,14 @@ enum Typography {
     }
 }
 
+extension View {
+    func pretendardStyle(_ weight: Pretendard, _ size: CGFloat, _ color: Color = .gray900) -> some View {
+        font(.custom(weight.rawValue, size: size))
+            .kerning(Typography.kerning(for: size))
+            .foregroundStyle(color)
+    }
+}
+
 extension Text {
     func headline_02(_ color: Color? = nil) -> some View { styled(.bold, 24, color) }
 

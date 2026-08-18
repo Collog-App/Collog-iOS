@@ -21,6 +21,8 @@ struct RootView: View {
                     ReportTimelineView(initialTabIndex: 0)
                 case .timeline:
                     ReportTimelineView(initialTabIndex: 1)
+                case .settings:
+                    SettingsView()
                 default:
                     ComingSoonView(title: tabManager.selectedTab.title)
                 }
