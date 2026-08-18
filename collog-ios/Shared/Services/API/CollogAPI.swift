@@ -133,6 +133,13 @@ struct CollogAPI {
         )
     }
 
+    func baselines(parentId: String) async throws -> [BaselineDTO] {
+        let response: BaselinesResponse = try await client.send(
+            APIEndpoint(path: "/v1/parents/\(parentId)/baseline")
+        )
+        return response.baselines
+    }
+
     func acousticFeatures(callId: String) async throws -> AcousticFeaturesDTO {
         try await client.send(APIEndpoint(path: "/v1/calls/\(callId)/acoustic-features"))
     }

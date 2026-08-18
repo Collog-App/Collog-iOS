@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct ReportTimelineView: View {
+    @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: TimelineViewModel
 
     init(initialTabIndex: Int = 1) {
@@ -38,6 +39,7 @@ struct ReportTimelineView: View {
             .scrollIndicators(.hidden)
         }
         .background(Color.gray50)
+        .task { await viewModel.refresh(using: environment) }
     }
 
     private var header: some View {
@@ -60,4 +62,5 @@ struct ReportTimelineView: View {
 
 #Preview {
     ReportTimelineView()
+        .environment(AppEnvironment())
 }
