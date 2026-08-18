@@ -95,6 +95,7 @@ struct TrendChartView: View {
                 }
             }
         }
+        .chartXScale(range: .plotDimension(startPadding: 8, endPadding: 8))
         .chartPlotStyle { plot in
             plot.padding(.vertical, Spacing.x2)
         }

@@ -10,6 +10,7 @@ import SwiftUI
 struct WeekNavigatorView: View {
     let title: String
     let rangeText: String
+    var canGoForward = true
     var onPrevious: () -> Void = {}
     var onNext: () -> Void = {}
 
@@ -32,8 +33,13 @@ struct WeekNavigatorView: View {
             Spacer(minLength: Spacing.x2)
 
             Button(action: onNext) {
-                Icon(name: "chevron.right", size: IconSize.medium, color: .gray800)
+                Icon(
+                    name: "chevron.right",
+                    size: IconSize.medium,
+                    color: canGoForward ? .gray800 : .gray400
+                )
             }
+            .disabled(!canGoForward)
             .buttonStyle(.plain)
         }
         .padding(.horizontal, Spacing.x4)

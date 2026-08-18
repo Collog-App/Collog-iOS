@@ -117,19 +117,27 @@ struct CollogAPI {
         )
     }
 
-    func calls(parentId: String) async throws -> [CallSummaryDTO] {
+    func calls(parentId: String, from: String? = nil, to: String? = nil) async throws -> [CallSummaryDTO] {
+        var query: [URLQueryItem] = []
+        if let from { query.append(URLQueryItem(name: "from", value: from)) }
+        if let to { query.append(URLQueryItem(name: "to", value: to)) }
+
         let response: CallsResponse = try await client.send(
-            APIEndpoint(path: "/v1/parents/\(parentId)/calls")
+            APIEndpoint(path: "/v1/parents/\(parentId)/calls", query: query)
         )
         return response.calls
     }
 
-    func report(parentId: String, period: String = "WEEKLY") async throws -> ReportDTO {
-        try await client.send(
-            APIEndpoint(
-                path: "/v1/parents/\(parentId)/reports",
-                query: [URLQueryItem(name: "period", value: period)]
-            )
+    func report(
+        parentId: String,
+        period: String = "WEEKLY",
+        date: String? = nil
+    ) async throws -> ReportDTO {
+        var query = [URLQueryItem(name: "period", value: period)]
+        if let date { query.append(URLQueryItem(name: "date", value: date)) }
+
+        return try await client.send(
+            APIEndpoint(path: "/v1/parents/\(parentId)/reports", query: query)
         )
     }
 

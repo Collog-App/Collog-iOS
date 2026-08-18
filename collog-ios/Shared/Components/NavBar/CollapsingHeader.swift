@@ -50,7 +50,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
                     large
                         .padding(.horizontal, Spacing.x5)
                         .padding(.top, Spacing.x2)
-                        .padding(.bottom, Spacing.x5)
+                        .padding(.bottom, Spacing.x6)
                         .opacity(1 - collapseProgress)
 
                     content

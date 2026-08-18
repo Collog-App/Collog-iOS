@@ -29,12 +29,14 @@ struct HomeView: View {
             } trailing: {
                 trailingIcons
             } content: {
-                VStack(alignment: .leading, spacing: Spacing.x8) {
+                VStack(alignment: .leading, spacing: 0) {
                     HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
                         navigation.manager(for: .home).push(Route.familyHealthOverview)
                     }
+                    .padding(.bottom, Spacing.x8)
 
                     QuestionListView(questions: environment.family.questions)
+                        .padding(.bottom, Spacing.x3)
 
                     feedbackRow
                 }
@@ -105,24 +107,22 @@ struct HomeView: View {
         Button {
             navigation.manager(for: .home).push(Route.healthFeedbackDetail)
         } label: {
-            VStack(alignment: .leading, spacing: Spacing.x3) {
-                DividerLine()
+            HStack(spacing: Spacing.x3) {
+                VStack(alignment: .leading, spacing: Spacing.x1) {
+                    Text(viewModel.healthFeedback.title)
+                        .caption_01_medium(.gray800)
 
-                HStack(spacing: Spacing.x2) {
-                    VStack(alignment: .leading, spacing: Spacing.x1) {
-                        Text(viewModel.healthFeedback.title)
-                            .body_02_semibold(.gray900)
-
-                        Text(viewModel.healthFeedback.headline)
-                            .body_03_medium(.gray700)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    Spacer(minLength: Spacing.x2)
-
-                    Icon(name: "chevron.right", size: 14, color: .gray500)
+                    Text(viewModel.healthFeedback.headline)
+                        .body_02_medium(.gray900)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
                 }
+
+                Spacer(minLength: Spacing.x2)
+
+                Icon(name: "chevron.right", size: 14, color: .gray500)
             }
+            .cardSurface()
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)

@@ -33,7 +33,10 @@ struct ReportTimelineView: View {
                     } header: {
                         WeekNavigatorView(
                             title: viewModel.week.title,
-                            rangeText: viewModel.week.rangeText
+                            rangeText: viewModel.week.rangeText,
+                            canGoForward: viewModel.canGoForward,
+                            onPrevious: { Task { await viewModel.goBackward(using: environment) } },
+                            onNext: { Task { await viewModel.goForward(using: environment) } }
                         )
                         .background(Color.gray50)
                     }
@@ -41,8 +44,24 @@ struct ReportTimelineView: View {
                 .padding(.bottom, Spacing.x8)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .simultaneousGesture(weekSwipe)
             .task { await viewModel.refresh(using: environment) }
         }
+    }
+
+    private var weekSwipe: some Gesture {
+        DragGesture(minimumDistance: 44)
+            .onEnded { value in
+                guard abs(value.translation.width) > abs(value.translation.height) * 1.6 else { return }
+                Haptics.press()
+                Task {
+                    if value.translation.width > 0 {
+                        await viewModel.goBackward(using: environment)
+                    } else {
+                        await viewModel.goForward(using: environment)
+                    }
+                }
+            }
     }
 
     @ViewBuilder
@@ -50,9 +69,18 @@ struct ReportTimelineView: View {
         if viewModel.selectedTabIndex == 1 {
             timelineEntries
         } else {
-            ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
-                .padding(.horizontal, Spacing.x5)
-                .padding(.top, Spacing.x2)
+            if viewModel.isLiveData, viewModel.report.summaryStats.first?.value == "0" {
+                EmptyStateView(
+                    symbol: "doc.text.magnifyingglass",
+                    title: "이번 주 리포트가 아직 없어요",
+                    message: "분석된 통화가 쌓이면 변화를 정리해드려요."
+                )
+                .padding(.top, Spacing.x8)
+            } else {
+                ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x2)
+            }
         }
     }
 

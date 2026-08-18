@@ -32,6 +32,7 @@ struct QuestionListView: View {
                 }
             }
         }
+        .cardSurface()
     }
 }
 
