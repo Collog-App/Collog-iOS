@@ -7,11 +7,13 @@
 
 import SwiftUI
 
-enum Pretendard: String {
+enum Pretendard: String, CaseIterable {
     case bold = "Pretendard-Bold"
     case semiBold = "Pretendard-SemiBold"
     case medium = "Pretendard-Medium"
     case regular = "Pretendard-Regular"
+
+    var fileName: String { rawValue }
 }
 
 enum Typography {
