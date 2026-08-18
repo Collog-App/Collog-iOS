@@ -14,6 +14,9 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var navigationManager = NavigationManager()
 
+    private var contacts: [FamilyContact] { environment.family.contacts }
+    private var questions: [PreviewQuestion] { environment.family.questions }
+
     var body: some View {
         NavigationStack(path: $navigationManager.path) {
             VStack(spacing: 0) {
@@ -21,10 +24,10 @@ struct HomeView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: Spacing.x6) {
-                        if let primaryContact = viewModel.primaryContact {
+                        if let primaryContact = contacts.first {
                             NextCallCardView(
                                 contact: primaryContact,
-                                questions: viewModel.questions,
+                                questions: questions,
                                 onCallTap: { startCall(primaryContact) },
                                 onQuestionsTap: { navigationManager.push(Route.questionPreview) }
                             )
@@ -61,11 +64,13 @@ struct HomeView: View {
 
     @ViewBuilder
     private var otherFamilySection: some View {
-        if !viewModel.otherContacts.isEmpty {
+        let others = Array(contacts.dropFirst())
+
+        if !others.isEmpty {
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 SectionHeaderView(title: "다른 가족")
 
-                ForEach(viewModel.otherContacts) { contact in
+                ForEach(others) { contact in
                     FamilyContactRowView(contact: contact) { startCall(contact) }
                 }
             }
@@ -90,7 +95,9 @@ struct HomeView: View {
 }
 
 #Preview {
+    let environment = AppEnvironment()
+
     HomeView()
-        .environment(AppEnvironment())
-        .environment(CallCenter(environment: AppEnvironment()))
+        .environment(environment)
+        .environment(CallCenter(environment: environment))
 }

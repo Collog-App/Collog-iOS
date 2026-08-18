@@ -11,10 +11,16 @@ import SwiftUI
 final class AppEnvironment {
     let settings: AppSettings
     let session: AuthSession
+    let family: FamilyStore
 
-    init(settings: AppSettings = AppSettings(), session: AuthSession = AuthSession()) {
+    init(
+        settings: AppSettings = AppSettings(),
+        session: AuthSession = AuthSession(),
+        family: FamilyStore = FamilyStore()
+    ) {
         self.settings = settings
         self.session = session
+        self.family = family
     }
 
     func subjectParentId() async -> String? {
