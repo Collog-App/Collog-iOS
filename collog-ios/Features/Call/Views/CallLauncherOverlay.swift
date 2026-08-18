@@ -92,9 +92,8 @@ struct CallLauncherOverlay: View {
 
     private func questionChip(_ text: String, index: Int) -> some View {
         HStack(spacing: Spacing.x2) {
-            Circle()
-                .fill(Color.greenNormal)
-                .frame(width: 8, height: 8)
+            Text(String(format: "%02d", index + 1))
+                .caption_01_semibold(.green700)
 
             Text(text)
                 .body_03_medium(.gray900)
