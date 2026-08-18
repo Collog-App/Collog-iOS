@@ -37,15 +37,15 @@ struct RangeGaugeView: View {
                             .frame(width: max(0, width * rangeWidth), height: 5)
                             .offset(x: width * clamped(gauge.normalRange.lowerBound))
 
-                        Circle()
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
                             .fill(Color.greenDark)
-                            .frame(width: 9, height: 9)
-                            .offset(x: width * clamped(gauge.marker) - 4.5)
+                            .frame(width: 3, height: 13)
+                            .offset(x: width * clamped(gauge.marker) - 1.5)
                     }
-                    .frame(height: 9)
+                    .frame(height: 13)
                     .frame(maxHeight: .infinity, alignment: .center)
                 }
-                .frame(height: 9)
+                .frame(height: 13)
 
                 Text(gauge.caption)
                     .caption_01_medium(.gray700)
