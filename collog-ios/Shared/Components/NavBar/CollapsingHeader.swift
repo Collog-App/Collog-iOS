@@ -25,9 +25,13 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
+    @State private var pullDistance: CGFloat = 0
+    @State private var isRefreshArmed = false
 
     private let collapseDistance: CGFloat = 44
     private let barHeight: CGFloat = 52
+    private let refreshThreshold: CGFloat = 68
+    private let refreshHoldHeight: CGFloat = 44
 
     init(
         title: String,
@@ -49,30 +53,25 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
     var body: some View {
         ZStack(alignment: .top) {
-            refreshableScrollView
+            contentScrollView
 
             compactBar
         }
         .background(Color.gray50)
     }
 
-    @ViewBuilder
-    private var refreshableScrollView: some View {
-        if let onRefresh {
-            contentScrollView
-                .refreshable {
-                    isRefreshing = true
-                    defer { isRefreshing = false }
-                    await onRefresh()
-                }
-        } else {
-            contentScrollView
-        }
-    }
-
     private var contentScrollView: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
+                if isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.gray700)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: refreshHoldHeight)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
                 large
                     .padding(.horizontal, Spacing.x5)
                     .padding(.top, Spacing.x2)
@@ -84,10 +83,47 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
             .padding(.top, barHeight)
         }
         .scrollIndicators(.hidden)
+        .scrollBounceBehavior(.always, axes: .vertical)
         .onScrollGeometryChange(for: CGFloat.self) { geometry in
             geometry.contentOffset.y + geometry.contentInsets.top
         } action: { _, offset in
             scrollOffset = offset
+            updatePullDistance(offset)
+        }
+        .onScrollPhaseChange { oldPhase, newPhase in
+            guard oldPhase == .interacting, newPhase != .interacting else { return }
+            finishPull()
+        }
+    }
+
+    private func updatePullDistance(_ offset: CGFloat) {
+        guard onRefresh != nil, !isRefreshing else { return }
+        pullDistance = max(-offset, 0)
+
+        guard pullDistance >= refreshThreshold, !isRefreshArmed else { return }
+        isRefreshArmed = true
+        Haptics.focus()
+    }
+
+    private func finishPull() {
+        guard !isRefreshing else { return }
+        pullDistance = 0
+
+        guard isRefreshArmed, let onRefresh else {
+            isRefreshArmed = false
+            return
+        }
+
+        isRefreshArmed = false
+        withAnimation(.smooth(duration: 0.24)) { isRefreshing = true }
+
+        Task { @MainActor in
+            let minimumDuration = Task {
+                try? await Task.sleep(for: .milliseconds(650))
+            }
+            await onRefresh()
+            await minimumDuration.value
+            withAnimation(.smooth(duration: 0.28)) { isRefreshing = false }
         }
     }
 
@@ -98,12 +134,6 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
                 .opacity(collapseProgress)
 
             Spacer(minLength: Spacing.x2)
-
-            if isRefreshing {
-                ProgressView()
-                    .controlSize(.small)
-                    .tint(.gray700)
-            }
 
             trailing
         }
