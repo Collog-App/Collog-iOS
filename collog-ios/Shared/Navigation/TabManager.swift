@@ -10,6 +10,13 @@ import SwiftUI
 @Observable
 final class TabManager {
     var selectedTab: MainTab = TabManager.launchTab
+    private(set) var reselectedTab: MainTab?
+    private(set) var reselectionCount = 0
+
+    func reselect(_ tab: MainTab) {
+        reselectedTab = tab
+        reselectionCount += 1
+    }
 
     private static var launchTab: MainTab {
         #if DEBUG

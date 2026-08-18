@@ -92,7 +92,7 @@ struct RootView: View {
                     selection: $tabManager.selectedTab,
                     launcher: launcher,
                     onLaunch: startCall,
-                    onReselect: { navigation.popToRoot($0) }
+                    onReselect: reselect
                 )
             }
         }
@@ -160,6 +160,11 @@ struct RootView: View {
             targets: isGuest || callable.isEmpty ? environment.family.contacts : callable,
             questions: environment.family.questions.map(\.text)
         )
+    }
+
+    private func reselect(_ tab: MainTab) {
+        navigation.popToRoot(tab)
+        tabManager.reselect(tab)
     }
 
     private func startCall(_ contact: FamilyContact) {

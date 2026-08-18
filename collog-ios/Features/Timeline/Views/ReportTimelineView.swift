@@ -10,6 +10,7 @@ import SwiftUI
 struct ReportTimelineView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NavigationStore.self) private var navigation
+    @Environment(TabManager.self) private var tabManager
 
     @State private var viewModel: TimelineViewModel
     @State private var pagedOffset: Int? = 0
@@ -48,6 +49,10 @@ struct ReportTimelineView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .task { await viewModel.refresh(using: environment) }
+            .onChange(of: tabManager.reselectionCount) {
+                guard tabManager.reselectedTab == tab else { return }
+                moveToCurrentWeek()
+            }
         }
     }
 
@@ -115,6 +120,13 @@ struct ReportTimelineView: View {
 
         withAnimation(.smooth(duration: 0.32)) {
             pagedOffset = target
+        }
+    }
+
+    private func moveToCurrentWeek() {
+        guard pagedOffset != 0 else { return }
+        withAnimation(.smooth(duration: 0.32)) {
+            pagedOffset = 0
         }
     }
 
