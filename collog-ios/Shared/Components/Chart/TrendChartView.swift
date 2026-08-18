@@ -61,19 +61,9 @@ struct TrendChartView: View {
 
     private var chart: some View {
         Chart {
-            ForEach(series.points) { point in
-                AreaMark(
-                    x: .value("주", point.date),
-                    yStart: .value("평소 하한", series.normalRange.lowerBound),
-                    yEnd: .value("평소 상한", series.normalRange.upperBound)
-                )
-                .foregroundStyle(Color.gray200)
-                .accessibilityHidden(true)
-            }
-
             RuleMark(y: .value("평소", series.median))
                 .lineStyle(StrokeStyle(lineWidth: 1))
-                .foregroundStyle(Color.gray400)
+                .foregroundStyle(Color.gray300)
                 .accessibilityHidden(true)
 
             ForEach(series.points) { point in
