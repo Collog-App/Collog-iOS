@@ -27,12 +27,10 @@ final class TimelineViewModel {
         self.selectedTabIndex = selectedTabIndex
     }
 
-    @discardableResult
-    func moveWeek(_ delta: Int) -> Bool {
-        guard delta < 0 || canGoForward else { return false }
-        weekOffset += delta
+    func setWeek(_ offset: Int) {
+        guard offset <= 0 else { return }
+        weekOffset = offset
         applyWeekHeader()
-        return true
     }
 
     private func applyWeekHeader() {

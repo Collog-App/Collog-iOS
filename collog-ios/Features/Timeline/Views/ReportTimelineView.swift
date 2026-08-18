@@ -12,10 +12,10 @@ struct ReportTimelineView: View {
     @Environment(NavigationStore.self) private var navigation
 
     @State private var viewModel: TimelineViewModel
-    @State private var dragTranslation: CGFloat = 0
-    @State private var pushFromLeading = true
+    @State private var pagedOffset: Int?
 
     private let tab: MainTab
+    private let pageOffsets = Array((-25...0).reversed())
 
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
@@ -34,83 +34,86 @@ struct ReportTimelineView: View {
                         title: viewModel.week.title,
                         rangeText: viewModel.week.rangeText,
                         canGoForward: viewModel.canGoForward,
-                        onPrevious: { changeWeek(by: -1) },
-                        onNext: { changeWeek(by: 1) }
+                        onPrevious: { move(by: -1) },
+                        onNext: { move(by: 1) }
                     )
 
-                    content
-                        .id(viewModel.weekOffset)
-                        .transition(
-                            .asymmetric(
-                                insertion: .move(edge: pushFromLeading ? .leading : .trailing),
-                                removal: .move(edge: pushFromLeading ? .trailing : .leading)
-                            )
-                        )
-                        .frame(maxWidth: .infinity, minHeight: 360, alignment: .top)
-                        .offset(x: dragTranslation)
+                    weekPager
                 }
                 .padding(.bottom, Spacing.x8)
-                .clipped()
-                .highPriorityGesture(weekSwipe)
-                .clipped()
             }
             .toolbar(.hidden, for: .navigationBar)
-            .simultaneousGesture(weekSwipe)
-            .task { await viewModel.refresh(using: environment) }
+            .task {
+                pagedOffset = viewModel.weekOffset
+                await viewModel.refresh(using: environment)
+            }
         }
     }
 
-    private var weekSwipe: some Gesture {
-        DragGesture(minimumDistance: 24)
-            .onChanged { value in
-                guard abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
-                let resists = value.translation.width < 0 && !viewModel.canGoForward
-                dragTranslation = value.translation.width * (resists ? 0.18 : 0.55)
-            }
-            .onEnded { value in
-                let horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.4
-                let passed = abs(value.translation.width) > 80
-
-                guard horizontal, passed else {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                        dragTranslation = 0
-                    }
-                    return
+    private var weekPager: some View {
+        ScrollView(.horizontal) {
+            LazyHStack(spacing: 0) {
+                ForEach(pageOffsets, id: \.self) { offset in
+                    page(for: offset)
+                        .containerRelativeFrame(.horizontal)
                 }
-                changeWeek(by: value.translation.width > 0 ? -1 : 1)
             }
-    }
-
-    private func changeWeek(by delta: Int) {
-        pushFromLeading = delta < 0
-
-        let moved = withAnimation(.easeOut(duration: 0.26)) { () -> Bool in
-            dragTranslation = 0
-            return viewModel.moveWeek(delta)
+            .scrollTargetLayout()
         }
-        guard moved else { return }
-
-        Haptics.press()
-        Task { await viewModel.refresh(using: environment) }
+        .scrollTargetBehavior(.paging)
+        .scrollIndicators(.hidden)
+        .scrollPosition(id: $pagedOffset)
+        .onChange(of: pagedOffset) { _, newValue in
+            guard let newValue, newValue != viewModel.weekOffset else { return }
+            Haptics.press()
+            viewModel.setWeek(newValue)
+            Task { await viewModel.refresh(using: environment) }
+        }
     }
 
     @ViewBuilder
-    private var content: some View {
+    private func page(for offset: Int) -> some View {
+        Group {
+            if offset == viewModel.weekOffset {
+                weekContent
+            } else {
+                Color.clear
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 360, alignment: .top)
+    }
+
+    private func move(by delta: Int) {
+        let target = viewModel.weekOffset + delta
+        guard pageOffsets.contains(target) else { return }
+
+        withAnimation(.easeInOut(duration: 0.3)) {
+            pagedOffset = target
+        }
+    }
+
+    @ViewBuilder
+    private var weekContent: some View {
         if viewModel.selectedTabIndex == 1 {
             timelineEntries
         } else {
-            if viewModel.isLiveData, viewModel.report.summaryStats.first?.value == "0" {
-                EmptyStateView(
-                    symbol: "doc.text.magnifyingglass",
-                    title: "이번 주 리포트가 아직 없어요",
-                    message: "분석된 통화가 쌓이면 변화를 정리해드려요."
-                )
-                .padding(.top, Spacing.x8)
-            } else {
-                ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
-                    .padding(.horizontal, Spacing.x5)
-                    .padding(.top, Spacing.x2)
-            }
+            reportContent
+        }
+    }
+
+    @ViewBuilder
+    private var reportContent: some View {
+        if viewModel.isLiveData, viewModel.report.summaryStats.isEmpty {
+            EmptyStateView(
+                symbol: "doc.text.magnifyingglass",
+                title: "이번 주 리포트가 아직 없어요",
+                message: "분석된 통화가 쌓이면 변화를 정리해드려요."
+            )
+            .padding(.top, Spacing.x6)
+        } else {
+            ReportContentView(report: viewModel.report, isLoaded: viewModel.isLiveData)
+                .padding(.horizontal, Spacing.x5)
+                .padding(.top, Spacing.x2)
         }
     }
 
@@ -122,10 +125,10 @@ struct ReportTimelineView: View {
                 title: "이번 주에는 분석된 통화가 없어요",
                 message: "가족과 통화하면 이곳에 기록이 쌓여요."
             )
-            .padding(.top, Spacing.x8)
+            .padding(.top, Spacing.x6)
         } else {
-            ForEach(viewModel.week.entries) { entry in
-                VStack(spacing: 0) {
+            VStack(spacing: 0) {
+                ForEach(viewModel.week.entries) { entry in
                     CallTimelineDateHeader(entry: entry)
 
                     CallTimelineCardView(entry: entry)
