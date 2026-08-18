@@ -12,6 +12,8 @@ struct ReportTimelineView: View {
     @Environment(NavigationStore.self) private var navigation
 
     @State private var viewModel: TimelineViewModel
+    @State private var dragTranslation: CGFloat = 0
+    @State private var pushFromLeading = true
 
     private let tab: MainTab
 
@@ -30,18 +32,25 @@ struct ReportTimelineView: View {
                 LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section {
                         content
+                            .id(viewModel.weekOffset)
+                            .transition(
+                                .push(from: pushFromLeading ? .leading : .trailing)
+                            )
+                            .offset(x: dragTranslation)
+                            .highPriorityGesture(weekSwipe)
                     } header: {
                         WeekNavigatorView(
                             title: viewModel.week.title,
                             rangeText: viewModel.week.rangeText,
                             canGoForward: viewModel.canGoForward,
-                            onPrevious: { Task { await viewModel.goBackward(using: environment) } },
-                            onNext: { Task { await viewModel.goForward(using: environment) } }
+                            onPrevious: { changeWeek(by: -1) },
+                            onNext: { changeWeek(by: 1) }
                         )
                         .background(Color.gray50)
                     }
                 }
                 .padding(.bottom, Spacing.x8)
+                .clipped()
             }
             .toolbar(.hidden, for: .navigationBar)
             .simultaneousGesture(weekSwipe)
@@ -50,18 +59,35 @@ struct ReportTimelineView: View {
     }
 
     private var weekSwipe: some Gesture {
-        DragGesture(minimumDistance: 44)
-            .onEnded { value in
-                guard abs(value.translation.width) > abs(value.translation.height) * 1.6 else { return }
-                Haptics.press()
-                Task {
-                    if value.translation.width > 0 {
-                        await viewModel.goBackward(using: environment)
-                    } else {
-                        await viewModel.goForward(using: environment)
-                    }
-                }
+        DragGesture(minimumDistance: 24)
+            .onChanged { value in
+                guard abs(value.translation.width) > abs(value.translation.height) * 1.4 else { return }
+                let resists = value.translation.width < 0 && !viewModel.canGoForward
+                dragTranslation = value.translation.width * (resists ? 0.18 : 0.55)
             }
+            .onEnded { value in
+                let horizontal = abs(value.translation.width) > abs(value.translation.height) * 1.4
+                let passed = abs(value.translation.width) > 80
+
+                guard horizontal, passed else {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
+                        dragTranslation = 0
+                    }
+                    return
+                }
+                changeWeek(by: value.translation.width > 0 ? -1 : 1)
+            }
+    }
+
+    private func changeWeek(by delta: Int) {
+        pushFromLeading = delta < 0
+        dragTranslation = 0
+
+        withAnimation(.easeInOut(duration: 0.28)) {
+            guard viewModel.moveWeek(delta) else { return }
+        }
+        Haptics.press()
+        Task { await viewModel.refresh(using: environment) }
     }
 
     @ViewBuilder

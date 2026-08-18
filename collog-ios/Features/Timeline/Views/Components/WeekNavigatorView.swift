@@ -16,10 +16,7 @@ struct WeekNavigatorView: View {
 
     var body: some View {
         HStack(spacing: Spacing.x2) {
-            Button(action: onPrevious) {
-                Icon(name: "chevron.left", size: IconSize.medium, color: .gray800)
-            }
-            .buttonStyle(.plain)
+            arrowButton(symbol: "chevron.left", enabled: true, action: onPrevious)
 
             Spacer(minLength: Spacing.x2)
 
@@ -32,23 +29,28 @@ struct WeekNavigatorView: View {
 
             Spacer(minLength: Spacing.x2)
 
-            Button(action: onNext) {
-                Icon(
-                    name: "chevron.right",
-                    size: IconSize.medium,
-                    color: canGoForward ? .gray800 : .gray400
-                )
-            }
-            .disabled(!canGoForward)
-            .buttonStyle(.plain)
+            arrowButton(symbol: "chevron.right", enabled: canGoForward, action: onNext)
         }
-        .padding(.horizontal, Spacing.x4)
-        .padding(.vertical, Spacing.x2)
+        .padding(.horizontal, Spacing.x2)
         .overlay(alignment: .bottom) {
             DividerLine()
         }
         .padding(.horizontal, Spacing.x5)
         .padding(.vertical, Spacing.x2)
+    }
+
+    private func arrowButton(
+        symbol: String,
+        enabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Icon(name: symbol, size: IconSize.medium, color: enabled ? .gray800 : .gray400)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!enabled)
     }
 }
 

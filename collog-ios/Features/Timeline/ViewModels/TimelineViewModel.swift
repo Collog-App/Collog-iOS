@@ -27,18 +27,15 @@ final class TimelineViewModel {
         self.selectedTabIndex = selectedTabIndex
     }
 
-    func goBackward(using environment: AppEnvironment) async {
-        weekOffset -= 1
-        await refresh(using: environment)
+    @discardableResult
+    func moveWeek(_ delta: Int) -> Bool {
+        guard delta < 0 || canGoForward else { return false }
+        weekOffset += delta
+        applyWeekHeader()
+        return true
     }
 
-    func goForward(using environment: AppEnvironment) async {
-        guard canGoForward else { return }
-        weekOffset += 1
-        await refresh(using: environment)
-    }
-
-    func refresh(using environment: AppEnvironment) async {
+    private func applyWeekHeader() {
         let bounds = Self.weekBounds(offset: weekOffset)
         week = TimelineWeek(
             title: Self.weekTitle(for: bounds.start),
@@ -48,6 +45,13 @@ final class TimelineViewModel {
             ),
             entries: []
         )
+        report = WeeklyReport.empty
+        isLiveData = false
+    }
+
+    func refresh(using environment: AppEnvironment) async {
+        let bounds = Self.weekBounds(offset: weekOffset)
+        applyWeekHeader()
 
         guard let parentId = await environment.subjectParentId() else { return }
         isLoading = true

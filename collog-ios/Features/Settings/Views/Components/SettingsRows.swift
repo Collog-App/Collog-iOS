@@ -76,7 +76,8 @@ struct SettingsToggleRow: View {
                 .tint(.greenNormal)
         }
         .padding(.horizontal, Spacing.x4)
-        .frame(minHeight: 52)
+        .padding(.vertical, Spacing.x3)
+        .frame(minHeight: 56)
     }
 }
 

@@ -52,6 +52,18 @@ struct WeeklyReport {
 }
 
 extension WeeklyReport {
+    static let empty = WeeklyReport(
+        state: .empty,
+        noticeText: nil,
+        summaryStats: [],
+        changeSignals: [],
+        conversationGroups: [],
+        repeatObservation: RepeatObservation(countText: "0", perMinuteText: "", caption: ""),
+        acousticTrend: .speechRateSample,
+        metricTrends: [],
+        disclaimer: ""
+    )
+
     static let sample = WeeklyReport(
         state: .ready,
         noticeText: "시연용 더미 데이터가 포함되어 있어요.",
