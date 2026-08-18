@@ -34,20 +34,20 @@ struct HealthStatusCardView: View {
 
             DividerLine()
 
-            HStack(spacing: Spacing.x2) {
-                Text(footnote)
-                    .caption_01_medium(.gray700)
+            Button(action: onTap) {
+                HStack(spacing: Spacing.x2) {
+                    Text(footnote)
+                        .caption_01_medium(.gray700)
 
-                Spacer(minLength: Spacing.x2)
+                    Spacer(minLength: Spacing.x2)
 
-                Icon(name: "chevron.right", size: 14, color: .gray500)
+                    Icon(name: "chevron.right", size: 14, color: .gray500)
+                }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture(perform: onTap)
+            .buttonStyle(.plain)
         }
-        .padding(Spacing.x5)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private var footnote: String {
