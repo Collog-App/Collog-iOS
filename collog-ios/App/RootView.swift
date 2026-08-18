@@ -62,8 +62,13 @@ struct RootView: View {
                     DemoModeBanner(onExit: exitGuestMode)
                 }
 
-                tabContent
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ZStack {
+                    tabContent
+                        .id(tabManager.selectedTab)
+                        .transition(.opacity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.easeInOut(duration: 0.18), value: tabManager.selectedTab)
 
                 Color.clear
                     .frame(height: BottomNavBarView.barHeight)
