@@ -9,30 +9,113 @@ import SwiftUI
 
 struct QuestionListView: View {
     let questions: [PreviewQuestion]
+    var onTap: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.x3) {
-            Text("오늘의 질문")
-                .body_02_semibold(.gray900)
+        Button(action: onTap) {
+            content
+                .cardSurface()
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
 
-            VStack(alignment: .leading, spacing: Spacing.x3) {
-                ForEach(questions) { question in
-                    HStack(alignment: .top, spacing: Spacing.x3) {
-                        Circle()
-                            .fill(Color.greenNormal)
-                            .frame(width: 5, height: 5)
-                            .padding(.top, 7)
-
-                        Text(question.text)
-                            .body_02_medium(.gray800)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Spacer(minLength: 0)
+    private var content: some View {
+        VStack(alignment: .leading, spacing: Spacing.x5) {
+            HStack(spacing: Spacing.x3) {
+                RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
+                    .fill(Color.greenLight)
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Icon(name: "bubble.left.and.text.bubble.right", size: 18, color: .green700)
                     }
+
+                VStack(alignment: .leading, spacing: Spacing.x1) {
+                    Text("오늘의 질문")
+                        .body_01_semibold(.gray900)
+
+                    Text("통화할 때 가볍게 물어보세요")
+                        .caption_01_medium(.gray700)
                 }
+
+                Spacer(minLength: Spacing.x2)
+
+                Icon(name: "chevron.right", size: 14, color: .gray500)
+            }
+
+            floatingQuestions
+        }
+    }
+
+    private var floatingQuestions: some View {
+        ZStack {
+            ForEach(Array(displayedQuestions.enumerated()), id: \.element.id) { index, question in
+                questionPill(question.text, index: index)
+                    .offset(x: horizontalOffset(for: index), y: verticalOffset(for: index))
+                    .rotationEffect(.degrees(rotation(for: index)))
+                    .phaseAnimator([false, true]) { content, phase in
+                        content.offset(y: phase ? -3 : 3)
+                    } animation: { _ in
+                        .easeInOut(duration: 2.8 + Double(index) * 0.35)
+                    }
             }
         }
-        .cardSurface()
+        .frame(height: 164)
+        .frame(maxWidth: .infinity)
+    }
+
+    private func questionPill(_ text: String, index: Int) -> some View {
+        HStack(spacing: Spacing.x2) {
+            Circle()
+                .fill(index == 1 ? Color.gray00.opacity(0.18) : Color.greenNormal)
+                .frame(width: 8, height: 8)
+
+            Text(text)
+                .body_03_medium(index == 1 ? .gray00 : .gray900)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, Spacing.x4)
+        .frame(height: 48)
+        .background(pillColor(for: index), in: Capsule())
+        .shadow(color: .black.opacity(0.07), radius: 12, y: 5)
+    }
+
+    private func pillColor(for index: Int) -> Color {
+        switch index {
+        case 1: .gray900
+        case 2: .greenLight
+        default: .gray00
+        }
+    }
+
+    private func horizontalOffset(for index: Int) -> CGFloat {
+        switch index {
+        case 1: 14
+        case 2: -8
+        default: -12
+        }
+    }
+
+    private func verticalOffset(for index: Int) -> CGFloat {
+        CGFloat(index - 1) * 50
+    }
+
+    private func rotation(for index: Int) -> Double {
+        switch index {
+        case 1: 1.8
+        case 2: -1.2
+        default: -2.4
+        }
+    }
+
+    private var displayedQuestions: [PreviewQuestion] {
+        Array(
+            questions.reduce(into: [PreviewQuestion]()) { result, question in
+                guard !result.contains(where: { $0.text == question.text }) else { return }
+                result.append(question)
+            }
+            .prefix(3)
+        )
     }
 }
 

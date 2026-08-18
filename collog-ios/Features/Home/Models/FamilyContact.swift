@@ -29,7 +29,19 @@ extension FamilyContact {
     }
 
     static let samples: [FamilyContact] = [
-        FamilyContact(id: "sample-mother", userId: nil, name: "어머니", relation: "MOTHER", lastCallText: "3일 전 통화"),
-        FamilyContact(id: "sample-father", userId: nil, name: "아버지", relation: "FATHER", lastCallText: "그저께 통화")
+        FamilyContact(
+            id: "sample-mother",
+            userId: nil,
+            name: "어머니",
+            relation: "MOTHER",
+            lastCallText: "3일 전 통화"
+        ),
+        FamilyContact(
+            id: "sample-father",
+            userId: nil,
+            name: "아버지",
+            relation: "FATHER",
+            lastCallText: "그저께 통화"
+        )
     ]
 }

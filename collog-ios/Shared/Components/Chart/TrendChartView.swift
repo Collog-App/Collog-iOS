@@ -10,6 +10,7 @@ import SwiftUI
 
 struct TrendChartView: View {
     let series: TrendSeries
+    var showsReadout = true
 
     @State private var selectedDate: Date?
     @State private var revealProgress: CGFloat = 0
@@ -21,7 +22,9 @@ struct TrendChartView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: Spacing.x3) {
-            readout
+            if showsReadout {
+                readout
+            }
 
             chart
                 .frame(height: 132)

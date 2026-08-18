@@ -12,4 +12,5 @@ enum Route: Hashable {
     case healthFeedbackDetail
     case questionPreview
     case notifications
+    case homeMenu
 }

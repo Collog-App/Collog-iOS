@@ -13,41 +13,98 @@ struct HealthStatusCardView: View {
     var onTap: () -> Void = {}
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.x5) {
+        VStack(alignment: .leading, spacing: 0) {
+            hero
+
+            VStack(alignment: .leading, spacing: Spacing.x5) {
+                if isLoaded {
+                    TrendChartView(series: summary.trend, showsReadout: false)
+                } else {
+                    RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
+                        .fill(Color.gray100)
+                        .frame(height: 132)
+                }
+
+                DividerLine()
+
+                Button(action: onTap) {
+                    HStack(spacing: Spacing.x2) {
+                        Text(footnote)
+                            .caption_01_medium(.gray700)
+
+                        Spacer(minLength: Spacing.x2)
+
+                        Icon(name: "chevron.right", size: 14, color: .gray500)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(Spacing.x5)
+            .background(Color.gray00)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.gray200, lineWidth: 1)
+        }
+    }
+
+    private var hero: some View {
+        VStack(alignment: .leading, spacing: Spacing.x4) {
+            HStack(spacing: Spacing.x2) {
+                Circle()
+                    .fill(Color.greenDark)
+                    .frame(width: 7, height: 7)
+
+                Text("이번 주 안부")
+                    .caption_01_semibold(.green700)
+
+                Spacer(minLength: Spacing.x2)
+
+                Text(summary.periodText)
+                    .caption_01_medium(.gray700)
+            }
+
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 Text(summary.headline)
-                    .pretendard(.semiBold, 20, .gray900)
+                    .headline_02(.gray900)
                     .fixedSize(horizontal: false, vertical: true)
 
                 Text(summary.detail)
-                    .body_03_medium(.gray700)
+                    .body_03_medium(.gray800)
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            if isLoaded {
-                TrendChartView(series: summary.trend)
-            } else {
-                RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
-                    .fill(Color.gray100)
-                    .frame(height: 132)
-            }
+            if let latest = summary.trend.latest {
+                HStack(alignment: .lastTextBaseline, spacing: Spacing.x1) {
+                    Text("\(Int(latest.value.rounded()))")
+                        .pretendard(.bold, 36, .gray1000)
 
-            DividerLine()
-
-            Button(action: onTap) {
-                HStack(spacing: Spacing.x2) {
-                    Text(footnote)
-                        .caption_01_medium(.gray700)
+                    Text(summary.trend.unit)
+                        .body_03_medium(.gray800)
 
                     Spacer(minLength: Spacing.x2)
 
-                    Icon(name: "chevron.right", size: 14, color: .gray500)
+                    Text(summary.trend.isWithinNormalRange(latest) ? "평소 범위" : "평소와 다름")
+                        .caption_01_semibold(
+                            summary.trend.isWithinNormalRange(latest) ? .green700 : .orange600
+                        )
+                        .padding(.horizontal, Spacing.x3)
+                        .padding(.vertical, Spacing.x2)
+                        .background(Color.gray00.opacity(0.82), in: Capsule())
                 }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.x5)
+        .background {
+            LinearGradient(
+                colors: [.greenLightActive.opacity(0.78), .green100],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        }
     }
 
     private var footnote: String {

@@ -13,6 +13,7 @@ struct HomeView: View {
 
     @State private var viewModel = HomeViewModel()
     @State private var selectedContactId: String?
+    @Namespace private var detailTransition
 
     private var contacts: [FamilyContact] { environment.family.contacts }
 
@@ -36,10 +37,14 @@ struct HomeView: View {
                     HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
                         navigation.manager(for: .home).push(Route.familyHealthOverview)
                     }
-                    .padding(.bottom, Spacing.x8)
+                    .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
+                    .padding(.bottom, Spacing.x6)
 
-                    QuestionListView(questions: environment.family.questions)
-                        .padding(.bottom, Spacing.x3)
+                    QuestionListView(questions: environment.family.questions) {
+                        navigation.manager(for: .home).push(Route.questionPreview)
+                    }
+                        .matchedTransitionSource(id: Route.questionPreview, in: detailTransition)
+                        .padding(.bottom, Spacing.x4)
 
                     feedbackRow
                 }
@@ -51,10 +56,34 @@ struct HomeView: View {
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
                 switch route {
-                case .familyHealthOverview: Text("가족 건강 전체 보기")
-                case .healthFeedbackDetail: Text("건강 피드백")
-                case .questionPreview: Text("오늘의 질문")
-                case .notifications: Text("알림")
+                case .familyHealthOverview:
+                    FamilyHealthOverviewView(summary: viewModel.healthSummary)
+                        .navigationTransition(
+                            .zoom(sourceID: Route.familyHealthOverview, in: detailTransition)
+                        )
+                case .healthFeedbackDetail:
+                    HealthFeedbackDetailView(
+                        feedback: viewModel.healthFeedback,
+                        summary: viewModel.healthSummary
+                    )
+                    .navigationTransition(
+                        .zoom(sourceID: Route.healthFeedbackDetail, in: detailTransition)
+                    )
+                case .questionPreview:
+                    QuestionPreviewView(questions: environment.family.questions)
+                        .navigationTransition(
+                            .zoom(sourceID: Route.questionPreview, in: detailTransition)
+                        )
+                case .notifications:
+                    HomeNotificationsView()
+                        .navigationTransition(
+                            .zoom(sourceID: Route.notifications, in: detailTransition)
+                        )
+                case .homeMenu:
+                    HomeMenuView(contact: selectedContact)
+                        .navigationTransition(
+                            .zoom(sourceID: Route.homeMenu, in: detailTransition)
+                        )
                 }
             }
         }
@@ -81,7 +110,7 @@ struct HomeView: View {
             }
 
             Text(viewModel.lastCallText)
-                .body_02_medium(.gray700)
+                .body_03_medium(.gray700)
         }
     }
 
@@ -97,12 +126,16 @@ struct HomeView: View {
                     }
             }
             .buttonStyle(.plain)
+            .matchedTransitionSource(id: Route.notifications, in: detailTransition)
 
-            Button {} label: {
+            Button {
+                navigation.manager(for: .home).push(Route.homeMenu)
+            } label: {
                 Icon(name: "line.3.horizontal", color: .gray900)
                     .frame(width: 40, height: 40)
             }
             .buttonStyle(.plain)
+            .matchedTransitionSource(id: Route.homeMenu, in: detailTransition)
         }
     }
 
@@ -111,6 +144,13 @@ struct HomeView: View {
             navigation.manager(for: .home).push(Route.healthFeedbackDetail)
         } label: {
             HStack(spacing: Spacing.x3) {
+                RoundedRectangle(cornerRadius: Radius.listItem, style: .continuous)
+                    .fill(Color.orangeLight)
+                    .frame(width: 40, height: 40)
+                    .overlay {
+                        Icon(name: "lightbulb.max", size: 18, color: .orange600)
+                    }
+
                 VStack(alignment: .leading, spacing: Spacing.x1) {
                     Text(viewModel.healthFeedback.title)
                         .caption_01_medium(.gray800)
@@ -129,6 +169,7 @@ struct HomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .matchedTransitionSource(id: Route.healthFeedbackDetail, in: detailTransition)
     }
 
     private func select(_ contact: FamilyContact) {
