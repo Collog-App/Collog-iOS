@@ -89,14 +89,10 @@ struct CallView: View {
                     .padding(.horizontal, Spacing.x1)
             }
 
-            ForEach(Array(questions.enumerated()), id: \.offset) { _, question in
+            ForEach(Array(questions.enumerated()), id: \.offset) { index, question in
                 HStack(spacing: Spacing.x3) {
-                    Icon(name: "cross.case.fill", size: 13, color: .gray00)
-                        .frame(width: IconSize.medium, height: IconSize.medium)
-                        .background(
-                            Color.greenNormal,
-                            in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
-                        )
+                    Text(String(format: "%02d", index + 1))
+                        .caption_01_semibold(.green700)
 
                     Text(question)
                         .body_02_medium(.gray900)

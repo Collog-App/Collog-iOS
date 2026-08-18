@@ -37,6 +37,7 @@ struct CallLauncherOverlay: View {
                 questionStack
                 targetFan
             }
+            .frame(width: 0, height: 0)
             .padding(.bottom, anchorInset)
         }
         .transition(.opacity)
@@ -85,7 +86,7 @@ struct CallLauncherOverlay: View {
                 }
             }
         }
-        .frame(maxWidth: 300)
+        .frame(width: 300)
         .offset(y: -(model.arcRadius + 130))
         .allowsHitTesting(false)
     }
@@ -141,7 +142,7 @@ struct CallLauncherOverlay: View {
                     startAngle: angleRange.lowerBound,
                     endAngle: angleRange.upperBound
                 )
-                .fill(isFocused ? Color.greenNormal.opacity(0.18) : Color.gray00.opacity(0.4))
+                .fill(isFocused ? Color.greenLightActive.opacity(0.72) : Color.gray00.opacity(0.4))
                 .overlay {
                     FanSector(
                         innerRadius: 56,
@@ -149,8 +150,21 @@ struct CallLauncherOverlay: View {
                         startAngle: angleRange.lowerBound,
                         endAngle: angleRange.upperBound
                     )
-                    .stroke(Color.gray00.opacity(isFocused ? 0.9 : 0.55), lineWidth: 1)
+                    .stroke(
+                        isFocused ? Color.greenNormal.opacity(0.82) : Color.gray00.opacity(0.55),
+                        lineWidth: isFocused ? 1.5 : 1
+                    )
                 }
+                .contentShape(
+                    FanSector(
+                        innerRadius: 56,
+                        outerRadius: 178,
+                        startAngle: angleRange.lowerBound,
+                        endAngle: angleRange.upperBound
+                    )
+                )
+                .onTapGesture { onSelect(index) }
+                .allowsHitTesting(model.mode == .sticky)
                 .animation(.easeOut(duration: 0.14), value: isFocused)
             }
         }

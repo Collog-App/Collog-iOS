@@ -28,7 +28,8 @@ final class CallLauncherModel {
     private var didActivateByHold = false
 
     private let holdDuration: Duration = .milliseconds(280)
-    private let hitRadius: CGFloat = 58
+    private let selectionInnerRadius: CGFloat = 52
+    private let selectionOuterRadius: CGFloat = 190
 
     let arcRadius: CGFloat = 122
     private let startAngle = -122.0
@@ -135,21 +136,17 @@ final class CallLauncherModel {
 
     private func updateFocus(for translation: CGSize) {
         let point = CGPoint(x: translation.width, y: translation.height)
-        let nearest = targets.indices
-            .map { ($0, distance(from: point, to: offset(for: $0))) }
-            .filter { $0.1 <= hitRadius }
-            .min { $0.1 < $1.1 }?
-            .0
+        let radius = (point.x * point.x + point.y * point.y).squareRoot()
+        let angle = atan2(point.y, point.x) * 180 / .pi
+        let nearest: Int? = if selectionInnerRadius...selectionOuterRadius ~= radius {
+            targets.indices.first { angleRange(for: $0).contains(angle) }
+        } else {
+            nil
+        }
 
         if nearest != focusedIndex {
             focusedIndex = nearest
             if nearest == nil { Haptics.blur() } else { Haptics.focus() }
         }
-    }
-
-    private func distance(from point: CGPoint, to offset: CGSize) -> CGFloat {
-        let dx = point.x - offset.width
-        let dy = point.y - offset.height
-        return (dx * dx + dy * dy).squareRoot()
     }
 }
