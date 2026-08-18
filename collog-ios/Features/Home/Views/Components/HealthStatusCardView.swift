@@ -21,15 +21,12 @@ struct HealthStatusCardView: View {
 
             VStack(alignment: .leading, spacing: Spacing.x4) {
                 if isLoaded {
-                    TrendChartView(
-                        series: summary.trend,
-                        showsReadout: false,
-                        chartHeight: 104
-                    )
+                    SparkLineView(values: summary.trend.points.map(\.value), lineWidth: 2.5)
+                        .frame(height: 56)
                 } else {
                     RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
                         .fill(Color.gray100)
-                        .frame(height: 104)
+                        .frame(height: 56)
                 }
 
                 DividerLine()
@@ -79,7 +76,7 @@ struct HealthStatusCardView: View {
             if let latest = summary.trend.latest {
                 HStack(alignment: .lastTextBaseline, spacing: Spacing.x1) {
                     Text("\(Int(latest.value.rounded()))")
-                        .pretendard(.bold, 32, .gray1000)
+                        .pretendard(.semiBold, 24, .gray900)
 
                     Text(summary.trend.unit)
                         .body_03_medium(.gray800)

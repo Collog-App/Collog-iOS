@@ -60,14 +60,6 @@ struct SparkLineView: View {
                         Color.greenNormal,
                         style: StrokeStyle(lineWidth: lineWidth, lineCap: .round, lineJoin: .round)
                     )
-
-                if let last = points.last {
-                    Circle()
-                        .fill(Color.greenNormal)
-                        .frame(width: 7, height: 7)
-                        .position(x: last.x, y: last.y)
-                        .opacity(progress == 1 ? 1 : 0)
-                }
             }
         }
         .onAppear {

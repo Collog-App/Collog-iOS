@@ -71,6 +71,20 @@ struct TrendChartView: View {
                 .accessibilityHidden(true)
 
             ForEach(series.points) { point in
+                AreaMark(
+                    x: .value("주", point.date),
+                    yStart: .value("최저", yDomain.lowerBound),
+                    yEnd: .value(series.unit, point.value)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.greenNormal.opacity(0.18), Color.greenNormal.opacity(0.01)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
                 LineMark(x: .value("주", point.date), y: .value(series.unit, point.value))
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
@@ -81,8 +95,12 @@ struct TrendChartView: View {
 
             if let focusedPoint {
                 PointMark(x: .value("주", focusedPoint.date), y: .value(series.unit, focusedPoint.value))
-                    .symbolSize(120)
                     .foregroundStyle(Color.greenDark)
+                    .symbol {
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color.greenDark)
+                            .frame(width: 9, height: 9)
+                    }
                     .accessibilityHidden(true)
             }
         }
