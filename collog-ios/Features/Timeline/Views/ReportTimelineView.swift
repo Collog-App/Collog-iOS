@@ -24,7 +24,9 @@ struct ReportTimelineView: View {
         @Bindable var navigator = navigation.manager(for: tab)
 
         return NavigationStack(path: $navigator.path) {
-            ScrollView {
+            CollapsingHeaderScrollView(title: viewModel.title) {
+                FilterChipView(label: viewModel.selectedMember)
+            } content: {
                 LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                     Section {
                         content
@@ -38,17 +40,7 @@ struct ReportTimelineView: View {
                 }
                 .padding(.bottom, Spacing.x8)
             }
-            .scrollIndicators(.hidden)
-            .background(Color.gray50)
-            .navigationTitle(viewModel.title)
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    FilterChipView(label: viewModel.selectedMember)
-                }
-            }
-            .toolbarBackground(Color.gray50, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbar(.hidden, for: .navigationBar)
             .task { await viewModel.refresh(using: environment) }
         }
     }
