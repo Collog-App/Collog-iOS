@@ -30,11 +30,9 @@ struct TimelineView: View {
                     .padding(.horizontal, Spacing.x5)
                     .padding(.bottom, Spacing.x8)
                 } else {
-                    Text("리포트는 준비 중이에요")
-                        .body_02_medium(.gray700)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    ReportContentView(report: viewModel.report)
                         .padding(.horizontal, Spacing.x5)
-                        .padding(.top, Spacing.x6)
+                        .padding(.bottom, Spacing.x8)
                 }
             }
             .scrollIndicators(.hidden)
