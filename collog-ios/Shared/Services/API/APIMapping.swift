@@ -127,8 +127,25 @@ extension WeeklyReport {
                 caption: "대화 중 다시 물어보신 횟수예요"
             ),
             acousticTrend: trend ?? .speechRateSample,
+            metricTrends: Self.metricTrends(from: dto),
             disclaimer: dto.disclaimer
         )
+    }
+
+    private static func metricTrends(from dto: ReportDTO) -> [MetricTrend] {
+        let history = dto.recentAcousticHistory ?? dto.acousticTrends
+        return history.compactMap { item in
+            let values = item.points.compactMap(\.value)
+            guard values.count >= 2, let latest = values.last else { return nil }
+
+            return MetricTrend(
+                label: MetricLabel.korean(for: item.metric),
+                value: String(Int(latest.rounded())),
+                unit: MetricLabel.unit(for: item.metric),
+                values: values,
+                shape: item.metric == "COUGH_EVENTS" ? .bar : .line
+            )
+        }
     }
 
     private static func state(from raw: String) -> ReportState {

@@ -47,6 +47,7 @@ struct WeeklyReport {
     let conversationGroups: [ConversationGroup]
     let repeatObservation: RepeatObservation
     let acousticTrend: TrendSeries
+    let metricTrends: [MetricTrend]
     let disclaimer: String
 }
 
@@ -84,6 +85,12 @@ extension WeeklyReport {
             caption: "대화 중 다시 물어보신 횟수예요"
         ),
         acousticTrend: .speechRateSample,
+        metricTrends: [
+            MetricTrend(label: "말씀 속도", value: "208", unit: "음절/분",
+                        values: [229, 205, 212, 209, 216, 208], shape: .line),
+            MetricTrend(label: "되물으심", value: "3", unit: "회",
+                        values: [1, 2, 1, 3, 2, 3], shape: .bar)
+        ],
         disclaimer: "이 기록은 의료 진단이 아니에요. 같은 분의 이전 기록과 비교한 관찰값이에요."
     )
 }

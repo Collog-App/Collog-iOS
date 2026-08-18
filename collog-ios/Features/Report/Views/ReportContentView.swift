@@ -28,6 +28,18 @@ struct ReportContentView: View {
             }
             .cardSurface()
 
+            if !report.metricTrends.isEmpty {
+                VStack(alignment: .leading, spacing: Spacing.x2) {
+                    Text("지난 흐름")
+                        .body_02_semibold(.gray900)
+                        .padding(.leading, Spacing.x1)
+
+                    ForEach(report.metricTrends) { trend in
+                        MetricTrendRowView(trend: trend)
+                    }
+                }
+            }
+
             ConversationCardView(groups: report.conversationGroups)
 
             repeatCard
