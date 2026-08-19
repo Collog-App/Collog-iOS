@@ -11,5 +11,4 @@ enum Route: Hashable {
     case familyHealthOverview
     case healthFeedbackDetail
     case notifications
-    case homeMenu
 }

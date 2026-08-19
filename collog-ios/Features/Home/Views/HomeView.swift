@@ -38,7 +38,7 @@ struct HomeView: View {
             ) {
                 largeTitle
             } trailing: {
-                trailingIcons
+                notificationButton
             } content: {
                 VStack(alignment: .leading, spacing: 0) {
                     HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
@@ -78,8 +78,7 @@ struct HomeView: View {
                     )
                 case .notifications:
                     HomeNotificationsView()
-                case .homeMenu:
-                    HomeMenuView(contact: selectedContact)
+                        .interactivePopGestureEnabled()
                 }
             }
         }
@@ -110,27 +109,17 @@ struct HomeView: View {
         }
     }
 
-    private var trailingIcons: some View {
-        HStack(spacing: 0) {
-            Button {
-                navigation.manager(for: .home).push(Route.notifications)
-            } label: {
-                Icon(name: "bell", color: .gray900)
-                    .frame(width: 40, height: 40)
-                    .overlay(alignment: .topTrailing) {
-                        NotificationDot().offset(x: -4, y: 4)
-                    }
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                navigation.manager(for: .home).push(Route.homeMenu)
-            } label: {
-                Icon(name: "line.3.horizontal", color: .gray900)
-                    .frame(width: 40, height: 40)
-            }
-            .buttonStyle(.plain)
+    private var notificationButton: some View {
+        Button {
+            navigation.manager(for: .home).push(Route.notifications)
+        } label: {
+            Icon(name: "bell", color: .gray900)
+                .frame(width: 40, height: 40)
+                .overlay(alignment: .topTrailing) {
+                    NotificationDot().offset(x: -4, y: 4)
+                }
         }
+        .buttonStyle(.plain)
     }
 
     private var feedbackRow: some View {

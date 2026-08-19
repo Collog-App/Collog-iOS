@@ -9,6 +9,8 @@ import SwiftUI
 
 struct HomeNotificationsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(NavigationStore.self) private var navigation
+    @Environment(TabManager.self) private var tabManager
 
     var body: some View {
         @Bindable var settings = environment.settings
@@ -34,12 +36,16 @@ struct HomeNotificationsView: View {
                     .padding(.leading, Spacing.x1)
 
                 VStack(spacing: Spacing.x3) {
-                    notificationRow(
-                        symbol: "doc.text.fill",
-                        title: "이번 주 리포트가 준비됐어요",
-                        message: "최근 통화에서 확인한 내용을 정리했어요.",
-                        time: "오늘"
-                    )
+                    Button(action: openReport) {
+                        notificationRow(
+                            symbol: "doc.text.fill",
+                            title: "이번 주 리포트가 준비됐어요",
+                            message: "최근 통화에서 확인한 내용을 정리했어요.",
+                            time: "오늘",
+                            showsChevron: true
+                        )
+                    }
+                    .buttonStyle(.plain)
 
                     notificationRow(
                         symbol: "bubble.left.and.text.bubble.right.fill",
@@ -63,7 +69,8 @@ struct HomeNotificationsView: View {
         symbol: String,
         title: String,
         message: String,
-        time: String
+        time: String,
+        showsChevron: Bool = false
     ) -> some View {
         HStack(alignment: .top, spacing: Spacing.x3) {
             Icon(name: symbol, size: 20, color: .gray800)
@@ -84,8 +91,20 @@ struct HomeNotificationsView: View {
                     .body_03_medium(.gray800)
                     .fixedSize(horizontal: false, vertical: true)
             }
+
+            if showsChevron {
+                Icon(name: "chevron.right", size: 14, color: .gray500)
+                    .padding(.top, Spacing.x1)
+            }
         }
         .cardSurface()
+        .contentShape(Rectangle())
+    }
+
+    private func openReport() {
+        navigation.popToRoot(.home)
+        tabManager.selectedTab = .report
+        Haptics.press()
     }
 }
 
@@ -93,5 +112,7 @@ struct HomeNotificationsView: View {
     NavigationStack {
         HomeNotificationsView()
             .environment(AppEnvironment())
+            .environment(NavigationStore())
+            .environment(TabManager())
     }
 }
