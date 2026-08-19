@@ -24,9 +24,9 @@ final class CallCenter: NSObject {
         let id: String
         let uuid: UUID
         let direction: Direction
+        let peerId: String?
         var peerName: String
         var phase: CallPhase
-        var questions: [APIQuestion] = []
         var notice: String?
     }
 
@@ -292,6 +292,7 @@ extension CallCenter: PKPushRegistryDelegate {
                 id: callId,
                 uuid: uuid,
                 direction: .incoming,
+                peerId: call["callerId"] as? String,
                 peerName: callerName,
                 phase: .ringing
             )
@@ -348,9 +349,9 @@ extension CallCenter: CXProviderDelegate {
                         id: created.callId,
                         uuid: pending.uuid,
                         direction: .outgoing,
+                        peerId: pending.calleeId,
                         peerName: pending.name,
                         phase: .connecting,
-                        questions: created.questions,
                         notice: created.recordingEnabled ? nil : created.recordingDisabledMessage
                     )
                     rawCaptureRequired = created.recordingEnabled

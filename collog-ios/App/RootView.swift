@@ -141,7 +141,7 @@ struct RootView: View {
             CallView(
                 peerName: call.peerName,
                 phase: call.phase,
-                questions: call.questions.map(\.text),
+                questions: questions(for: call),
                 notice: call.notice,
                 onEnd: { callCenter.endActiveCall() }
             )
@@ -150,7 +150,7 @@ struct RootView: View {
                 peerName: simulatedContact.name,
                 phase: simulatedPhase,
                 questions: environment.family.questions(for: simulatedContact).map(\.text),
-                notice: "체험 모드예요. 실제로 전화가 걸리지는 않아요",
+                notice: "체험 모드입니다. 통화 화면만 미리 보여드려요",
                 onEnd: endSimulatedCall
             )
         }
@@ -165,8 +165,15 @@ struct RootView: View {
         )
     }
 
+    private func questions(for call: CallCenter.ActiveCall) -> [String] {
+        let contact = environment.family.contacts.first { contact in
+            contact.userId == call.peerId || contact.name == call.peerName
+        }
+        return environment.family.questions(for: contact).map(\.text)
+    }
+
     private var launcherNotice: String? {
-        if isGuest { return "체험 모드에서는 실제로 전화가 걸리지 않아요" }
+        if isGuest { return "체험 모드입니다. 통화 화면만 미리 보여드려요" }
         return environment.family.callableContacts.isEmpty ? "로그인하면 실제로 전화가 걸려요" : nil
     }
 
