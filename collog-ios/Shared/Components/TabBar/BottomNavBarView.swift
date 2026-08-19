@@ -34,10 +34,10 @@ struct BottomNavBarView: View {
             .frame(maxWidth: .infinity)
             .background(alignment: .top) {
                 Rectangle()
-                    .fill(.thinMaterial)
+                    .fill(.ultraThinMaterial)
                     .ignoresSafeArea(edges: .bottom)
                     .overlay {
-                        Color.gray00.opacity(0.72)
+                        Color.gray00.opacity(0.58)
                             .ignoresSafeArea(edges: .bottom)
                     }
                     .overlay(alignment: .top) {
