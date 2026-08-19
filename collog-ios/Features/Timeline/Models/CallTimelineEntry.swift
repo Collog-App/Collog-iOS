@@ -56,7 +56,6 @@ extension CallTimelineEntry {
     )
 
     static func sample(offset: Int, relation: String? = nil) -> CallTimelineEntry {
-        let base = relation == "FATHER" ? fatherSample : sample
         let distance = abs(offset)
         let variant = distance % 4
         let bounds = TimelineWeekPage.bounds(offset: offset)
@@ -68,7 +67,6 @@ extension CallTimelineEntry {
         let isFather = relation == "FATHER"
         let duration = (isFather ? 11 : 14) + (distance * 2) % 5
         let speechRate = (isFather ? 194 : 210) + (distance * 3) % 9 - 4
-        let markerShift = Double(variant) * 0.025
 
         return CallTimelineEntry(
             dateText: APIFormat.longDate.string(from: date),
@@ -88,21 +86,8 @@ extension CallTimelineEntry {
                 )
             ],
             story: sampleStory(relation: relation, variant: variant),
-            keywords: shiftedKeywords(base.keywords, variant: variant),
-            gauges: [
-                RangeGauge(
-                    label: "말 사이 쉼",
-                    normalRange: base.gauges[0].normalRange,
-                    marker: min(base.gauges[0].marker - markerShift, 0.92),
-                    caption: variant == 0 && !isFather ? "평소보다 길어짐" : "평소 범위 안"
-                ),
-                RangeGauge(
-                    label: "목소리 높낮이",
-                    normalRange: base.gauges[1].normalRange,
-                    marker: min(base.gauges[1].marker + markerShift, 0.9),
-                    caption: "평소 범위 안"
-                )
-            ],
+            keywords: sampleKeywords(isFather: isFather, variant: variant),
+            gauges: sampleGauges(isFather: isFather, variant: variant),
             counts: sampleCounts(isFather: isFather, distance: distance)
         )
     }
@@ -123,15 +108,101 @@ extension CallTimelineEntry {
         return relation == "FATHER" ? fatherStories[variant] : motherStories[variant]
     }
 
-    private static func shiftedKeywords(_ keywords: [KeywordMark], variant: Int) -> [KeywordMark] {
-        let shift = Double(variant) * 0.018
-        return keywords.map { keyword in
-            KeywordMark(
-                position: min(max(keyword.position + shift, 0.04), 0.96),
-                tone: keyword.tone,
-                label: keyword.label
+    private static func sampleKeywords(isFather: Bool, variant: Int) -> [KeywordMark] {
+        let motherKeywords = [
+            [
+                KeywordMark(position: 0.12, tone: .positive, label: nil),
+                KeywordMark(position: 0.24, tone: .positive, label: "수면"),
+                KeywordMark(position: 0.42, tone: .concern, label: "허리 통증"),
+                KeywordMark(position: 0.68, tone: .neutral, label: "혈압약"),
+                KeywordMark(position: 0.86, tone: .neutral, label: nil)
+            ],
+            [
+                KeywordMark(position: 0.09, tone: .neutral, label: nil),
+                KeywordMark(position: 0.27, tone: .positive, label: "장보기"),
+                KeywordMark(position: 0.49, tone: .caution, label: "피로"),
+                KeywordMark(position: 0.73, tone: .positive, label: "휴식")
+            ],
+            [
+                KeywordMark(position: 0.14, tone: .positive, label: "점심"),
+                KeywordMark(position: 0.36, tone: .neutral, label: nil),
+                KeywordMark(position: 0.58, tone: .positive, label: "공원"),
+                KeywordMark(position: 0.81, tone: .positive, label: nil)
+            ],
+            [
+                KeywordMark(position: 0.1, tone: .positive, label: nil),
+                KeywordMark(position: 0.31, tone: .positive, label: "숙면"),
+                KeywordMark(position: 0.56, tone: .neutral, label: "휴식"),
+                KeywordMark(position: 0.79, tone: .caution, label: "입맛")
+            ]
+        ]
+        let fatherKeywords = [
+            [
+                KeywordMark(position: 0.11, tone: .positive, label: nil),
+                KeywordMark(position: 0.29, tone: .positive, label: "산책"),
+                KeywordMark(position: 0.55, tone: .neutral, label: "점심"),
+                KeywordMark(position: 0.82, tone: .positive, label: nil)
+            ],
+            [
+                KeywordMark(position: 0.08, tone: .neutral, label: nil),
+                KeywordMark(position: 0.3, tone: .positive, label: "바둑"),
+                KeywordMark(position: 0.57, tone: .neutral, label: "저녁 약"),
+                KeywordMark(position: 0.78, tone: .positive, label: nil)
+            ],
+            [
+                KeywordMark(position: 0.13, tone: .neutral, label: nil),
+                KeywordMark(position: 0.34, tone: .caution, label: "병원"),
+                KeywordMark(position: 0.61, tone: .neutral, label: "검사"),
+                KeywordMark(position: 0.85, tone: .positive, label: nil)
+            ],
+            [
+                KeywordMark(position: 0.16, tone: .positive, label: "텃밭"),
+                KeywordMark(position: 0.39, tone: .neutral, label: nil),
+                KeywordMark(position: 0.64, tone: .positive, label: "수면"),
+                KeywordMark(position: 0.87, tone: .positive, label: nil)
+            ]
+        ]
+        return isFather ? fatherKeywords[variant] : motherKeywords[variant]
+    }
+
+    private static func sampleGauges(isFather: Bool, variant: Int) -> [RangeGauge] {
+        let pauseRanges = isFather
+            ? [0.15...0.72, 0.13...0.69, 0.16...0.74, 0.14...0.7]
+            : [0.1...0.6, 0.12...0.63, 0.09...0.58, 0.13...0.62]
+        let pitchRanges = isFather
+            ? [0.18...0.76, 0.2...0.73, 0.17...0.71, 0.19...0.75]
+            : [0.15...0.7, 0.18...0.72, 0.16...0.69, 0.2...0.74]
+        let pauseMarkers = isFather ? [0.48, 0.63, 0.41, 0.76] : [0.72, 0.56, 0.43, 0.68]
+        let pitchMarkers = isFather ? [0.53, 0.46, 0.69, 0.38] : [0.45, 0.57, 0.74, 0.51]
+        let pauseRange = pauseRanges[variant]
+        let pitchRange = pitchRanges[variant]
+        let pauseMarker = pauseMarkers[variant]
+        let pitchMarker = pitchMarkers[variant]
+
+        return [
+            RangeGauge(
+                label: "말 사이 쉼",
+                normalRange: pauseRange,
+                marker: pauseMarker,
+                caption: gaugeCaption(range: pauseRange, marker: pauseMarker, highText: "평소보다 길어짐")
+            ),
+            RangeGauge(
+                label: "목소리 높낮이",
+                normalRange: pitchRange,
+                marker: pitchMarker,
+                caption: gaugeCaption(range: pitchRange, marker: pitchMarker, highText: "평소보다 변화가 큼")
             )
-        }
+        ]
+    }
+
+    private static func gaugeCaption(
+        range: ClosedRange<Double>,
+        marker: Double,
+        highText: String
+    ) -> String {
+        if range.contains(marker) { return "평소 범위 안" }
+        if marker > range.upperBound { return highText }
+        return "평소보다 낮음"
     }
 
     private static func sampleCounts(isFather: Bool, distance: Int) -> [CallStat] {
@@ -145,39 +216,4 @@ extension CallTimelineEntry {
         ]
     }
 
-    private static let fatherSample = CallTimelineEntry(
-        dateText: "8월 15일 토요일",
-        durationText: "11분 08초",
-        summaryStats: [
-            CallStat(label: "통화 길이", value: "11", unit: "분", note: StatNote(text: "평소 10분")),
-            CallStat(label: "말씀 속도", value: "194", unit: "음절/분", note: StatNote(text: "평소 190"))
-        ],
-        story: "아침 산책을 다녀오셨고\n점심으로 국수를 드셨다고 하셨어요.",
-        keywords: [
-            KeywordMark(position: 0.12, tone: .positive, label: nil),
-            KeywordMark(position: 0.28, tone: .positive, label: "산책"),
-            KeywordMark(position: 0.47, tone: .neutral, label: nil),
-            KeywordMark(position: 0.63, tone: .positive, label: "점심"),
-            KeywordMark(position: 0.82, tone: .neutral, label: nil)
-        ],
-        gauges: [
-            RangeGauge(
-                label: "말 사이 쉼",
-                normalRange: 0.15...0.72,
-                marker: 0.48,
-                caption: "평소 범위 안"
-            ),
-            RangeGauge(
-                label: "목소리 높낮이",
-                normalRange: 0.18...0.76,
-                marker: 0.53,
-                caption: "평소 범위 안"
-            )
-        ],
-        counts: [
-            CallStat(label: "기침", value: "1", unit: "회", note: StatNote(text: "평소 2회")),
-            CallStat(label: "되물으심", value: "1", unit: "회", note: StatNote(text: "평소 1회")),
-            CallStat(label: "웃음", value: "8", unit: "회", note: StatNote(text: "평소 6회"))
-        ]
-    )
 }
