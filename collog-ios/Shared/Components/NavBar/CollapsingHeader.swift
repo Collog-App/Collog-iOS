@@ -24,6 +24,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let onRefresh: (@MainActor @Sendable () async -> Void)?
     private let scrollReset: Int
     private let sticky: AnyView?
+    private let pinnedSticky: AnyView?
     private let showsScrollToTopButton: Bool
 
     @State private var scrollOffset: CGFloat = 0
@@ -55,9 +56,10 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.scrollReset = scrollReset
         self.showsScrollToTopButton = showsScrollToTopButton
         sticky = nil
+        pinnedSticky = nil
     }
 
-    init<Sticky: View>(
+    init<Sticky: View, PinnedSticky: View>(
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
@@ -65,6 +67,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         @ViewBuilder large: () -> Large,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder sticky: () -> Sticky,
+        @ViewBuilder pinnedSticky: () -> PinnedSticky,
         @ViewBuilder content: () -> Content
     ) {
         self.title = title
@@ -75,6 +78,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.scrollReset = scrollReset
         self.showsScrollToTopButton = showsScrollToTopButton
         self.sticky = AnyView(sticky())
+        self.pinnedSticky = AnyView(pinnedSticky())
     }
 
     private var collapseProgress: CGFloat {
@@ -85,8 +89,8 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         ZStack(alignment: .top) {
             contentScrollView
 
-            if let sticky, isSticky {
-                sticky
+            if let pinnedSticky, isSticky {
+                pinnedSticky
                     .background(Color.gray50)
                     .padding(.top, barHeight)
                     .transition(.opacity)
@@ -264,13 +268,14 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
         )
     }
 
-    init<Sticky: View>(
+    init<Sticky: View, PinnedSticky: View>(
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
         showsScrollToTopButton: Bool = false,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder sticky: () -> Sticky,
+        @ViewBuilder pinnedSticky: () -> PinnedSticky,
         @ViewBuilder content: () -> Content
     ) {
         self.init(
@@ -281,6 +286,7 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
             sticky: sticky,
+            pinnedSticky: pinnedSticky,
             content: content
         )
     }

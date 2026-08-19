@@ -40,6 +40,10 @@ struct ReportTimelineView: View {
                 FilterChipView(label: viewModel.selectedMember)
             } sticky: {
                 if tab == .timeline {
+                    timelineSectionHeader(for: activeVerticalWeek)
+                }
+            } pinnedSticky: {
+                if tab == .timeline {
                     stickyTimelineWeekHeader
                 }
             } content: {
@@ -138,17 +142,7 @@ struct ReportTimelineView: View {
 
     private func timelineSectionHeader(for offset: Int) -> some View {
         let page = viewModel.page(for: offset)
-        let title = startsNewMonth(at: offset) ? page.title : page.weekTitle
-        return TimelineWeekHeader(title: title, rangeText: page.timelineRangeText)
-    }
-
-    private func startsNewMonth(at offset: Int) -> Bool {
-        guard
-            let index = verticalPageOffsets.firstIndex(of: offset),
-            index > 0
-        else { return true }
-        let previousOffset = verticalPageOffsets[index - 1]
-        return viewModel.page(for: previousOffset).month != viewModel.page(for: offset).month
+        return TimelineWeekHeader(title: page.title, rangeText: nil)
     }
 
     private func updateActiveVerticalWeek(_ offset: Int, minY: CGFloat) {

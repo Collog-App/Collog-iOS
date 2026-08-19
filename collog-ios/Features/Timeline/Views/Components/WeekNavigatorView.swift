@@ -56,15 +56,17 @@ struct WeekNavigatorView: View {
 
 struct TimelineWeekHeader: View {
     let title: String
-    let rangeText: String
+    var rangeText: String?
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: Spacing.x3) {
             Text(title)
                 .body_01_semibold(.gray900)
 
-            Text(rangeText)
-                .body_03_medium(.gray700)
+            if let rangeText {
+                Text(rangeText)
+                    .body_03_medium(.gray700)
+            }
 
             Spacer(minLength: 0)
         }
