@@ -1,0 +1,3 @@
+[submodule "Collog-Privacy"]
+	path = Collog-Privacy
+	url = https://github.com/dohyeoplim/Collog-Privacy.git
