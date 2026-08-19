@@ -18,6 +18,9 @@ struct SettingsView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
+    @Environment(\.openURL) private var openURL
+
+    private let privacyPolicyURL = URL(string: "https://dohyeoplim.github.io/Collog-Privacy/")!
 
     var body: some View {
         @Bindable var settings = environment.settings
@@ -57,6 +60,12 @@ struct SettingsView: View {
                             caption: "연결을 기다리는 동안 오늘의 질문을 읽어줘요",
                             isOn: $settings.questionVoiceEnabled
                         )
+                    }
+
+                    SettingsSection(title: "정보") {
+                        SettingsNavigationRow(label: "개인정보처리방침") {
+                            openURL(privacyPolicyURL)
+                        }
                     }
 
                     footer
