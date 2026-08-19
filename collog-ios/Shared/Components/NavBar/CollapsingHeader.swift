@@ -24,12 +24,14 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let onRefresh: (@MainActor @Sendable () async -> Void)?
     private let scrollReset: Int
     private let sticky: AnyView?
+    private let showsScrollToTopButton: Bool
 
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
     @State private var pullDistance: CGFloat = 0
     @State private var isRefreshArmed = false
     @State private var stickyMinY = CGFloat.greatestFiniteMagnitude
+    @State private var scrollToTopRequest = 0
 
     private let collapseDistance: CGFloat = 44
     private let barHeight: CGFloat = 52
@@ -40,6 +42,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
+        showsScrollToTopButton: Bool = false,
         @ViewBuilder large: () -> Large,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
@@ -50,6 +53,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.content = content()
         self.onRefresh = onRefresh
         self.scrollReset = scrollReset
+        self.showsScrollToTopButton = showsScrollToTopButton
         sticky = nil
     }
 
@@ -57,6 +61,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
+        showsScrollToTopButton: Bool = false,
         @ViewBuilder large: () -> Large,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder sticky: () -> Sticky,
@@ -68,6 +73,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.content = content()
         self.onRefresh = onRefresh
         self.scrollReset = scrollReset
+        self.showsScrollToTopButton = showsScrollToTopButton
         self.sticky = AnyView(sticky())
     }
 
@@ -89,10 +95,37 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
             compactBar
         }
         .background(Color.gray50)
+        .overlay(alignment: .bottomTrailing) {
+            if shouldShowScrollToTopButton {
+                scrollToTopButton
+                    .padding(.trailing, Spacing.x5)
+                    .padding(.bottom, Spacing.x5)
+                    .transition(.scale(scale: 0.72).combined(with: .opacity))
+            }
+        }
+        .animation(.smooth(duration: 0.22), value: shouldShowScrollToTopButton)
     }
 
     private var isSticky: Bool {
         sticky != nil && stickyMinY <= barHeight
+    }
+
+    private var shouldShowScrollToTopButton: Bool {
+        showsScrollToTopButton && scrollOffset > 520 && !isRefreshing
+    }
+
+    private var scrollToTopButton: some View {
+        Button {
+            Haptics.press()
+            scrollToTopRequest += 1
+        } label: {
+            Icon(name: "chevron.up", size: 20, weight: .semibold, color: .gray00)
+                .frame(width: 48, height: 48)
+                .background(Color.gray900.opacity(0.94), in: Circle())
+                .shadow(color: .black.opacity(0.12), radius: 12, y: 5)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("최상단으로 이동")
     }
 
     private var contentScrollView: some View {
@@ -145,6 +178,11 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
             }
             .onChange(of: scrollReset) {
                 withAnimation(.smooth(duration: 0.32)) {
+                    proxy.scrollTo(ScrollTarget.top, anchor: .top)
+                }
+            }
+            .onChange(of: scrollToTopRequest) {
+                withAnimation(.smooth(duration: 0.4)) {
                     proxy.scrollTo(ScrollTarget.top, anchor: .top)
                 }
             }
@@ -211,6 +249,7 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
+        showsScrollToTopButton: Bool = false,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder content: () -> Content
     ) {
@@ -218,6 +257,7 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
             title: title,
             onRefresh: onRefresh,
             scrollReset: scrollReset,
+            showsScrollToTopButton: showsScrollToTopButton,
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
             content: content
@@ -228,6 +268,7 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
         title: String,
         onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
         scrollReset: Int = 0,
+        showsScrollToTopButton: Bool = false,
         @ViewBuilder trailing: () -> Trailing,
         @ViewBuilder sticky: () -> Sticky,
         @ViewBuilder content: () -> Content
@@ -236,6 +277,7 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
             title: title,
             onRefresh: onRefresh,
             scrollReset: scrollReset,
+            showsScrollToTopButton: showsScrollToTopButton,
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
             sticky: sticky,

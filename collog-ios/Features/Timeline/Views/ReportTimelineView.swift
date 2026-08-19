@@ -34,7 +34,8 @@ struct ReportTimelineView: View {
             CollapsingHeaderScrollView(
                 title: viewModel.title,
                 onRefresh: refresh,
-                scrollReset: tabManager.reselectionCount
+                scrollReset: tabManager.reselectionCount,
+                showsScrollToTopButton: tab == .timeline
             ) {
                 FilterChipView(label: viewModel.selectedMember)
             } sticky: {
