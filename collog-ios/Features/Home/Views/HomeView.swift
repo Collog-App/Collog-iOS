@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var selectedContactId: String?
     @State private var isGeneratingQuestions = false
+    @State private var questionGenerationId: UUID?
     @Namespace private var detailTransition
 
     private var contacts: [FamilyContact] { environment.family.contacts }
@@ -159,6 +160,8 @@ struct HomeView: View {
 
     private func generateQuestions() {
         guard let selectedContact, !isGeneratingQuestions else { return }
+        let generationId = UUID()
+        questionGenerationId = generationId
         isGeneratingQuestions = true
         let existing = selectedQuestions.map(\.text)
 
@@ -167,10 +170,34 @@ struct HomeView: View {
                 memberName: selectedContact.name,
                 excluding: existing
             )
-            environment.family.saveQuestions(generated, for: selectedContact)
-            isGeneratingQuestions = false
-            Haptics.commit()
+            completeQuestionGeneration(
+                generated,
+                contact: selectedContact,
+                generationId: generationId
+            )
         }
+
+        Task {
+            try? await Task.sleep(for: .seconds(6))
+            let fallback = QuestionGenerator.fallback(excluding: existing)
+            completeQuestionGeneration(
+                fallback,
+                contact: selectedContact,
+                generationId: generationId
+            )
+        }
+    }
+
+    private func completeQuestionGeneration(
+        _ questions: [String],
+        contact: FamilyContact,
+        generationId: UUID
+    ) {
+        guard questionGenerationId == generationId else { return }
+        environment.family.saveQuestions(questions, for: contact)
+        questionGenerationId = nil
+        isGeneratingQuestions = false
+        Haptics.commit()
     }
 
     private func refresh() async {

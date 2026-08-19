@@ -46,7 +46,7 @@ enum QuestionGenerator {
         """
     }
 
-    private static func fallback(excluding existing: [String]) -> [String] {
+    static func fallback(excluding existing: [String]) -> [String] {
         let pool = [
             "이번 주에 가장 즐거웠던 일은 무엇인가요?",
             "요즘 자주 드시는 반찬은 무엇인가요?",
