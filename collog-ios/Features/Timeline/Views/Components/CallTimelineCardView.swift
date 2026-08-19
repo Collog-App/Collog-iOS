@@ -11,23 +11,36 @@ struct CallTimelineDateHeader: View {
     let entry: CallTimelineEntry
 
     var body: some View {
-        HStack(alignment: .center, spacing: Spacing.x3) {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.x3) {
             Text(entry.dateText)
-                .subtitle_02(.gray900)
+                .body_01_semibold(.gray900)
 
             Spacer(minLength: Spacing.x2)
 
             Text(entry.durationText)
-                .caption_01_semibold(.gray800)
-                .padding(.horizontal, Spacing.x3)
-                .padding(.vertical, Spacing.x2)
-                .background(Color.gray100, in: Capsule())
+                .caption_01_medium(.gray700)
         }
-        .padding(.horizontal, Spacing.x5)
-        .padding(.top, Spacing.x5)
-        .padding(.bottom, Spacing.x3)
         .frame(maxWidth: .infinity)
-        .background(Color.gray50)
+    }
+}
+
+struct CallTimelineRail: View {
+    let isLast: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                .fill(Color.gray800)
+                .frame(width: 12, height: 3)
+                .padding(.top, 9)
+
+            Rectangle()
+                .fill(isLast ? Color.gray300.opacity(0.7) : Color.gray300)
+                .frame(width: 1)
+                .frame(maxHeight: .infinity)
+        }
+        .frame(width: 16)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -62,7 +75,7 @@ struct CallTimelineCardView: View {
 
     private var summarySection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            StatTileRowView(stats: entry.summaryStats)
+            StatTileRowView(stats: entry.summaryStats, layout: .stacked)
         }
         .padding(Spacing.x5)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -116,9 +129,15 @@ struct CallTimelineCardView: View {
 #Preview {
     ScrollView {
         VStack(spacing: 0) {
-            CallTimelineDateHeader(entry: .sample)
-            CallTimelineCardView(entry: .sample)
-                .padding(.horizontal, Spacing.x5)
+            HStack(alignment: .top, spacing: Spacing.x3) {
+                CallTimelineRail(isLast: true)
+
+                VStack(spacing: Spacing.x3) {
+                    CallTimelineDateHeader(entry: .sample)
+                    CallTimelineCardView(entry: .sample)
+                }
+            }
+            .padding(.horizontal, Spacing.x5)
         }
     }
     .background(Color.gray50)

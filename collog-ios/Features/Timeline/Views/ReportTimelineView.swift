@@ -167,15 +167,36 @@ struct ReportTimelineView: View {
             .padding(.top, Spacing.x6)
         } else {
             VStack(spacing: 0) {
-                ForEach(page.entries) { entry in
-                    CallTimelineDateHeader(entry: entry)
-
-                    CallTimelineCardView(entry: entry)
-                        .padding(.horizontal, Spacing.x5)
-                        .padding(.bottom, Spacing.x6)
+                ForEach(Array(page.entries.enumerated()), id: \.element.id) { index, entry in
+                    timelineEvent(
+                        entry,
+                        isLast: index == page.entries.count - 1
+                    )
+                    .scrollTransition(.interactive, axis: .vertical) { content, phase in
+                        content
+                            .opacity(phase.isIdentity ? 1 : 0.68)
+                            .scaleEffect(phase.isIdentity ? 1 : 0.975)
+                    }
                 }
             }
         }
+    }
+
+    private func timelineEvent(_ entry: CallTimelineEntry, isLast: Bool) -> some View {
+        HStack(alignment: .top, spacing: Spacing.x3) {
+            CallTimelineRail(isLast: isLast)
+
+            VStack(alignment: .leading, spacing: Spacing.x3) {
+                CallTimelineDateHeader(entry: entry)
+                CallTimelineCardView(entry: entry)
+
+                if !isLast {
+                    Color.clear
+                        .frame(height: Spacing.x3)
+                }
+            }
+        }
+        .padding(.horizontal, Spacing.x5)
     }
 
     private var loadingContent: some View {
