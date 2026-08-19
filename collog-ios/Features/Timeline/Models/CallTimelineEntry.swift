@@ -57,18 +57,92 @@ extension CallTimelineEntry {
 
     static func sample(offset: Int, relation: String? = nil) -> CallTimelineEntry {
         let base = relation == "FATHER" ? fatherSample : sample
+        let distance = abs(offset)
+        let variant = distance % 4
         let bounds = TimelineWeekPage.bounds(offset: offset)
-        let date = TimelineWeekPage.calendar.date(byAdding: .day, value: 1, to: bounds.start) ?? bounds.start
+        let date = TimelineWeekPage.calendar.date(
+            byAdding: .day,
+            value: 1 + variant,
+            to: bounds.start
+        ) ?? bounds.start
+        let isFather = relation == "FATHER"
+        let duration = (isFather ? 11 : 14) + (distance * 2) % 5
+        let speechRate = (isFather ? 194 : 210) + (distance * 3) % 9 - 4
+        let markerShift = Double(variant) * 0.025
 
         return CallTimelineEntry(
             dateText: APIFormat.longDate.string(from: date),
-            durationText: base.durationText,
-            summaryStats: base.summaryStats,
-            story: base.story,
-            keywords: base.keywords,
-            gauges: base.gauges,
-            counts: base.counts
+            durationText: "\(duration)분 \(8 + variant * 11)초",
+            summaryStats: [
+                CallStat(
+                    label: "통화 길이",
+                    value: "\(duration)",
+                    unit: "분",
+                    note: StatNote(text: isFather ? "평소 10분" : "평소 12분")
+                ),
+                CallStat(
+                    label: "말씀 속도",
+                    value: "\(speechRate)",
+                    unit: "음절/분",
+                    note: StatNote(text: isFather ? "평소 190" : "평소 208")
+                )
+            ],
+            story: sampleStory(relation: relation, variant: variant),
+            keywords: shiftedKeywords(base.keywords, variant: variant),
+            gauges: [
+                RangeGauge(
+                    label: "말 사이 쉼",
+                    normalRange: base.gauges[0].normalRange,
+                    marker: min(base.gauges[0].marker - markerShift, 0.92),
+                    caption: variant == 0 && !isFather ? "평소보다 길어짐" : "평소 범위 안"
+                ),
+                RangeGauge(
+                    label: "목소리 높낮이",
+                    normalRange: base.gauges[1].normalRange,
+                    marker: min(base.gauges[1].marker + markerShift, 0.9),
+                    caption: "평소 범위 안"
+                )
+            ],
+            counts: sampleCounts(isFather: isFather, distance: distance)
         )
+    }
+
+    private static func sampleStory(relation: String?, variant: Int) -> String {
+        let motherStories = [
+            "수면이 얕고 자주 깬다고 하셨으며\n혈압약은 꾸준히 복용 중이라고 하셨어요.",
+            "오전에 장을 보고 오셨고\n저녁에는 일찍 쉬실 예정이라고 하셨어요.",
+            "점심 식사를 맛있게 드셨고\n주말에 가까운 공원에 다녀오셨어요.",
+            "어젯밤 편하게 주무셨고\n오늘은 집에서 쉬고 계셨어요."
+        ]
+        let fatherStories = [
+            "아침 산책을 다녀오셨고\n점심으로 국수를 드셨다고 하셨어요.",
+            "친구와 바둑을 두셨고\n저녁 약도 챙겨 드셨다고 하셨어요.",
+            "오전에 병원에 다녀오셨고\n검사 결과는 괜찮다고 하셨어요.",
+            "주말에 텃밭을 살펴보셨고\n평소보다 일찍 주무셨다고 하셨어요."
+        ]
+        return relation == "FATHER" ? fatherStories[variant] : motherStories[variant]
+    }
+
+    private static func shiftedKeywords(_ keywords: [KeywordMark], variant: Int) -> [KeywordMark] {
+        let shift = Double(variant) * 0.018
+        return keywords.map { keyword in
+            KeywordMark(
+                position: min(max(keyword.position + shift, 0.04), 0.96),
+                tone: keyword.tone,
+                label: keyword.label
+            )
+        }
+    }
+
+    private static func sampleCounts(isFather: Bool, distance: Int) -> [CallStat] {
+        let cough = (isFather ? 1 : 4) + distance % 3
+        let repeatCount = (isFather ? 1 : 2) + distance % 2
+        let laugh = (isFather ? 8 : 6) - distance % 3
+        return [
+            CallStat(label: "기침", value: "\(cough)", unit: "회", note: StatNote(text: "평소 2회")),
+            CallStat(label: "되물으심", value: "\(repeatCount)", unit: "회", note: StatNote(text: "평소 1회")),
+            CallStat(label: "웃음", value: "\(laugh)", unit: "회", note: StatNote(text: "평소 6회"))
+        ]
     }
 
     private static let fatherSample = CallTimelineEntry(

@@ -105,7 +105,7 @@ final class TimelineViewModel {
     private func loadGuestPage(_ offset: Int) {
         guard offset <= 0, pages[offset]?.isLoaded != true else { return }
         var page = TimelineWeekPage(offset: offset)
-        page.report = .sample(for: selectedRelation)
+        page.report = .sample(for: selectedRelation, offset: offset)
         if offset >= -3 {
             page.entries = [.sample(offset: offset, relation: selectedRelation)]
         }
