@@ -73,7 +73,7 @@ struct OnboardingView: View {
                     .padding(.bottom, Spacing.x5)
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(.light)
     }
 
     private var background: some View {
@@ -86,29 +86,23 @@ struct OnboardingView: View {
                 SIMD2<Float>(0, 1), SIMD2<Float>(0.48, 1), SIMD2<Float>(1, 1)
             ],
             colors: [
-                Color(hex: 0x1E2425), Color(hex: 0x4B514A), Color(hex: 0x17191D),
-                Color(hex: 0x302E2B), Color(hex: 0x183A2D), Color(hex: 0x27292D),
-                Color(hex: 0x151719), Color(hex: 0x33463E), Color(hex: 0x101113)
+                Color(hex: 0xFAFBFC), Color(hex: 0xEAF5EF), Color(hex: 0xF7F5F1),
+                Color(hex: 0xF2F3F1), Color(hex: 0xDDF3E8), Color(hex: 0xF4F5F6),
+                Color(hex: 0xFAFBFC), Color(hex: 0xE8F4EE), Color(hex: 0xF7F8F9)
             ]
         )
-        .overlay(Color.black.opacity(0.14))
+        .overlay(Color.gray00.opacity(0.18))
         .ignoresSafeArea()
     }
 
     private var brand: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            Text("콜록")
-                .body_02_semibold(.gray00)
-
-            Rectangle()
-                .fill(Color.gray00.opacity(0.18))
-                .frame(height: 1)
-        }
+        Text("콜록")
+            .body_02_semibold(.gray900)
     }
 
     private var title: some View {
-        Text("가족과의 통화를\n더 오래 기억하세요")
-            .pretendard(.medium, 34, .gray00)
+        Text("가족의 목소리와 건강을\n함께 기억하세요")
+            .pretendard(.semiBold, 26, .gray900)
             .fixedSize(horizontal: false, vertical: true)
     }
 
@@ -125,33 +119,36 @@ struct OnboardingView: View {
             Image(systemName: feature.symbol)
                 .font(.system(size: 28, weight: .medium))
                 .symbolRenderingMode(.hierarchical)
-                .foregroundStyle(Color.gray00)
+                .foregroundStyle(Color.greenDark)
 
             Spacer(minLength: Spacing.x5)
 
             Text(feature.title)
-                .body_01_semibold(.gray00)
+                .body_02_semibold(.gray900)
 
             Text(feature.detail)
-                .caption_01_medium(.gray400)
+                .caption_01_regular(.gray700)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(Spacing.x4)
         .frame(maxWidth: .infinity, minHeight: 156, alignment: .leading)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .background(
+            Color.gray00.opacity(0.52),
+            in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        )
         .overlay {
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .stroke(Color.gray00.opacity(0.22), lineWidth: 1)
+                .stroke(Color.gray00.opacity(0.78), lineWidth: 1)
         }
     }
 
     private var startButton: some View {
         Button(action: onFinish) {
             Text("시작하기")
-                .body_01_semibold(.gray900)
+                .body_01_semibold(.gray00)
                 .frame(maxWidth: .infinity)
                 .frame(height: 54)
-                .background(Color.gray00, in: Capsule())
+                .background(Color.greenNormal, in: Capsule())
         }
         .buttonStyle(.plain)
     }
