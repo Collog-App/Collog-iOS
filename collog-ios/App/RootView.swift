@@ -167,7 +167,7 @@ struct RootView: View {
 
     private var launcherNotice: String? {
         if isGuest { return "체험 모드입니다. 통화 화면만 미리 보여드려요" }
-        return environment.family.callableContacts.isEmpty ? "로그인하면 실제로 전화가 걸려요" : nil
+        return nil
     }
 
     private func syncLauncher() {
