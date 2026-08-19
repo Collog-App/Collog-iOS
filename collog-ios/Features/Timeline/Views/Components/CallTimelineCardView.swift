@@ -11,16 +11,14 @@ struct CallTimelineDateHeader: View {
     let entry: CallTimelineEntry
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: Spacing.x3) {
-            Text(entry.dateText)
-                .body_01_semibold(.gray900)
+        Text(compactDateText)
+            .body_01_semibold(.gray900)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
 
-            Spacer(minLength: Spacing.x2)
-
-            Text(entry.durationText)
-                .caption_01_medium(.gray700)
-        }
-        .frame(maxWidth: .infinity)
+    private var compactDateText: String {
+        guard let monthEnd = entry.dateText.range(of: "월 ") else { return entry.dateText }
+        return String(entry.dateText[monthEnd.upperBound...])
     }
 }
 

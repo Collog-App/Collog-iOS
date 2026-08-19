@@ -15,11 +15,17 @@ struct TimelineWeekPage: Identifiable {
 
     var id: Int { offset }
 
+    private var startDate: Date { Self.bounds(offset: offset).start }
+
+    var month: Int { Self.calendar.component(.month, from: startDate) }
+
+    var weekTitle: String {
+        let week = Self.calendar.component(.weekOfMonth, from: startDate)
+        return "\(week)주"
+    }
+
     var title: String {
-        let start = Self.bounds(offset: offset).start
-        let month = Self.calendar.component(.month, from: start)
-        let week = Self.calendar.component(.weekOfMonth, from: start)
-        return "\(month)월 \(week)주"
+        "\(month)월 \(weekTitle)"
     }
 
     var rangeText: String {
@@ -28,6 +34,19 @@ struct TimelineWeekPage: Identifiable {
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
+    }
+
+    var timelineRangeText: String {
+        let bounds = Self.bounds(offset: offset)
+        let startMonth = Self.calendar.component(.month, from: bounds.start)
+        let endMonth = Self.calendar.component(.month, from: bounds.end)
+        let startDay = Self.calendar.component(.day, from: bounds.start)
+        let endDay = Self.calendar.component(.day, from: bounds.end)
+
+        if startMonth == endMonth {
+            return "\(startDay)일부터 \(endDay)일"
+        }
+        return "\(startMonth)월 \(startDay)일부터 \(endMonth)월 \(endDay)일"
     }
 
     static let calendar: Calendar = {

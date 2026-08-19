@@ -40,7 +40,7 @@ struct ReportTimelineView: View {
                 FilterChipView(label: viewModel.selectedMember)
             } sticky: {
                 if tab == .timeline {
-                    timelineWeekHeader(for: activeVerticalWeek)
+                    stickyTimelineWeekHeader
                 }
             } content: {
                 Group {
@@ -110,7 +110,7 @@ struct ReportTimelineView: View {
 
         return VStack(spacing: 0) {
             if offset != 0 {
-                timelineWeekHeader(for: offset)
+                timelineSectionHeader(for: offset)
                     .onGeometryChange(for: CGFloat.self) { proxy in
                         proxy.frame(in: .scrollView(axis: .vertical)).minY
                     } action: { minY in
@@ -131,9 +131,24 @@ struct ReportTimelineView: View {
         }
     }
 
-    private func timelineWeekHeader(for offset: Int) -> some View {
+    private var stickyTimelineWeekHeader: some View {
+        let page = viewModel.page(for: activeVerticalWeek)
+        return TimelineWeekHeader(title: page.title, rangeText: page.timelineRangeText)
+    }
+
+    private func timelineSectionHeader(for offset: Int) -> some View {
         let page = viewModel.page(for: offset)
-        return TimelineWeekHeader(title: page.title, rangeText: page.rangeText)
+        let title = startsNewMonth(at: offset) ? page.title : page.weekTitle
+        return TimelineWeekHeader(title: title, rangeText: page.timelineRangeText)
+    }
+
+    private func startsNewMonth(at offset: Int) -> Bool {
+        guard
+            let index = verticalPageOffsets.firstIndex(of: offset),
+            index > 0
+        else { return true }
+        let previousOffset = verticalPageOffsets[index - 1]
+        return viewModel.page(for: previousOffset).month != viewModel.page(for: offset).month
     }
 
     private func updateActiveVerticalWeek(_ offset: Int, minY: CGFloat) {
