@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct QuestionListView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     let questions: [PreviewQuestion]
     var onTap: () -> Void = {}
 
@@ -41,20 +43,34 @@ struct QuestionListView: View {
     }
 
     private var floatingQuestions: some View {
-        ZStack {
-            ForEach(Array(displayedQuestions.enumerated()), id: \.element.text) { index, question in
-                questionPill(question.text, index: index)
-                    .offset(x: horizontalOffset(for: index), y: verticalOffset(for: index))
-                    .rotationEffect(.degrees(rotation(for: index)))
-                    .phaseAnimator([false, true]) { content, phase in
-                        content.offset(y: phase ? -3 : 3)
-                    } animation: { _ in
-                        .easeInOut(duration: 2.8 + Double(index) * 0.35)
-                    }
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
+            ZStack {
+                ForEach(Array(displayedQuestions.enumerated()), id: \.element.text) { index, question in
+                    let drift = driftOffset(at: context.date, index: index)
+
+                    questionPill(question.text, index: index)
+                        .offset(
+                            x: horizontalOffset(for: index) + drift.width,
+                            y: verticalOffset(for: index) + drift.height
+                        )
+                        .rotationEffect(.degrees(rotation(for: index)))
+                        .transaction { $0.animation = nil }
+                }
             }
+            .frame(height: 144)
+            .frame(maxWidth: .infinity)
         }
-        .frame(height: 144)
-        .frame(maxWidth: .infinity)
+    }
+
+    private func driftOffset(at date: Date, index: Int) -> CGSize {
+        guard !reduceMotion else { return .zero }
+        let elapsed = date.timeIntervalSinceReferenceDate
+        let speed = 0.72 + Double(index) * 0.09
+        let phase = Double(index) * 1.8
+        return CGSize(
+            width: sin(elapsed * speed * 0.7 + phase) * 1.5,
+            height: sin(elapsed * speed + phase) * 2.5
+        )
     }
 
     private func questionPill(_ text: String, index: Int) -> some View {
