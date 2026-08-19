@@ -27,7 +27,15 @@ final class CallCenter: NSObject {
         let peerId: String?
         var peerName: String
         var phase: CallPhase
+        let questions: [String]
         var notice: String?
+    }
+
+    private struct PendingOutgoing {
+        let uuid: UUID
+        let calleeId: String
+        let name: String
+        let questions: [String]
     }
 
     @ObservationIgnored private let environment: AppEnvironment
@@ -44,7 +52,7 @@ final class CallCenter: NSObject {
         return CXProvider(configuration: configuration)
     }()
 
-    @ObservationIgnored private var pendingOutgoing: (uuid: UUID, calleeId: String, name: String)?
+    @ObservationIgnored private var pendingOutgoing: PendingOutgoing?
     @ObservationIgnored private var answeredCallIds: Set<String> = []
     @ObservationIgnored private var pendingCapture: AudioCaptureOptions?
     @ObservationIgnored private var analysisWriter: AnalysisPCMWriter?
@@ -92,10 +100,15 @@ final class CallCenter: NSObject {
         }
     }
 
-    func startOutgoingCall(calleeId: String, name: String) {
+    func startOutgoingCall(calleeId: String, name: String, questions: [String]) {
         guard activeCall == nil else { return }
         let uuid = UUID()
-        pendingOutgoing = (uuid, calleeId, name)
+        pendingOutgoing = PendingOutgoing(
+            uuid: uuid,
+            calleeId: calleeId,
+            name: name,
+            questions: questions
+        )
         let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: name))
         action.contactIdentifier = name
         callController.request(CXTransaction(action: action)) { [weak self] error in
@@ -275,6 +288,11 @@ extension CallCenter: PKPushRegistryDelegate {
             let call = payload.dictionaryPayload["call"] as? [String: Any] ?? [:]
             let uuid = (call["callUUID"] as? String).flatMap(UUID.init) ?? UUID()
             let callerName = call["callerName"] as? String ?? "콜록"
+            let callerId = call["callerId"] as? String
+            let contact = environment.family.contacts.first { contact in
+                contact.userId == callerId || contact.name == callerName
+            }
+            let questions = environment.family.questions(for: contact).map(\.text)
 
             guard let callId = call["callId"] as? String else {
                 reportAndImmediatelyEnd(uuid: uuid, completion: completion)
@@ -292,9 +310,10 @@ extension CallCenter: PKPushRegistryDelegate {
                 id: callId,
                 uuid: uuid,
                 direction: .incoming,
-                peerId: call["callerId"] as? String,
+                peerId: callerId,
                 peerName: callerName,
-                phase: .ringing
+                phase: .ringing,
+                questions: questions
             )
 
             let update = CXCallUpdate()
@@ -352,6 +371,7 @@ extension CallCenter: CXProviderDelegate {
                         peerId: pending.calleeId,
                         peerName: pending.name,
                         phase: .connecting,
+                        questions: pending.questions,
                         notice: created.recordingEnabled ? nil : created.recordingDisabledMessage
                     )
                     rawCaptureRequired = created.recordingEnabled

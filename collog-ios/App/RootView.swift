@@ -141,7 +141,7 @@ struct RootView: View {
             CallView(
                 peerName: call.peerName,
                 phase: call.phase,
-                questions: questions(for: call),
+                questions: call.questions,
                 notice: call.notice,
                 onEnd: { callCenter.endActiveCall() }
             )
@@ -163,13 +163,6 @@ struct RootView: View {
                 if !isPresented { endSimulatedCall() }
             }
         )
-    }
-
-    private func questions(for call: CallCenter.ActiveCall) -> [String] {
-        let contact = environment.family.contacts.first { contact in
-            contact.userId == call.peerId || contact.name == call.peerName
-        }
-        return environment.family.questions(for: contact).map(\.text)
     }
 
     private var launcherNotice: String? {
@@ -197,7 +190,11 @@ struct RootView: View {
             return
         }
         guard let userId = contact.userId else { return }
-        callCenter.startOutgoingCall(calleeId: userId, name: contact.name)
+        callCenter.startOutgoingCall(
+            calleeId: userId,
+            name: contact.name,
+            questions: environment.family.questions(for: contact).map(\.text)
+        )
     }
 
     private func startSimulatedCall(_ contact: FamilyContact) {
