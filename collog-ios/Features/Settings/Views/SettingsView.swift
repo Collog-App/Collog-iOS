@@ -59,14 +59,6 @@ struct SettingsView: View {
                         )
                     }
 
-                    SettingsSection(title: "개발") {
-                        SettingsFieldRow(
-                            label: "서버 주소",
-                            placeholder: AppSettings.Default.backendBaseURL,
-                            text: $settings.backendBaseURL
-                        )
-                    }
-
                     footer
                 }
                 .padding(.horizontal, Spacing.x5)
