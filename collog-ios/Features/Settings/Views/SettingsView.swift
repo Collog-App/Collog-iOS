@@ -76,7 +76,7 @@ struct SettingsView: View {
         SettingsSection(title: "계정") {
             SettingsNavigationRow(
                 label: "계정 정보",
-                value: environment.session.user?.name ?? "로그인 필요"
+                value: environment.session.user?.name ?? "데모 사용자"
             ) {
                 navigation.manager(for: .settings).push(SettingsRoute.account)
             }
