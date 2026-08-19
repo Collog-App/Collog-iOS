@@ -98,7 +98,7 @@ final class CallCenter: NSObject {
         pendingOutgoing = (uuid, calleeId, name)
         let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: name))
         action.contactIdentifier = name
-        callController.request(CXTransaction(action: action)) { error in
+        callController.request(CXTransaction(action: action)) { [weak self] error in
             guard let error else { return }
             Task { @MainActor [weak self] in
                 self?.pendingOutgoing = nil
@@ -109,7 +109,7 @@ final class CallCenter: NSObject {
 
     func endActiveCall() {
         guard let uuid = activeCall?.uuid else { return }
-        callController.request(CXTransaction(action: CXEndCallAction(call: uuid))) { error in
+        callController.request(CXTransaction(action: CXEndCallAction(call: uuid))) { [weak self] error in
             guard let error else { return }
             Task { @MainActor [weak self] in
                 self?.log("종료 실패: \(error.localizedDescription)")
