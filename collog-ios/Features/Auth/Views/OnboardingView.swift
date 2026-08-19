@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct OnboardingPage: Identifiable {
     let id = UUID()
     let title: String
     let body: String
+    let assetName: String
 }
 
 struct OnboardingView: View {
@@ -21,15 +23,19 @@ struct OnboardingView: View {
     private let pages: [OnboardingPage] = [
         OnboardingPage(
             title: "통화 한 번이 건강 기록이 됩니다",
-            body: "부모님과의 통화에서 평소와 달라진 점을 차분하게 확인하세요.\n진단이 아닌, 우리 가족만의 기록입니다."
+            body: "부모님과의 통화에서 평소와 달라진 점을 차분하게 확인하세요.\n"
+                + "진단이 아닌, 우리 가족만의 기록입니다.",
+            assetName: "onboarding_call"
         ),
         OnboardingPage(
             title: "오늘의 질문으로 시작해요",
-            body: "등록한 질환과 지난 통화를 바탕으로 오늘 여쭤볼 질문을 준비해드려요."
+            body: "등록한 질환과 지난 통화를 바탕으로 오늘 여쭤볼 질문을 준비해드려요.",
+            assetName: "onboarding_questions"
         ),
         OnboardingPage(
             title: "원본 음성은 남기지 않아요",
-            body: "통화 음성은 분석 직후 바로 지우고, 정리된 기록과 변화값만 보관해요."
+            body: "통화 음성은 분석 직후 바로 지우고, 정리된 기록과 변화값만 보관해요.",
+            assetName: "onboarding_privacy"
         )
     ]
 
@@ -51,7 +57,10 @@ struct OnboardingView: View {
                     .body_01_semibold(.gray00)
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .background(Color.greenNormal, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+                    .background(
+                        Color.greenNormal,
+                        in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                    )
             }
             .buttonStyle(.plain)
             .padding(.horizontal, Spacing.x5)
@@ -84,12 +93,26 @@ struct OnboardingView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            AssetPlaceholder(width: 260, height: 212)
+            artwork(for: page)
 
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Spacing.x5)
+    }
+
+    @ViewBuilder
+    private func artwork(for page: OnboardingPage) -> some View {
+        if UIImage(named: page.assetName) != nil {
+            Image(page.assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(maxWidth: .infinity)
+                .frame(height: 212)
+        } else {
+            AssetPlaceholder(width: 260, height: 212)
+                .frame(maxWidth: .infinity)
+        }
     }
 
     private func advance() {
