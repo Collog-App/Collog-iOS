@@ -9,7 +9,8 @@ import SwiftUI
 
 @Observable
 final class AuthFlowViewModel {
-    enum Step {
+    enum Step: Hashable {
+        case launching
         case onboarding
         case login
         case consent
@@ -17,7 +18,7 @@ final class AuthFlowViewModel {
         case ready
     }
 
-    private(set) var step: Step = .onboarding
+    private(set) var step: Step = .launching
 
     func advance(to step: Step) {
         self.step = step

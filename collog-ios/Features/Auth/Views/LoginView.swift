@@ -10,6 +10,13 @@ import SwiftUI
 struct LoginView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel = LoginViewModel()
+    @FocusState private var focusedField: Field?
+
+    private enum Field: Hashable {
+        case name
+        case phone
+        case code
+    }
 
     var onSignedIn: () -> Void
 
@@ -19,11 +26,9 @@ struct LoginView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x6) {
                 VStack(alignment: .leading, spacing: Spacing.x2) {
-                    Text(viewModel.step == .identity ? "전화번호로 시작하기" : "인증번호를 입력해주세요")
+                    Text(headerTitle)
                         .headline_02(.gray900)
-                    Text(viewModel.step == .identity
-                         ? "가족을 연결하고 통화를 기록하려면 번호가 필요해요."
-                         : "\(viewModel.phone)로 보낸 6자리 숫자를 입력해주세요.")
+                    Text(headerMessage)
                         .body_02_medium(.gray800)
                         .fixedSize(horizontal: false, vertical: true)
                 }
@@ -57,7 +62,19 @@ struct LoginView: View {
             .padding(.bottom, Spacing.x8)
         }
         .scrollDismissesKeyboard(.interactively)
-        .background(Color.gray50)
+        .background {
+            Color.gray50
+                .onTapGesture { focusedField = nil }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("완료") { focusedField = nil }
+            }
+        }
+        .onChange(of: viewModel.step) { _, step in
+            if step == .code { focusedField = .code }
+        }
     }
 
     private var identityFields: some View {
@@ -74,14 +91,43 @@ struct LoginView: View {
                 .pickerStyle(.segmented)
             }
 
-            field(title: "이름", placeholder: "김콜록", text: $viewModel.name, keyboard: .default)
-            field(title: "전화번호", placeholder: "01000000001", text: $viewModel.phone, keyboard: .numberPad)
+            field(
+                title: "이름",
+                placeholder: "김콜록",
+                text: $viewModel.name,
+                keyboard: .default,
+                focus: .name
+            )
+            field(
+                title: "전화번호",
+                placeholder: "01000000001",
+                text: $viewModel.phone,
+                keyboard: .numberPad,
+                focus: .phone
+            )
         }
+    }
+
+    private var headerTitle: String {
+        viewModel.step == .identity ? "전화번호로 시작하기" : "인증번호를 입력해주세요"
+    }
+
+    private var headerMessage: String {
+        if viewModel.step == .identity {
+            return "가족을 연결하고 통화를 기록하려면 번호가 필요해요."
+        }
+        return "\(viewModel.phone)로 보낸 6자리 숫자를 입력해주세요."
     }
 
     private var codeFields: some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
-            field(title: "인증번호", placeholder: "000000", text: $viewModel.code, keyboard: .numberPad)
+            field(
+                title: "인증번호",
+                placeholder: "000000",
+                text: $viewModel.code,
+                keyboard: .numberPad,
+                focus: .code
+            )
 
             Text("개발 서버의 인증번호는 000000이에요")
                 .caption_01_medium(.gray700)
@@ -92,7 +138,8 @@ struct LoginView: View {
         title: String,
         placeholder: String,
         text: Binding<String>,
-        keyboard: UIKeyboardType
+        keyboard: UIKeyboardType,
+        focus: Field
     ) -> some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
             Text(title)
@@ -101,8 +148,14 @@ struct LoginView: View {
             TextField(placeholder, text: text)
                 .pretendardStyle(.medium, 16)
                 .keyboardType(keyboard)
+                .textContentType(contentType(for: focus))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($focusedField, equals: focus)
+                .submitLabel(focus == .name ? .next : .done)
+                .onSubmit {
+                    focusedField = focus == .name ? .phone : nil
+                }
                 .padding(.horizontal, Spacing.x4)
                 .frame(height: 52)
                 .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
@@ -111,6 +164,7 @@ struct LoginView: View {
 
     private var primaryButton: some View {
         Button {
+            focusedField = nil
             Task {
                 if viewModel.step == .identity {
                     await viewModel.requestCode(using: environment)
@@ -135,6 +189,7 @@ struct LoginView: View {
     private var guestButton: some View {
         VStack(spacing: Spacing.x2) {
             Button {
+                focusedField = nil
                 environment.settings.isGuestMode = true
                 onSignedIn()
             } label: {
@@ -159,6 +214,14 @@ struct LoginView: View {
 
     private var isEnabled: Bool {
         viewModel.step == .identity ? viewModel.canRequestCode : viewModel.canVerify
+    }
+
+    private func contentType(for field: Field) -> UITextContentType? {
+        switch field {
+        case .name: .name
+        case .phone: .telephoneNumber
+        case .code: .oneTimeCode
+        }
     }
 }
 

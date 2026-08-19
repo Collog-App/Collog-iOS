@@ -9,7 +9,7 @@ import SwiftUI
 
 @Observable
 final class LoginViewModel {
-    enum Step {
+    enum Step: Hashable {
         case identity
         case code
     }

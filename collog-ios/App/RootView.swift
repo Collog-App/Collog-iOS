@@ -23,31 +23,17 @@ struct RootView: View {
     private var isGuest: Bool { environment.settings.isGuestMode }
 
     var body: some View {
-        Group {
-            switch authFlow.step {
-            case .onboarding:
-                OnboardingView {
-                    environment.settings.onboardingCompleted = true
-                    Task { await authFlow.resolve(using: environment) }
-                }
-            case .login:
-                LoginView {
-                    callCenter.registerDeviceIfPossible()
-                    Task { await authFlow.resolve(using: environment) }
-                }
-            case .consent:
-                ConsentView {
-                    Task { await authFlow.resolve(using: environment) }
-                }
-            case .profile:
-                HealthProfileSetupView {
-                    Task { await authFlow.resolve(using: environment) }
-                }
-            case .ready:
-                mainTabs
-            }
+        ZStack {
+            authContent(for: authFlow.step)
         }
+        .animation(.easeInOut(duration: 0.2), value: authFlow.step)
         .task { await authFlow.resolve(using: environment) }
+        .onChange(of: environment.session.isAuthenticated) {
+            Task { await authFlow.resolve(using: environment) }
+        }
+        .onChange(of: environment.settings.isGuestMode) {
+            Task { await authFlow.resolve(using: environment) }
+        }
         .fullScreenCover(isPresented: callPresentation) {
             callScreen
         }
@@ -55,13 +41,43 @@ struct RootView: View {
         .environment(navigation)
     }
 
+    @ViewBuilder
+    private func authContent(for step: AuthFlowViewModel.Step) -> some View {
+        switch step {
+        case .launching:
+            Color.gray50
+                .ignoresSafeArea()
+        case .onboarding:
+            OnboardingView {
+                environment.settings.onboardingCompleted = true
+                Task { await authFlow.resolve(using: environment) }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        case .login:
+            LoginView {
+                callCenter.registerDeviceIfPossible()
+                Task { await authFlow.resolve(using: environment) }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        case .consent:
+            ConsentView {
+                Task { await authFlow.resolve(using: environment) }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        case .profile:
+            HealthProfileSetupView {
+                Task { await authFlow.resolve(using: environment) }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        case .ready:
+            mainTabs
+                .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        }
+    }
+
     private var mainTabs: some View {
         ZStack {
             VStack(spacing: 0) {
-                if isGuest {
-                    DemoModeBanner(onExit: exitGuestMode)
-                }
-
                 ZStack {
                     tabContent
                         .id(tabManager.selectedTab)
@@ -198,11 +214,6 @@ struct RootView: View {
         simulatedContact = nil
     }
 
-    private func exitGuestMode() {
-        endSimulatedCall()
-        environment.settings.isGuestMode = false
-        Task { await authFlow.resolve(using: environment) }
-    }
 }
 
 #Preview {

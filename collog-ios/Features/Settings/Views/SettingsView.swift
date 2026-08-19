@@ -21,6 +21,10 @@ struct SettingsView: View {
             EmptyView()
         } content: {
                 VStack(spacing: Spacing.x6) {
+                    if settings.isGuestMode {
+                        demoSection
+                    }
+
                     accountSection
 
                     SettingsSection(title: "알림") {
@@ -70,6 +74,30 @@ struct SettingsView: View {
             DividerLine()
             SettingsNavigationRow(label: "가족 공유 데이터 범위")
         }
+    }
+
+    private var demoSection: some View {
+        Button {
+            environment.settings.isGuestMode = false
+        } label: {
+            HStack(spacing: Spacing.x3) {
+                VStack(alignment: .leading, spacing: Spacing.x1) {
+                    Text("DEMO")
+                        .body_02_semibold(.gray900)
+
+                    Text("예시 데이터로 둘러보는 중이에요")
+                        .caption_01_medium(.gray700)
+                }
+
+                Spacer(minLength: Spacing.x2)
+
+                Text("로그인")
+                    .body_02_semibold(.greenDark)
+            }
+            .cardSurface()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
