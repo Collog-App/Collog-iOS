@@ -162,18 +162,25 @@ final class CallLauncherModel {
     }
 
     private func updateFocus(for translation: CGSize) {
-        let point = CGPoint(x: translation.width, y: translation.height)
-        let radius = (point.x * point.x + point.y * point.y).squareRoot()
-        let angle = atan2(point.y, point.x) * 180 / .pi
-        let nearest: Int? = if point.y < 0, selectionInnerRadius...selectionOuterRadius ~= radius {
-            targets.indices.first { angleRange(for: $0).contains(angle) }
-        } else {
-            nil
-        }
+        let nearest = selectionIndex(for: translation)
 
         if nearest != focusedIndex {
             focusedIndex = nearest
             if nearest == nil { Haptics.blur() } else { Haptics.focus() }
         }
+    }
+
+    private func selectionIndex(for translation: CGSize) -> Int? {
+        let radius = hypot(translation.width, translation.height)
+        guard translation.height < 0, selectionInnerRadius...selectionOuterRadius ~= radius else { return nil }
+
+        return targets.indices.max { lhs, rhs in
+            selectionScore(for: translation, index: lhs) < selectionScore(for: translation, index: rhs)
+        }
+    }
+
+    private func selectionScore(for translation: CGSize, index: Int) -> CGFloat {
+        let targetOffset = offset(for: index)
+        return translation.width * targetOffset.width + translation.height * targetOffset.height
     }
 }
