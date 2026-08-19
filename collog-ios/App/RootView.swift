@@ -119,6 +119,7 @@ struct RootView: View {
             syncLauncher()
         }
         .onChange(of: environment.family.contacts) { syncLauncher() }
+        .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
     }
 
     @ViewBuilder
@@ -174,7 +175,7 @@ struct RootView: View {
         let callable = environment.family.callableContacts
         launcher.configure(
             targets: isGuest || callable.isEmpty ? environment.family.contacts : callable,
-            questions: environment.family.questions.map(\.text)
+            questions: environment.family.selectedQuestionTexts
         )
     }
 

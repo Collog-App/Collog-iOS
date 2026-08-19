@@ -13,7 +13,6 @@ struct HomeView: View {
     @Environment(TabManager.self) private var tabManager
 
     @State private var viewModel = HomeViewModel()
-    @State private var selectedContactId: String?
     @State private var isGeneratingQuestions = false
     @State private var questionGenerationId: UUID?
     @Namespace private var detailTransition
@@ -21,7 +20,7 @@ struct HomeView: View {
     private var contacts: [FamilyContact] { environment.family.contacts }
 
     private var selectedContact: FamilyContact? {
-        contacts.first { $0.id == selectedContactId } ?? contacts.first
+        environment.family.selectedContact
     }
 
     private var selectedQuestions: [PreviewQuestion] {
@@ -58,7 +57,7 @@ struct HomeView: View {
                     feedbackRow
                 }
                 .contentTransition(.opacity)
-                .animation(.easeInOut(duration: 0.18), value: selectedContactId)
+                .animation(.easeInOut(duration: 0.18), value: environment.family.selectedContactId)
                 .padding(.horizontal, Spacing.x5)
                 .padding(.bottom, Spacing.x8)
             }
@@ -150,10 +149,10 @@ struct HomeView: View {
     }
 
     private func select(_ contact: FamilyContact) {
-        guard selectedContactId != contact.id else { return }
+        guard environment.family.selectedContactId != contact.id else { return }
         Haptics.focus()
         withAnimation(.easeInOut(duration: 0.18)) {
-            selectedContactId = contact.id
+            environment.family.selectContact(contact)
         }
         Task { await refresh() }
     }
