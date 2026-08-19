@@ -42,7 +42,7 @@ struct QuestionListView: View {
 
     private var floatingQuestions: some View {
         ZStack {
-            ForEach(Array(displayedQuestions.enumerated()), id: \.element.id) { index, question in
+            ForEach(Array(displayedQuestions.enumerated()), id: \.element.text) { index, question in
                 questionPill(question.text, index: index)
                     .offset(x: horizontalOffset(for: index), y: verticalOffset(for: index))
                     .rotationEffect(.degrees(rotation(for: index)))

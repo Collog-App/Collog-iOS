@@ -41,7 +41,7 @@ struct QuestionPreviewView: View {
                         .padding(.horizontal, Spacing.x1)
                 }
 
-                ForEach(Array(displayedQuestions.enumerated()), id: \.element.id) { index, question in
+                ForEach(Array(displayedQuestions.enumerated()), id: \.element.text) { index, question in
                     HStack(alignment: .top, spacing: Spacing.x4) {
                         Text("\(index + 1)")
                             .body_02_semibold(.green700)
