@@ -9,13 +9,11 @@ import SwiftUI
 
 struct HealthFeedbackDetailView: View {
     let feedback: HealthFeedback
-    let summary: FamilyHealthSummary
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x4) {
                 hero
-                reasonCard
                 checklistCard
             }
             .padding(.horizontal, Spacing.x5)
@@ -53,30 +51,6 @@ struct HealthFeedbackDetailView: View {
         .background(Color.orangeLight.opacity(0.58), in: RoundedRectangle(cornerRadius: Radius.card))
     }
 
-    private var reasonCard: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            Text("왜 표시됐나요")
-                .body_01_semibold(.gray900)
-
-            Text(summary.detail)
-                .body_02_medium(.gray800)
-                .fixedSize(horizontal: false, vertical: true)
-
-            DividerLine()
-
-            HStack(alignment: .firstTextBaseline) {
-                Text(summary.trend.metricName)
-                    .body_03_medium(.gray700)
-
-                Spacer(minLength: Spacing.x2)
-
-                Text(latestValue)
-                    .body_01_semibold(.gray900)
-            }
-        }
-        .cardSurface(padding: Spacing.x5)
-    }
-
     private var checklistCard: some View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
             Text("함께 확인해보세요")
@@ -98,14 +72,10 @@ struct HealthFeedbackDetailView: View {
         }
     }
 
-    private var latestValue: String {
-        guard let latest = summary.trend.latest else { return "확인 중" }
-        return "\(Int(latest.value.rounded()))\(summary.trend.unit)"
-    }
 }
 
 #Preview {
     NavigationStack {
-        HealthFeedbackDetailView(feedback: .sample, summary: .sample)
+        HealthFeedbackDetailView(feedback: .sample)
     }
 }
