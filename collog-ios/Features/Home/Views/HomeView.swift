@@ -14,12 +14,17 @@ struct HomeView: View {
 
     @State private var viewModel = HomeViewModel()
     @State private var selectedContactId: String?
+    @State private var isGeneratingQuestions = false
     @Namespace private var detailTransition
 
     private var contacts: [FamilyContact] { environment.family.contacts }
 
     private var selectedContact: FamilyContact? {
         contacts.first { $0.id == selectedContactId } ?? contacts.first
+    }
+
+    private var selectedQuestions: [PreviewQuestion] {
+        environment.family.questions(for: selectedContact)
     }
 
     var body: some View {
@@ -42,10 +47,11 @@ struct HomeView: View {
                     .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
                     .padding(.bottom, Spacing.x5)
 
-                    QuestionListView(questions: environment.family.questions) {
-                        navigation.manager(for: .home).push(Route.questionPreview)
-                    }
-                        .matchedTransitionSource(id: Route.questionPreview, in: detailTransition)
+                    QuestionListView(
+                        questions: selectedQuestions,
+                        isGenerating: isGeneratingQuestions,
+                        onTap: generateQuestions
+                    )
                         .padding(.bottom, Spacing.x4)
 
                     feedbackRow
@@ -66,21 +72,10 @@ struct HomeView: View {
                             .zoom(sourceID: Route.familyHealthOverview, in: detailTransition)
                         )
                 case .healthFeedbackDetail:
-                    HealthFeedbackDetailView(
-                        feedback: viewModel.healthFeedback,
-                        summary: viewModel.healthSummary
-                    )
+                    HealthFeedbackDetailView(feedback: viewModel.healthFeedback)
                     .navigationTransition(
                         .zoom(sourceID: Route.healthFeedbackDetail, in: detailTransition)
                     )
-                case .questionPreview:
-                    QuestionPreviewView(
-                        questions: environment.family.questions,
-                        memberName: selectedContact?.name ?? "가족"
-                    )
-                        .navigationTransition(
-                            .zoom(sourceID: Route.questionPreview, in: detailTransition)
-                        )
                 case .notifications:
                     HomeNotificationsView()
                 case .homeMenu:
@@ -171,6 +166,22 @@ struct HomeView: View {
             selectedContactId = contact.id
         }
         Task { await refresh() }
+    }
+
+    private func generateQuestions() {
+        guard let selectedContact, !isGeneratingQuestions else { return }
+        isGeneratingQuestions = true
+        let existing = selectedQuestions.map(\.text)
+
+        Task {
+            let generated = await QuestionGenerator.generate(
+                memberName: selectedContact.name,
+                excluding: existing
+            )
+            environment.family.saveQuestions(generated, for: selectedContact)
+            isGeneratingQuestions = false
+            Haptics.commit()
+        }
     }
 
     private func refresh() async {

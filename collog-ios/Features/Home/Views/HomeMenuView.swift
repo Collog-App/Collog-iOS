@@ -21,13 +21,6 @@ struct HomeMenuView: View {
                 memberCard
 
                 VStack(spacing: 0) {
-                    menuRow("오늘의 질문", symbol: "bubble.left.and.text.bubble.right") {
-                        navigation.push(Route.questionPreview)
-                    }
-
-                    DividerLine()
-                        .padding(.leading, 56)
-
                     menuRow("알림", symbol: "bell") {
                         navigation.push(Route.notifications)
                     }

@@ -149,7 +149,7 @@ struct RootView: View {
             CallView(
                 peerName: simulatedContact.name,
                 phase: simulatedPhase,
-                questions: environment.family.questions.map(\.text),
+                questions: environment.family.questions(for: simulatedContact).map(\.text),
                 notice: "체험 모드예요. 실제로 전화가 걸리지는 않아요",
                 onEnd: endSimulatedCall
             )

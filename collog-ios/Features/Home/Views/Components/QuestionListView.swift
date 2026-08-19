@@ -11,6 +11,7 @@ struct QuestionListView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     let questions: [PreviewQuestion]
+    var isGenerating = false
     var onTap: () -> Void = {}
 
     var body: some View {
@@ -20,6 +21,7 @@ struct QuestionListView: View {
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isGenerating)
     }
 
     private var content: some View {
@@ -29,13 +31,19 @@ struct QuestionListView: View {
                     Text("오늘의 질문")
                         .body_01_semibold(.gray900)
 
-                    Text("통화할 때 가볍게 물어보세요")
+                    Text("탭해서 새로운 질문을 생성해보세요")
                         .caption_01_medium(.gray700)
                 }
 
                 Spacer(minLength: Spacing.x2)
 
-                Icon(name: "chevron.right", size: 14, color: .gray500)
+                if isGenerating {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(.gray700)
+                } else {
+                    Icon(name: "arrow.clockwise", size: 16, color: .gray600)
+                }
             }
 
             floatingQuestions
@@ -95,7 +103,7 @@ struct QuestionListView: View {
     private func pillColor(for index: Int) -> Color {
         switch index {
         case 1: .greenLight
-        case 2: .greenLight
+        case 2: .green100
         default: .gray00
         }
     }

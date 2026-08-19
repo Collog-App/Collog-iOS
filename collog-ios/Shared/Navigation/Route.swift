@@ -10,7 +10,6 @@ import Foundation
 enum Route: Hashable {
     case familyHealthOverview
     case healthFeedbackDetail
-    case questionPreview
     case notifications
     case homeMenu
 }
