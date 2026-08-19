@@ -28,8 +28,9 @@ final class CallLauncherModel {
     private var activationTask: Task<Void, Never>?
     private var hintTask: Task<Void, Never>?
     private var didActivateByHold = false
+    private var latestTranslation: CGSize = .zero
 
-    private let holdDuration: Duration = .milliseconds(280)
+    private let holdDuration: Duration = .milliseconds(220)
     private let selectionInnerRadius: CGFloat = 30
     private let selectionOuterRadius: CGFloat = 194
 
@@ -46,15 +47,17 @@ final class CallLauncherModel {
         Haptics.prepare()
         Haptics.press()
         didActivateByHold = false
+        latestTranslation = .zero
         activationTask?.cancel()
         activationTask = Task { [weak self] in
-            try? await Task.sleep(for: self?.holdDuration ?? .milliseconds(280))
+            try? await Task.sleep(for: self?.holdDuration ?? .milliseconds(220))
             guard !Task.isCancelled else { return }
             self?.activateHold()
         }
     }
 
     func dragChanged(_ translation: CGSize) {
+        latestTranslation = translation
         guard mode == .dragging else { return }
         updateFocus(for: translation)
     }
@@ -76,6 +79,7 @@ final class CallLauncherModel {
             }
             focusedIndex = nil
             didActivateByHold = false
+            latestTranslation = .zero
             Haptics.cancel()
             return nil
         }
@@ -83,6 +87,7 @@ final class CallLauncherModel {
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
+        latestTranslation = .zero
         Haptics.commit()
         return selected
     }
@@ -103,6 +108,7 @@ final class CallLauncherModel {
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
+        latestTranslation = .zero
     }
 
     func offset(for index: Int) -> CGSize {
@@ -129,6 +135,7 @@ final class CallLauncherModel {
         }
         withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { mode = .dragging }
         didActivateByHold = true
+        updateFocus(for: latestTranslation)
         Haptics.open()
     }
 
