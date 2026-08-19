@@ -48,81 +48,85 @@ struct CallTimelineCardView: View {
     let entry: CallTimelineEntry
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            summarySection
+        VStack(alignment: .leading, spacing: Spacing.x4) {
+            metricRow(entry.summaryStats)
 
-            sectionDivider
+            DividerLine()
 
-            storySection
+            Text(entry.story)
+                .body_02_medium(.gray900)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !entry.keywords.isEmpty {
+                KeywordTimelineView(marks: entry.keywords)
+                    .padding(.top, Spacing.x1)
+            }
 
             if !entry.gauges.isEmpty {
-                sectionDivider
-                gaugeSection
+                DividerLine()
+                RangeGaugeRowView(gauges: entry.gauges)
             }
 
             if !entry.counts.isEmpty {
-                sectionDivider
-                countSection
+                DividerLine()
+                countRow
             }
         }
-        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .padding(Spacing.x5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
                 .stroke(Color.gray200, lineWidth: 1)
         }
     }
 
-    private var summarySection: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            StatTileRowView(stats: entry.summaryStats, layout: .stacked)
-        }
-        .padding(Spacing.x5)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color.green100)
-    }
+    private func metricRow(_ stats: [CallStat]) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(stats.enumerated()), id: \.element.id) { index, stat in
+                if index > 0 {
+                    DividerLine(axis: .vertical)
+                        .padding(.horizontal, Spacing.x4)
+                }
 
-    private var storySection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            Text("나눈 이야기")
-                .body_02_semibold(.gray900)
+                VStack(alignment: .leading, spacing: Spacing.x2) {
+                    Text(stat.label)
+                        .caption_01_medium(.gray700)
 
-            Text(entry.story)
-                .body_03_medium(.gray900)
-                .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .firstTextBaseline, spacing: Spacing.x1) {
+                        Text(stat.value)
+                            .subtitle_01(.gray900)
 
-            if !entry.keywords.isEmpty {
-                DividerLine()
+                        Text(stat.unit)
+                            .caption_01_medium(.gray800)
 
-                KeywordTimelineView(marks: entry.keywords)
+                        if let note = stat.note {
+                            Text(note.text)
+                                .caption_01_medium(.gray700)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(Spacing.x5)
     }
 
-    private var gaugeSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            Text("음성 특징")
-                .body_02_semibold(.gray900)
+    private var countRow: some View {
+        HStack(spacing: Spacing.x4) {
+            ForEach(entry.counts) { stat in
+                HStack(alignment: .firstTextBaseline, spacing: Spacing.x1) {
+                    Text(stat.label)
+                        .caption_01_medium(.gray700)
 
-            RangeGaugeRowView(gauges: entry.gauges)
+                    Text("\(stat.value)\(stat.unit)")
+                        .body_02_semibold(.gray900)
+                }
+
+                if stat.id != entry.counts.last?.id {
+                    Spacer(minLength: 0)
+                }
+            }
         }
-        .padding(Spacing.x5)
-    }
-
-    private var countSection: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            Text("관찰 기록")
-                .body_02_semibold(.gray900)
-
-            StatTileRowView(stats: entry.counts, layout: .stacked)
-        }
-        .padding(Spacing.x5)
-    }
-
-    private var sectionDivider: some View {
-        DividerLine()
-            .padding(.horizontal, Spacing.x5)
     }
 }
 
