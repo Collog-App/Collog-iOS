@@ -18,6 +18,7 @@ struct BottomNavBarView: View {
     static let anchorInset: CGFloat = barHeight / 2 + buttonLift
 
     @State private var isPressing = false
+    @State private var callButtonCenter = CGPoint.zero
 
     var body: some View {
         ZStack {
@@ -96,6 +97,12 @@ struct BottomNavBarView: View {
             Circle()
                 .fill(Color.gray50)
                 .frame(width: 68, height: 68)
+                .onGeometryChange(for: CGPoint.self) { proxy in
+                    let frame = proxy.frame(in: .global)
+                    return CGPoint(x: frame.midX, y: frame.midY)
+                } action: { center in
+                    callButtonCenter = center
+                }
 
             Circle()
                 .fill(Color.greenNormal)
@@ -127,20 +134,28 @@ struct BottomNavBarView: View {
     }
 
     private var pressGesture: some Gesture {
-        DragGesture(minimumDistance: 0)
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { value in
                 if !isPressing {
                     isPressing = true
                     launcher.pressBegan()
                 }
-                launcher.dragChanged(value.translation)
+                launcher.dragChanged(dragVector(for: value))
             }
-            .onEnded { _ in
+            .onEnded { value in
                 isPressing = false
-                if let contact = launcher.pressEnded() {
+                if let contact = launcher.pressEnded(at: dragVector(for: value)) {
                     onLaunch(contact)
                 }
             }
+    }
+
+    private func dragVector(for value: DragGesture.Value) -> CGSize {
+        let center = callButtonCenter == .zero ? value.startLocation : callButtonCenter
+        return CGSize(
+            width: value.location.x - center.x,
+            height: value.location.y - center.y
+        )
     }
 }
 

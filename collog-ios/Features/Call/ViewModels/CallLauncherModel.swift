@@ -28,11 +28,12 @@ final class CallLauncherModel {
     private var activationTask: Task<Void, Never>?
     private var hintTask: Task<Void, Never>?
     private var didActivateByHold = false
-    private var latestTranslation: CGSize = .zero
+    private var latestDragVector: CGSize = .zero
 
     private let holdDuration: Duration = .milliseconds(220)
     private let selectionInnerRadius: CGFloat = 30
-    private let selectionOuterRadius: CGFloat = 194
+    private let selectionOuterRadius: CGFloat = 224
+    private let selectionHysteresis: CGFloat = 0.12
 
     let arcRadius: CGFloat = 122
 
@@ -47,7 +48,7 @@ final class CallLauncherModel {
         Haptics.prepare()
         Haptics.press()
         didActivateByHold = false
-        latestTranslation = .zero
+        latestDragVector = .zero
         activationTask?.cancel()
         activationTask = Task { [weak self] in
             try? await Task.sleep(for: self?.holdDuration ?? .milliseconds(220))
@@ -56,15 +57,19 @@ final class CallLauncherModel {
         }
     }
 
-    func dragChanged(_ translation: CGSize) {
-        latestTranslation = translation
+    func dragChanged(_ vector: CGSize) {
+        latestDragVector = vector
         guard mode == .dragging else { return }
-        updateFocus(for: translation)
+        updateFocus(for: vector)
     }
 
-    func pressEnded() -> FamilyContact? {
+    func pressEnded(at vector: CGSize) -> FamilyContact? {
         activationTask?.cancel()
         activationTask = nil
+        latestDragVector = vector
+        if mode == .dragging {
+            updateFocus(for: vector)
+        }
 
         guard didActivateByHold else {
             showHoldHint()
@@ -79,7 +84,7 @@ final class CallLauncherModel {
             }
             focusedIndex = nil
             didActivateByHold = false
-            latestTranslation = .zero
+            latestDragVector = .zero
             Haptics.cancel()
             return nil
         }
@@ -87,7 +92,7 @@ final class CallLauncherModel {
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
-        latestTranslation = .zero
+        latestDragVector = .zero
         Haptics.commit()
         return selected
     }
@@ -108,7 +113,7 @@ final class CallLauncherModel {
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
         didActivateByHold = false
-        latestTranslation = .zero
+        latestDragVector = .zero
     }
 
     func offset(for index: Int) -> CGSize {
@@ -135,7 +140,7 @@ final class CallLauncherModel {
         }
         withAnimation(.spring(response: 0.34, dampingFraction: 0.8)) { mode = .dragging }
         didActivateByHold = true
-        updateFocus(for: latestTranslation)
+        updateFocus(for: latestDragVector)
         Haptics.open()
     }
 
@@ -161,8 +166,8 @@ final class CallLauncherModel {
         }
     }
 
-    private func updateFocus(for translation: CGSize) {
-        let nearest = selectionIndex(for: translation)
+    private func updateFocus(for vector: CGSize) {
+        let nearest = selectionIndex(for: vector)
 
         if nearest != focusedIndex {
             focusedIndex = nearest
@@ -170,17 +175,25 @@ final class CallLauncherModel {
         }
     }
 
-    private func selectionIndex(for translation: CGSize) -> Int? {
-        let radius = hypot(translation.width, translation.height)
-        guard translation.height < 0, selectionInnerRadius...selectionOuterRadius ~= radius else { return nil }
+    private func selectionIndex(for vector: CGSize) -> Int? {
+        let radius = hypot(vector.width, vector.height)
+        guard vector.height < 0, selectionInnerRadius...selectionOuterRadius ~= radius else { return nil }
 
-        return targets.indices.max { lhs, rhs in
-            selectionScore(for: translation, index: lhs) < selectionScore(for: translation, index: rhs)
+        guard let candidate = targets.indices.max(by: { lhs, rhs in
+            selectionScore(for: vector, index: lhs) < selectionScore(for: vector, index: rhs)
+        }) else { return nil }
+        guard let focusedIndex, focusedIndex != candidate, targets.indices.contains(focusedIndex) else {
+            return candidate
         }
+
+        let candidateScore = selectionScore(for: vector, index: candidate)
+        let focusedScore = selectionScore(for: vector, index: focusedIndex)
+        let margin = radius * arcRadius * selectionHysteresis
+        return candidateScore - focusedScore > margin ? candidate : focusedIndex
     }
 
-    private func selectionScore(for translation: CGSize, index: Int) -> CGFloat {
+    private func selectionScore(for vector: CGSize, index: Int) -> CGFloat {
         let targetOffset = offset(for: index)
-        return translation.width * targetOffset.width + translation.height * targetOffset.height
+        return vector.width * targetOffset.width + vector.height * targetOffset.height
     }
 }
