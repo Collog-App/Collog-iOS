@@ -118,7 +118,11 @@ struct SettingsFieldRow: View {
             }
 
             SettingsSection(title: "알림") {
-                SettingsToggleRow(label: "통화 알림", caption: "가족이 전화하면 알려드려요", isOn: $isOn)
+                SettingsToggleRow(
+                    label: "통화 알림",
+                    caption: "가족이 전화하면 알려드려요",
+                    isOn: $isOn
+                )
             }
 
             SettingsSection(title: "개발") {

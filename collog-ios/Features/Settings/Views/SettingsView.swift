@@ -7,19 +7,29 @@
 
 import SwiftUI
 
+private enum SettingsRoute: Hashable {
+    case account
+    case healthProfile
+    case familyMembers
+    case familySharing
+}
+
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
 
     var body: some View {
         @Bindable var settings = environment.settings
+        @Bindable var navigator = navigation.manager(for: .settings)
 
-        return CollapsingHeaderScrollView(
-            title: "설정",
-            scrollReset: tabManager.reselectionCount
-        ) {
-            EmptyView()
-        } content: {
+        return NavigationStack(path: $navigator.path) {
+            CollapsingHeaderScrollView(
+                title: "설정",
+                scrollReset: tabManager.reselectionCount
+            ) {
+                EmptyView()
+            } content: {
                 VStack(spacing: Spacing.x6) {
                     if settings.isGuestMode {
                         demoSection
@@ -61,18 +71,49 @@ struct SettingsView: View {
                 }
                 .padding(.horizontal, Spacing.x5)
                 .padding(.bottom, Spacing.x8)
+            }
+            .toolbar(.hidden, for: .navigationBar)
+            .environment(\.navigationManager, navigator)
+            .navigationDestination(for: SettingsRoute.self) { route in
+                settingsDestination(for: route)
+            }
         }
     }
 
     private var accountSection: some View {
         SettingsSection(title: "계정") {
-            SettingsNavigationRow(label: "계정 정보", value: environment.session.user?.name ?? "로그인 필요")
+            SettingsNavigationRow(
+                label: "계정 정보",
+                value: environment.session.user?.name ?? "로그인 필요"
+            ) {
+                navigation.manager(for: .settings).push(SettingsRoute.account)
+            }
             DividerLine()
-            SettingsNavigationRow(label: "나의 건강 프로필")
+            SettingsNavigationRow(label: "나의 건강 프로필") {
+                navigation.manager(for: .settings).push(SettingsRoute.healthProfile)
+            }
             DividerLine()
-            SettingsNavigationRow(label: "가족 구성원 관리")
+            SettingsNavigationRow(label: "가족 구성원 관리") {
+                navigation.manager(for: .settings).push(SettingsRoute.familyMembers)
+            }
             DividerLine()
-            SettingsNavigationRow(label: "가족 공유 데이터 범위")
+            SettingsNavigationRow(label: "가족 공유 데이터 범위") {
+                navigation.manager(for: .settings).push(SettingsRoute.familySharing)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func settingsDestination(for route: SettingsRoute) -> some View {
+        switch route {
+        case .account:
+            AccountSettingsView()
+        case .healthProfile:
+            HealthProfileSettingsView()
+        case .familyMembers:
+            FamilyMembersSettingsView()
+        case .familySharing:
+            FamilySharingSettingsView()
         }
     }
 
@@ -132,4 +173,6 @@ extension Bundle {
 #Preview {
     SettingsView()
         .environment(AppEnvironment())
+        .environment(NavigationStore())
+        .environment(TabManager())
 }
