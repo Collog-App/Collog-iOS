@@ -98,10 +98,24 @@ struct ReportTimelineView: View {
 
     private var verticalTimeline: some View {
         LazyVStack(spacing: 0) {
-            ForEach(verticalPageOffsets, id: \.self) { offset in
+            ForEach(visibleVerticalPageOffsets, id: \.self) { offset in
                 verticalWeek(offset)
             }
         }
+    }
+
+    private var visibleVerticalPageOffsets: [Int] {
+        var result: [Int] = []
+
+        for offset in verticalPageOffsets {
+            let page = viewModel.page(for: offset)
+            if offset != 0, page.isLoaded, page.entries.isEmpty { break }
+
+            result.append(offset)
+            if !page.isLoaded { break }
+        }
+
+        return result
     }
 
     private func verticalWeek(_ offset: Int) -> some View {
@@ -124,6 +138,7 @@ struct ReportTimelineView: View {
                     .padding(.bottom, Spacing.x5)
             }
         }
+        .padding(.bottom, Spacing.x8)
         .task {
             await viewModel.loadPage(offset, using: environment)
         }
