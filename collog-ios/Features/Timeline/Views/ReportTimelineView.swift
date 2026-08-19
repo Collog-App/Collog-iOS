@@ -17,10 +17,13 @@ struct ReportTimelineView: View {
     @State private var pageHeights: [Int: CGFloat] = [:]
     @State private var activeVerticalWeek = 0
     @State private var weekHeaderMinYs: [Int: CGFloat] = [:]
+    @State private var memberSelectionCount = 0
 
     private let tab: MainTab
     private let pageOffsets = Array(-25...0)
     private let verticalPageOffsets = Array((-25...0).reversed())
+
+    private var contacts: [FamilyContact] { environment.family.contacts }
 
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
@@ -34,10 +37,10 @@ struct ReportTimelineView: View {
             CollapsingHeaderScrollView(
                 title: viewModel.title,
                 onRefresh: refresh,
-                scrollReset: tabManager.reselectionCount,
+                scrollReset: tabManager.reselectionCount + memberSelectionCount,
                 showsScrollToTopButton: tab == .timeline
             ) {
-                FilterChipView(label: viewModel.selectedMember)
+                memberSelector
             } sticky: {
                 if tab == .timeline {
                     timelineSectionHeader(for: activeVerticalWeek)
@@ -66,6 +69,29 @@ struct ReportTimelineView: View {
                 guard tabManager.reselectedTab == tab else { return }
                 moveToCurrentWeek()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var memberSelector: some View {
+        if contacts.count > 1 {
+            Menu {
+                ForEach(contacts) { contact in
+                    Button {
+                        select(contact)
+                    } label: {
+                        if contact.id == viewModel.selectedContactId {
+                            Label(contact.name, systemImage: "checkmark")
+                        } else {
+                            Text(contact.name)
+                        }
+                    }
+                }
+            } label: {
+                FilterChipLabelView(label: viewModel.selectedMember)
+            }
+        } else {
+            FilterChipLabelView(label: viewModel.selectedMember)
         }
     }
 
@@ -193,6 +219,18 @@ struct ReportTimelineView: View {
 
     private func refresh() async {
         await viewModel.refresh(using: environment, forceReload: true)
+    }
+
+    private func select(_ contact: FamilyContact) {
+        guard contact.id != viewModel.selectedContactId else { return }
+        Haptics.focus()
+        viewModel.selectMember(contact)
+        pagedOffset = 0
+        pageHeights.removeAll()
+        activeVerticalWeek = 0
+        weekHeaderMinYs.removeAll()
+        memberSelectionCount += 1
+        Task { await viewModel.refresh(using: environment) }
     }
 
     private func move(by delta: Int) {

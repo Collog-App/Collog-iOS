@@ -13,20 +13,28 @@ struct FilterChipView: View {
 
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: Spacing.x1) {
-                Text(label)
-                    .body_02_medium(.gray800)
-                Icon(name: "chevron.down", size: IconSize.small, color: .gray700)
-            }
-            .padding(.horizontal, Spacing.x3)
-            .padding(.vertical, 6)
-            .background(Color.gray200, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
-                    .stroke(Color.gray300, lineWidth: 1)
-            )
+            FilterChipLabelView(label: label)
         }
         .buttonStyle(.plain)
+    }
+}
+
+struct FilterChipLabelView: View {
+    let label: String
+
+    var body: some View {
+        HStack(spacing: Spacing.x1) {
+            Text(label)
+                .body_02_medium(.gray800)
+            Icon(name: "chevron.down", size: IconSize.small, color: .gray700)
+        }
+        .padding(.horizontal, Spacing.x3)
+        .padding(.vertical, 6)
+        .background(Color.gray200, in: RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.chip, style: .continuous)
+                .stroke(Color.gray300, lineWidth: 1)
+        )
     }
 }
 

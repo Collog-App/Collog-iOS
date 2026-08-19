@@ -62,4 +62,21 @@ extension TrendSeries {
         }
         return TrendSeries(metricName: "말씀 속도", unit: "음절/분", points: points, normalRange: 195...220)
     }()
+
+    static let speechRateFatherSample: TrendSeries = {
+        let values: [(String, Double)] = [
+            ("7월 3주", 184), ("7월 4주", 188), ("8월 1주", 187),
+            ("8월 2주", 192), ("8월 3주", 190), ("8월 4주", 194)
+        ]
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let points = values.enumerated().map { index, item in
+            TrendPoint(
+                date: calendar.date(byAdding: .weekOfYear, value: index - (values.count - 1), to: today) ?? today,
+                label: item.0,
+                value: item.1
+            )
+        }
+        return TrendSeries(metricName: "말씀 속도", unit: "음절/분", points: points, normalRange: 180...205)
+    }()
 }

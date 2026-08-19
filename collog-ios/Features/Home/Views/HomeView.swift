@@ -50,6 +50,8 @@ struct HomeView: View {
 
                     feedbackRow
                 }
+                .contentTransition(.opacity)
+                .animation(.easeInOut(duration: 0.18), value: selectedContactId)
                 .padding(.horizontal, Spacing.x5)
                 .padding(.bottom, Spacing.x8)
             }
@@ -163,7 +165,11 @@ struct HomeView: View {
     }
 
     private func select(_ contact: FamilyContact) {
-        selectedContactId = contact.id
+        guard selectedContactId != contact.id else { return }
+        Haptics.focus()
+        withAnimation(.easeInOut(duration: 0.18)) {
+            selectedContactId = contact.id
+        }
         Task { await refresh() }
     }
 

@@ -19,6 +19,14 @@ final class HomeViewModel {
         contact: FamilyContact?,
         showsLoading: Bool = false
     ) async {
+        if environment.settings.isGuestMode {
+            healthSummary = .sample(for: contact)
+            healthFeedback = .sample(for: contact)
+            lastCallText = contact?.lastCallText.appending("했어요") ?? "최근 통화했어요"
+            isLoaded = true
+            return
+        }
+
         guard environment.session.isAuthenticated else { return }
         let resolvedId = if let userId = contact?.userId { userId } else { await environment.subjectParentId() }
         guard let parentId = resolvedId else { return }
