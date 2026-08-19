@@ -19,7 +19,11 @@ final class AppSettings {
     }
 
     enum Default {
-        static let backendBaseURL = "http://127.0.0.1:8080"
+        static let backendBaseURL = "https://1-201-117-44.sslip.io"
+        static let legacyBackendBaseURLs = [
+            "http://127.0.0.1:8080",
+            "http://1.201.117.44:8080"
+        ]
     }
 
     private let defaults: UserDefaults
@@ -50,7 +54,12 @@ final class AppSettings {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        backendBaseURL = defaults.string(forKey: Key.backendBaseURL) ?? Default.backendBaseURL
+        let storedBaseURL = defaults.string(forKey: Key.backendBaseURL)
+        backendBaseURL = if let storedBaseURL, !Default.legacyBackendBaseURLs.contains(storedBaseURL) {
+            storedBaseURL
+        } else {
+            Default.backendBaseURL
+        }
         callNotificationsEnabled = defaults.object(forKey: Key.callNotificationsEnabled) as? Bool ?? true
         reportNotificationsEnabled = defaults.object(forKey: Key.reportNotificationsEnabled) as? Bool ?? true
         questionVoiceEnabled = defaults.object(forKey: Key.questionVoiceEnabled) as? Bool ?? true
