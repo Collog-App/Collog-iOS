@@ -39,7 +39,27 @@ final class TimelineViewModel {
     }
 
     func refresh(using environment: AppEnvironment, forceReload: Bool = false) async {
-        guard let parentId = await environment.subjectParentId() else { return }
+        guard let context = await loadContext(using: environment) else { return }
+
+        let anchor = weekOffset
+        let offsets = forceReload ? [anchor] : [anchor, anchor - 1, anchor + 1]
+        for offset in offsets where offset <= 0 {
+            await load(
+                offset,
+                parentId: context.parentId,
+                api: context.api,
+                forceReload: forceReload
+            )
+        }
+    }
+
+    func loadPage(_ offset: Int, using environment: AppEnvironment) async {
+        guard offset <= 0, let context = await loadContext(using: environment) else { return }
+        await load(offset, parentId: context.parentId, api: context.api)
+    }
+
+    private func loadContext(using environment: AppEnvironment) async -> (parentId: String, api: CollogAPI)? {
+        guard let parentId = await environment.subjectParentId() else { return nil }
         let api = environment.api
 
         if baselines.isEmpty {
@@ -51,17 +71,7 @@ final class TimelineViewModel {
         selectedMember = environment.family.contacts.first?.name
             ?? environment.session.user?.name
             ?? selectedMember
-
-        let anchor = weekOffset
-        let offsets = forceReload ? [anchor] : [anchor, anchor - 1, anchor + 1]
-        for offset in offsets where offset <= 0 {
-            await load(
-                offset,
-                parentId: parentId,
-                api: api,
-                forceReload: forceReload
-            )
-        }
+        return (parentId, api)
     }
 
     private func load(

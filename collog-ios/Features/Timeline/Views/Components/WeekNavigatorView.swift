@@ -54,6 +54,30 @@ struct WeekNavigatorView: View {
     }
 }
 
+struct TimelineWeekHeader: View {
+    let title: String
+    let rangeText: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: Spacing.x3) {
+            Text(title)
+                .body_01_semibold(.gray900)
+
+            Text(rangeText)
+                .body_03_medium(.gray700)
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, Spacing.x5)
+        .padding(.vertical, Spacing.x4)
+        .frame(maxWidth: .infinity)
+        .background(Color.gray50)
+        .overlay(alignment: .bottom) {
+            DividerLine()
+        }
+    }
+}
+
 #Preview {
     WeekNavigatorView(title: "8월 3주", rangeText: "8/10 ~ 8/16")
         .background(Color.gray50)

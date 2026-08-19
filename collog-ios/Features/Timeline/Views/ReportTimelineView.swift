@@ -15,9 +15,12 @@ struct ReportTimelineView: View {
     @State private var viewModel: TimelineViewModel
     @State private var pagedOffset: Int? = 0
     @State private var pageHeights: [Int: CGFloat] = [:]
+    @State private var activeVerticalWeek = 0
+    @State private var weekHeaderMinYs: [Int: CGFloat] = [:]
 
     private let tab: MainTab
     private let pageOffsets = Array(-25...0)
+    private let verticalPageOffsets = Array((-25...0).reversed())
 
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
@@ -34,17 +37,21 @@ struct ReportTimelineView: View {
                 scrollReset: tabManager.reselectionCount
             ) {
                 FilterChipView(label: viewModel.selectedMember)
+            } sticky: {
+                if tab == .timeline {
+                    timelineWeekHeader(for: activeVerticalWeek)
+                }
             } content: {
-                VStack(spacing: 0) {
-                    WeekNavigatorView(
-                        title: viewModel.week.title,
-                        rangeText: viewModel.week.rangeText,
-                        canGoForward: viewModel.canGoForward,
-                        onPrevious: { move(by: -1) },
-                        onNext: { move(by: 1) }
-                    )
+                Group {
+                    if tab == .timeline {
+                        verticalTimeline
+                    } else {
+                        VStack(spacing: 0) {
+                            weekNavigator
 
-                    weekPager
+                            weekPager
+                        }
+                    }
                 }
                 .padding(.bottom, Spacing.x8)
             }
@@ -55,6 +62,17 @@ struct ReportTimelineView: View {
                 moveToCurrentWeek()
             }
         }
+    }
+
+    private var weekNavigator: some View {
+        WeekNavigatorView(
+            title: viewModel.week.title,
+            rangeText: viewModel.week.rangeText,
+            canGoForward: viewModel.canGoForward,
+            onPrevious: { move(by: -1) },
+            onNext: { move(by: 1) }
+        )
+        .background(Color.gray50)
     }
 
     private var weekPager: some View {
@@ -76,6 +94,57 @@ struct ReportTimelineView: View {
             guard phase == .idle else { return }
             settlePage()
         }
+    }
+
+    private var verticalTimeline: some View {
+        LazyVStack(spacing: 0) {
+            ForEach(verticalPageOffsets, id: \.self) { offset in
+                verticalWeek(offset)
+            }
+        }
+    }
+
+    private func verticalWeek(_ offset: Int) -> some View {
+        let page = viewModel.page(for: offset)
+
+        return VStack(spacing: 0) {
+            if offset != 0 {
+                timelineWeekHeader(for: offset)
+                    .onGeometryChange(for: CGFloat.self) { proxy in
+                        proxy.frame(in: .scrollView(axis: .vertical)).minY
+                    } action: { minY in
+                        updateActiveVerticalWeek(offset, minY: minY)
+                    }
+            }
+
+            if page.isLoaded {
+                timelineEntries(page)
+            } else {
+                loadingContent
+                    .padding(.bottom, Spacing.x5)
+            }
+        }
+        .task {
+            await viewModel.loadPage(offset, using: environment)
+        }
+    }
+
+    private func timelineWeekHeader(for offset: Int) -> some View {
+        let page = viewModel.page(for: offset)
+        return TimelineWeekHeader(title: page.title, rangeText: page.rangeText)
+    }
+
+    private func updateActiveVerticalWeek(_ offset: Int, minY: CGFloat) {
+        weekHeaderMinYs[offset] = minY
+        let threshold: CGFloat = 116
+        let active = weekHeaderMinYs
+            .filter { $0.value <= threshold }
+            .max { $0.value < $1.value }?
+            .key ?? 0
+
+        guard active != activeVerticalWeek else { return }
+        activeVerticalWeek = active
+        viewModel.setWeek(active)
     }
 
     private var currentPageHeight: CGFloat {
@@ -125,6 +194,13 @@ struct ReportTimelineView: View {
     }
 
     private func moveToCurrentWeek() {
+        if tab == .timeline {
+            activeVerticalWeek = 0
+            weekHeaderMinYs.removeAll()
+            viewModel.setWeek(0)
+            return
+        }
+
         guard pagedOffset != 0 else { return }
         withAnimation(.smooth(duration: 0.32)) {
             pagedOffset = 0

@@ -23,11 +23,13 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let content: Content
     private let onRefresh: (@MainActor @Sendable () async -> Void)?
     private let scrollReset: Int
+    private let sticky: AnyView?
 
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
     @State private var pullDistance: CGFloat = 0
     @State private var isRefreshArmed = false
+    @State private var stickyMinY = CGFloat.greatestFiniteMagnitude
 
     private let collapseDistance: CGFloat = 44
     private let barHeight: CGFloat = 52
@@ -48,6 +50,25 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         self.content = content()
         self.onRefresh = onRefresh
         self.scrollReset = scrollReset
+        sticky = nil
+    }
+
+    init<Sticky: View>(
+        title: String,
+        onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
+        scrollReset: Int = 0,
+        @ViewBuilder large: () -> Large,
+        @ViewBuilder trailing: () -> Trailing,
+        @ViewBuilder sticky: () -> Sticky,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.title = title
+        self.large = large()
+        self.trailing = trailing()
+        self.content = content()
+        self.onRefresh = onRefresh
+        self.scrollReset = scrollReset
+        self.sticky = AnyView(sticky())
     }
 
     private var collapseProgress: CGFloat {
@@ -58,9 +79,20 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         ZStack(alignment: .top) {
             contentScrollView
 
+            if let sticky, isSticky {
+                sticky
+                    .background(Color.gray50)
+                    .padding(.top, barHeight)
+                    .transition(.opacity)
+            }
+
             compactBar
         }
         .background(Color.gray50)
+    }
+
+    private var isSticky: Bool {
+        sticky != nil && stickyMinY <= barHeight
     }
 
     private var contentScrollView: some View {
@@ -81,6 +113,18 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
                         .padding(.top, Spacing.x2)
                         .padding(.bottom, Spacing.x6)
                         .opacity(1 - collapseProgress)
+
+                    if let sticky {
+                        sticky
+                            .background(Color.gray50)
+                            .onGeometryChange(for: CGFloat.self) { proxy in
+                                proxy.frame(in: .scrollView(axis: .vertical)).minY
+                            } action: { minY in
+                                stickyMinY = minY
+                            }
+                            .opacity(isSticky ? 0 : 1)
+                            .allowsHitTesting(!isSticky)
+                    }
 
                     content
                 }
@@ -176,6 +220,25 @@ extension CollapsingHeaderScrollView where Large == CollapsingLargeTitle {
             scrollReset: scrollReset,
             large: { CollapsingLargeTitle(title: title) },
             trailing: trailing,
+            content: content
+        )
+    }
+
+    init<Sticky: View>(
+        title: String,
+        onRefresh: (@MainActor @Sendable () async -> Void)? = nil,
+        scrollReset: Int = 0,
+        @ViewBuilder trailing: () -> Trailing,
+        @ViewBuilder sticky: () -> Sticky,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.init(
+            title: title,
+            onRefresh: onRefresh,
+            scrollReset: scrollReset,
+            large: { CollapsingLargeTitle(title: title) },
+            trailing: trailing,
+            sticky: sticky,
             content: content
         )
     }
