@@ -22,16 +22,13 @@ struct CallView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-                .padding(.top, Spacing.x8)
-
             if let notice {
-                Text(notice)
-                    .caption_01_medium(.gray500)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, Spacing.x5)
-                    .padding(.top, Spacing.x4)
+                noticeView(notice)
+                    .padding(.top, Spacing.x3)
             }
+
+            header
+                .padding(.top, notice == nil ? Spacing.x8 : Spacing.x5)
 
             ScrollView {
                 questionList
@@ -127,6 +124,15 @@ struct CallView: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel("통화 종료")
+    }
+
+    private func noticeView(_ text: String) -> some View {
+        Text(text)
+            .caption_01_medium(.gray400)
+            .multilineTextAlignment(.center)
+            .padding(.horizontal, Spacing.x4)
+            .padding(.vertical, Spacing.x2)
+            .background(Color.gray00.opacity(0.08), in: Capsule())
     }
 
     private var callBackground: some View {

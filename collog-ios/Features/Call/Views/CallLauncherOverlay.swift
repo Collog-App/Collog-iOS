@@ -22,6 +22,7 @@ struct CallLauncherOverlay: View {
                 .onTapGesture { onDismiss() }
 
             ambientGradient
+            topNotice
 
             RadialGradient(
                 colors: [Color.greenNormal.opacity(0.14), Color.greenNormal.opacity(0)],
@@ -69,11 +70,7 @@ struct CallLauncherOverlay: View {
     }
 
     private var questionStack: some View {
-        VStack(alignment: .center, spacing: Spacing.x2) {
-            if let notice {
-                hint(notice)
-            }
-
+        VStack(alignment: .center, spacing: 0) {
             if model.questions.isEmpty {
                 hint("오늘의 질문이 아직 없어요")
             } else {
@@ -81,14 +78,30 @@ struct CallLauncherOverlay: View {
                     .caption_01_medium(.gray700)
                     .padding(.leading, Spacing.x2)
 
-                ForEach(Array(model.questions.prefix(3).enumerated()), id: \.offset) { index, question in
-                    questionChip(question, index: index)
+                VStack(spacing: Spacing.x2) {
+                    ForEach(Array(model.questions.prefix(3).enumerated()), id: \.offset) { index, question in
+                        questionChip(question, index: index)
+                    }
                 }
+                .padding(.top, Spacing.x4)
             }
         }
         .frame(width: 300)
         .offset(y: -(model.arcRadius + 245))
         .allowsHitTesting(false)
+    }
+
+    @ViewBuilder
+    private var topNotice: some View {
+        if let notice {
+            VStack(spacing: 0) {
+                hint(notice)
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.top, Spacing.x4)
+            .allowsHitTesting(false)
+        }
     }
 
     private func questionChip(_ text: String, index: Int) -> some View {
