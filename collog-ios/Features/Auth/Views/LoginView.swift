@@ -21,8 +21,6 @@ struct LoginView: View {
     var onSignedIn: () -> Void
 
     var body: some View {
-        @Bindable var settings = environment.settings
-
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x6) {
                 VStack(alignment: .leading, spacing: Spacing.x2) {
@@ -48,14 +46,6 @@ struct LoginView: View {
                 primaryButton
 
                 guestButton
-
-                SettingsSection(title: "개발") {
-                    SettingsFieldRow(
-                        label: "서버 주소",
-                        placeholder: AppSettings.Default.backendBaseURL,
-                        text: $settings.backendBaseURL
-                    )
-                }
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.top, Spacing.x8)
