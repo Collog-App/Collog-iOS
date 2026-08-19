@@ -98,24 +98,10 @@ struct ReportTimelineView: View {
 
     private var verticalTimeline: some View {
         LazyVStack(spacing: 0) {
-            ForEach(visibleVerticalPageOffsets, id: \.self) { offset in
+            ForEach(verticalPageOffsets, id: \.self) { offset in
                 verticalWeek(offset)
             }
         }
-    }
-
-    private var visibleVerticalPageOffsets: [Int] {
-        var result: [Int] = []
-
-        for offset in verticalPageOffsets {
-            let page = viewModel.page(for: offset)
-            if offset != 0, page.isLoaded, page.entries.isEmpty { break }
-
-            result.append(offset)
-            if !page.isLoaded { break }
-        }
-
-        return result
     }
 
     private func verticalWeek(_ offset: Int) -> some View {
@@ -250,12 +236,11 @@ struct ReportTimelineView: View {
     @ViewBuilder
     private func timelineEntries(_ page: TimelineWeekPage) -> some View {
         if page.entries.isEmpty {
-            EmptyStateView(
-                symbol: "phone.badge.waveform",
-                title: "이번 주에는 분석된 통화가 없어요",
-                message: "가족과 통화하면 이곳에 기록이 쌓여요."
-            )
-            .padding(.top, Spacing.x6)
+            Text("분석된 통화가 없어요")
+                .body_03_medium(.gray700)
+                .padding(.horizontal, Spacing.x5)
+                .padding(.vertical, Spacing.x6)
+                .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(page.entries.enumerated()), id: \.element.id) { index, entry in
