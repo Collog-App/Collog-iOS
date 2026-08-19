@@ -38,15 +38,9 @@ struct TimelineWeekPage: Identifiable {
 
     var timelineRangeText: String {
         let bounds = Self.bounds(offset: offset)
-        let startMonth = Self.calendar.component(.month, from: bounds.start)
-        let endMonth = Self.calendar.component(.month, from: bounds.end)
         let startDay = Self.calendar.component(.day, from: bounds.start)
         let endDay = Self.calendar.component(.day, from: bounds.end)
-
-        if startMonth == endMonth {
-            return "\(startDay)일부터 \(endDay)일"
-        }
-        return "\(startMonth)월 \(startDay)일부터 \(endMonth)월 \(endDay)일"
+        return "\(startDay)일부터 \(endDay)일"
     }
 
     static let calendar: Calendar = {
