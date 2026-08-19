@@ -9,12 +9,12 @@ import SwiftUI
 
 struct HealthProfileSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.dismiss) private var dismiss
 
     @AppStorage("settings.guestHealthConditions") private var guestConditions = "HYPERTENSION"
     @State private var selected: Set<HealthCondition> = []
     @State private var isLoading = true
     @State private var isSaving = false
-    @State private var statusText: String?
     @State private var errorText: String?
 
     var body: some View {
@@ -34,11 +34,6 @@ struct HealthProfileSettingsView: View {
                     ForEach(HealthCondition.allCases) { condition in
                         conditionRow(condition)
                     }
-                }
-
-                if let statusText {
-                    Text(statusText)
-                        .body_03_medium(.greenDark)
                 }
 
                 if let errorText {
@@ -77,7 +72,6 @@ struct HealthProfileSettingsView: View {
         let isSelected = selected.contains(condition)
 
         return Button {
-            statusText = nil
             errorText = nil
             if isSelected {
                 selected.remove(condition)
@@ -127,23 +121,22 @@ struct HealthProfileSettingsView: View {
 
     private func save() async {
         isSaving = true
-        statusText = nil
         errorText = nil
         defer { isSaving = false }
 
         let values = selected.map(\.rawValue).sorted()
         if environment.settings.isGuestMode {
             guestConditions = values.joined(separator: ",")
-            statusText = "저장했어요"
             Haptics.commit()
+            dismiss()
             return
         }
 
         guard let parentId = await environment.subjectParentId() else { return }
         do {
             _ = try await environment.api.updateProfile(parentId: parentId, conditions: values)
-            statusText = "저장했어요"
             Haptics.commit()
+            dismiss()
         } catch {
             errorText = error.localizedDescription
         }
