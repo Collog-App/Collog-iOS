@@ -7,128 +7,153 @@
 
 import SwiftUI
 
-struct OnboardingPage: Identifiable {
-    let id = UUID()
+private struct OnboardingFeature: Identifiable {
+    let id: String
+    let symbol: String
     let title: String
-    let body: String
-    let symbols: [String]
+    let detail: String
 }
 
 struct OnboardingView: View {
     var onFinish: () -> Void
 
-    @State private var index = 0
+    private let columns = [
+        GridItem(.flexible(), spacing: Spacing.x3),
+        GridItem(.flexible(), spacing: Spacing.x3)
+    ]
 
-    private let pages: [OnboardingPage] = [
-        OnboardingPage(
-            title: "통화 한 번이 건강 기록이 됩니다",
-            body: "부모님과의 통화에서 평소와 달라진 점을 차분하게 확인하세요.\n"
-                + "진단이 아닌, 우리 가족만의 기록입니다.",
-            symbols: ["phone.fill", "waveform", "chart.line.uptrend.xyaxis"]
+    private let features = [
+        OnboardingFeature(
+            id: "call",
+            symbol: "phone.fill",
+            title: "가족 통화",
+            detail: "어머니, 아버지와 바로 연결"
         ),
-        OnboardingPage(
-            title: "오늘의 질문으로 시작해요",
-            body: "등록한 질환과 지난 통화를 바탕으로 오늘 여쭤볼 질문을 준비해드려요.",
-            symbols: ["text.bubble.fill", "sparkles", "questionmark.bubble.fill"]
+        OnboardingFeature(
+            id: "questions",
+            symbol: "questionmark.bubble.fill",
+            title: "오늘의 질문",
+            detail: "다음 대화를 편하게 준비"
         ),
-        OnboardingPage(
-            title: "원본 음성은 남기지 않아요",
-            body: "통화 음성은 분석 직후 바로 지우고, 정리된 기록과 변화값만 보관해요.",
-            symbols: ["waveform", "trash.fill", "checkmark.shield.fill"]
+        OnboardingFeature(
+            id: "report",
+            symbol: "chart.line.uptrend.xyaxis",
+            title: "주간 리포트",
+            detail: "통화에서 찾은 변화를 확인"
+        ),
+        OnboardingFeature(
+            id: "timeline",
+            symbol: "clock.arrow.circlepath",
+            title: "타임라인",
+            detail: "지난 기록을 주차별로 모아보기"
         )
     ]
 
     var body: some View {
-        VStack(spacing: Spacing.x6) {
-            indicator
-                .padding(.top, Spacing.x8)
+        ZStack {
+            background
 
-            TabView(selection: $index) {
-                ForEach(Array(pages.enumerated()), id: \.element.id) { offset, item in
-                    page(for: item)
-                        .tag(offset)
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: Spacing.x6) {
+                        brand
+                        title
+                        featureGrid
+                    }
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x5)
+                    .padding(.bottom, Spacing.x4)
                 }
-            }
-            .tabViewStyle(.page(indexDisplayMode: .never))
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
 
-            Button(action: advance) {
-                Text(index == pages.count - 1 ? "시작하기" : "다음")
-                    .body_01_semibold(.gray00)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(
-                        Color.greenNormal,
-                        in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
-                    )
-            }
-            .buttonStyle(.plain)
-            .padding(.horizontal, Spacing.x5)
-            .padding(.bottom, Spacing.x8)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color.gray50)
-    }
-
-    private var indicator: some View {
-        HStack(spacing: Spacing.x2) {
-            ForEach(pages.indices, id: \.self) { position in
-                Capsule()
-                    .fill(position == index ? Color.gray900 : Color.gray400)
-                    .frame(width: position == index ? 22 : 10, height: 10)
+                startButton
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x3)
+                    .padding(.bottom, Spacing.x5)
             }
         }
-        .animation(.easeInOut(duration: 0.2), value: index)
+        .preferredColorScheme(.dark)
     }
 
-    private func page(for page: OnboardingPage) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.x6) {
-            VStack(alignment: .leading, spacing: Spacing.x2) {
-                Text(page.title)
-                    .headline_02(.gray900)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var background: some View {
+        MeshGradient(
+            width: 3,
+            height: 3,
+            points: [
+                SIMD2<Float>(0, 0), SIMD2<Float>(0.5, 0), SIMD2<Float>(1, 0),
+                SIMD2<Float>(0, 0.5), SIMD2<Float>(0.52, 0.46), SIMD2<Float>(1, 0.5),
+                SIMD2<Float>(0, 1), SIMD2<Float>(0.48, 1), SIMD2<Float>(1, 1)
+            ],
+            colors: [
+                Color(hex: 0x1E2425), Color(hex: 0x4B514A), Color(hex: 0x17191D),
+                Color(hex: 0x302E2B), Color(hex: 0x183A2D), Color(hex: 0x27292D),
+                Color(hex: 0x151719), Color(hex: 0x33463E), Color(hex: 0x101113)
+            ]
+        )
+        .overlay(Color.black.opacity(0.14))
+        .ignoresSafeArea()
+    }
 
-                Text(page.body)
-                    .body_01_regular(.gray800)
-                    .fixedSize(horizontal: false, vertical: true)
+    private var brand: some View {
+        VStack(alignment: .leading, spacing: Spacing.x4) {
+            Text("콜록")
+                .body_02_semibold(.gray00)
+
+            Rectangle()
+                .fill(Color.gray00.opacity(0.18))
+                .frame(height: 1)
+        }
+    }
+
+    private var title: some View {
+        Text("가족과의 통화를\n더 오래 기억하세요")
+            .pretendard(.medium, 34, .gray00)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var featureGrid: some View {
+        LazyVGrid(columns: columns, spacing: Spacing.x3) {
+            ForEach(features) { feature in
+                featureCard(feature)
             }
-
-            symbolRow(for: page)
-
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Spacing.x5)
     }
 
-    private func symbolRow(for page: OnboardingPage) -> some View {
-        HStack(spacing: Spacing.x8) {
-            ForEach(Array(page.symbols.enumerated()), id: \.element) { index, symbol in
-                Image(systemName: symbol)
-                    .font(.system(size: symbolSize(at: index), weight: .medium))
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(symbolColor(at: index))
-                    .frame(width: 72, height: 96)
-                    .offset(y: index == 1 ? -8 : 8)
-            }
+    private func featureCard(_ feature: OnboardingFeature) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Image(systemName: feature.symbol)
+                .font(.system(size: 28, weight: .medium))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(Color.gray00)
+
+            Spacer(minLength: Spacing.x5)
+
+            Text(feature.title)
+                .body_01_semibold(.gray00)
+
+            Text(feature.detail)
+                .caption_01_medium(.gray400)
+                .fixedSize(horizontal: false, vertical: true)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 212)
-    }
-
-    private func symbolSize(at index: Int) -> CGFloat {
-        index == 1 ? 58 : 44
-    }
-
-    private func symbolColor(at index: Int) -> Color {
-        index == 1 ? .greenNormal : .gray700
-    }
-
-    private func advance() {
-        if index < pages.count - 1 {
-            withAnimation { index += 1 }
-        } else {
-            onFinish()
+        .padding(Spacing.x4)
+        .frame(maxWidth: .infinity, minHeight: 156, alignment: .leading)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .stroke(Color.gray00.opacity(0.22), lineWidth: 1)
         }
+    }
+
+    private var startButton: some View {
+        Button(action: onFinish) {
+            Text("시작하기")
+                .body_01_semibold(.gray900)
+                .frame(maxWidth: .infinity)
+                .frame(height: 54)
+                .background(Color.gray00, in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 
