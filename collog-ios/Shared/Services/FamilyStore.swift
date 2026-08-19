@@ -38,8 +38,11 @@ final class FamilyStore {
     }
 
     func questions(for contact: FamilyContact?) -> [PreviewQuestion] {
-        guard let contact else { return questions }
-        return generatedQuestions[contact.id] ?? questions
+        let source = contact.flatMap { generatedQuestions[$0.id] } ?? questions
+        return source.reduce(into: [PreviewQuestion]()) { result, question in
+            guard !result.contains(where: { $0.text == question.text }) else { return }
+            result.append(question)
+        }
     }
 
     func selectContact(_ contact: FamilyContact) {
