@@ -54,6 +54,7 @@ struct LoginView: View {
         .scrollDismissesKeyboard(.interactively)
         .background {
             Color.gray50
+                .ignoresSafeArea()
                 .onTapGesture { focusedField = nil }
         }
         .toolbar {

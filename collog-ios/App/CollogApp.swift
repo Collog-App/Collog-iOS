@@ -17,6 +17,7 @@ struct CollogApp: App {
             RootView()
                 .environment(appDelegate.environment)
                 .environment(appDelegate.callCenter)
+                .preferredColorScheme(.light)
         }
     }
 }
