@@ -96,8 +96,10 @@ struct OnboardingView: View {
     }
 
     private var brand: some View {
-        Text("콜록")
-            .body_02_semibold(.gray900)
+//        Text("콜록")
+//            .body_02_semibold(.gray900)
+        Spacer()
+            .frame(height: 32)
     }
 
     private var title: some View {
