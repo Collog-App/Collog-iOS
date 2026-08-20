@@ -20,7 +20,7 @@ struct SettingsView: View {
     @Environment(TabManager.self) private var tabManager
     @Environment(\.openURL) private var openURL
 
-    private let privacyPolicyURL = URL(string: "https://dohyeoplim.github.io/Collog-Privacy/")!
+    private let privacyPolicyURL = URL(string: "https://collog-app.github.io/Collog-Privacy/")!
 
     var body: some View {
         @Bindable var settings = environment.settings
