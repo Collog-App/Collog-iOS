@@ -146,7 +146,7 @@ struct SettingsView: View {
     private var footer: some View {
         if environment.session.isAuthenticated {
             Button {
-                environment.session.signOut()
+                Task { await environment.signOut() }
             } label: {
                 Text("로그아웃")
                     .body_02_semibold(.red500)

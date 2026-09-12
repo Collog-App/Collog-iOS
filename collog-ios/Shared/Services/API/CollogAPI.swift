@@ -32,12 +32,25 @@ struct CollogAPI {
         )
     }
 
-    func registerDevice(token: String, voipToken: String?) async throws -> DeviceCreated {
+    func registerDevice(
+        token: String,
+        voipToken: String?,
+        callNotificationsEnabled: Bool = true,
+        pushToken: String? = nil,
+        reportNotificationsEnabled: Bool = true
+    ) async throws -> DeviceCreated {
         try await client.send(
             APIEndpoint(
                 path: "/v1/devices",
                 method: .post,
-                body: DeviceCreateBody(platform: "IOS", token: token, voipToken: voipToken)
+                body: DeviceCreateBody(
+                    platform: "IOS",
+                    token: token,
+                    voipToken: voipToken,
+                    callNotificationsEnabled: callNotificationsEnabled,
+                    pushToken: pushToken,
+                    reportNotificationsEnabled: reportNotificationsEnabled
+                )
             )
         )
     }
@@ -107,8 +120,8 @@ struct CollogAPI {
         )
     }
 
-    func acceptInvitation(code: String) async throws {
-        try await client.sendRaw(
+    func acceptInvitation(code: String) async throws -> InvitationAccepted {
+        try await client.send(
             APIEndpoint(
                 path: "/v1/invitations/accept",
                 method: .post,
@@ -163,6 +176,32 @@ struct CollogAPI {
     func createCall(calleeId: String) async throws -> CallCreated {
         try await client.send(
             APIEndpoint(path: "/v1/calls", method: .post, body: CallCreateBody(calleeId: calleeId))
+        )
+    }
+
+    func callStatus(callId: String) async throws -> CallStatus {
+        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)"))
+    }
+
+    func refreshSession(refreshToken: String) async throws -> TokenResponse {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/auth/refresh",
+                method: .post,
+                body: RefreshTokenBody(refreshToken: refreshToken),
+                requiresAuth: false
+            )
+        )
+    }
+
+    func logout(refreshToken: String) async throws {
+        try await client.sendRaw(
+            APIEndpoint(
+                path: "/v1/auth/logout",
+                method: .post,
+                body: RefreshTokenBody(refreshToken: refreshToken),
+                requiresAuth: false
+            )
         )
     }
 

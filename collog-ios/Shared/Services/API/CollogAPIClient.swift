@@ -11,6 +11,7 @@ struct CollogAPIClient {
     var baseURL: URL
     var accessToken: String?
     var session: URLSession = .shared
+    var authentication: AuthSession?
 
     private static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
@@ -35,6 +36,25 @@ struct CollogAPIClient {
 
     @discardableResult
     func sendRaw(_ endpoint: APIEndpoint) async throws -> Data {
+        let originalToken = authentication == nil ? accessToken : authentication?.accessToken
+        let originalUserId = authentication?.user?.id
+        do {
+            return try await sendRaw(endpoint, token: originalToken)
+        } catch APIError.unauthenticated where endpoint.requiresAuth {
+            guard let authentication else { throw APIError.unauthenticated }
+            guard authentication.isAuthenticated else { throw APIError.unauthenticated }
+            guard authentication.user?.id == originalUserId else { throw APIError.unauthenticated }
+            let token: String
+            if let currentToken = authentication.accessToken, currentToken != originalToken {
+                token = currentToken
+            } else {
+                token = try await authentication.refresh(using: baseURL)
+            }
+            return try await sendRaw(endpoint, token: token)
+        }
+    }
+
+    private func sendRaw(_ endpoint: APIEndpoint, token: String?) async throws -> Data {
         var components = URLComponents(
             url: baseURL.appending(path: endpoint.path),
             resolvingAgainstBaseURL: false
@@ -50,8 +70,8 @@ struct CollogAPIClient {
         request.httpMethod = endpoint.method.rawValue
 
         if endpoint.requiresAuth {
-            guard let accessToken else { throw APIError.unauthenticated }
-            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            guard let token else { throw APIError.unauthenticated }
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
         if let body = endpoint.body {

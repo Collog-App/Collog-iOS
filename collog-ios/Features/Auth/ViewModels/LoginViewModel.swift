@@ -45,7 +45,7 @@ final class LoginViewModel {
         errorMessage = nil
         do {
             let response = try await environment.api.verifyOtp(phone: phone, code: code)
-            environment.session.apply(response)
+            try environment.session.apply(response)
             isSubmitting = false
             return true
         } catch {

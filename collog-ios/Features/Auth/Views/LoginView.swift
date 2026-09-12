@@ -37,7 +37,7 @@ struct LoginView: View {
                     codeFields
                 }
 
-                if let errorMessage = viewModel.errorMessage {
+                if let errorMessage = viewModel.errorMessage ?? environment.session.storageError {
                     Text(errorMessage)
                         .caption_01_medium(.red500)
                         .fixedSize(horizontal: false, vertical: true)

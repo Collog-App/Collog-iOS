@@ -12,13 +12,32 @@ struct APIUser: Codable, Identifiable, Hashable {
     let role: String
     let name: String
     let phone: String
-    let familyId: String?
+    var familyId: String?
 }
 
 struct TokenResponse: Codable {
     let accessToken: String
     let refreshToken: String
     let user: APIUser
+}
+
+struct RefreshTokenBody: Encodable {
+    let refreshToken: String
+}
+
+struct InvitationAccepted: Decodable {
+    let familyId: String
+    let memberId: String
+    let status: String
+}
+
+struct CallStatus: Decodable {
+    let state: String
+    let endedAt: Date?
+
+    var hasEnded: Bool {
+        endedAt != nil || ["ENDED", "PROCESSING", "ANALYZED", "ANALYSIS_EXCLUDED", "ANALYSIS_FAILED"].contains(state)
+    }
 }
 
 struct FamilyMember: Decodable, Identifiable, Hashable {
@@ -116,6 +135,9 @@ struct DeviceCreateBody: Encodable {
     let platform: String
     let token: String
     let voipToken: String?
+    let callNotificationsEnabled: Bool
+    let pushToken: String?
+    let reportNotificationsEnabled: Bool
 }
 
 struct CallCreateBody: Encodable {

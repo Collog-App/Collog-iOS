@@ -13,10 +13,10 @@ final class FamilyStore {
         static let generatedQuestions = "family.generatedQuestions"
     }
 
-    private(set) var contacts: [FamilyContact] = FamilyContact.samples
-    private(set) var questions: [PreviewQuestion] = PreviewQuestion.samples
+    private(set) var contacts: [FamilyContact] = []
+    private(set) var questions: [PreviewQuestion] = []
     private(set) var generatedQuestions: [String: [PreviewQuestion]] = [:]
-    private(set) var selectedContactId = FamilyContact.samples.first?.id
+    private(set) var selectedContactId: String?
     private(set) var loadError: String?
 
     @ObservationIgnored private let defaults: UserDefaults
@@ -33,8 +33,7 @@ final class FamilyStore {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        let stored = defaults.dictionary(forKey: Key.generatedQuestions) as? [String: [String]] ?? [:]
-        generatedQuestions = stored.mapValues { $0.map(PreviewQuestion.init(text:)) }
+        defaults.removeObject(forKey: Key.generatedQuestions)
     }
 
     func questions(for contact: FamilyContact?) -> [PreviewQuestion] {
@@ -56,22 +55,54 @@ final class FamilyStore {
     }
 
     func refresh(using environment: AppEnvironment) async {
-        guard let familyId = environment.session.familyId else { return }
+        if environment.settings.isGuestMode {
+            contacts = FamilyContact.samples
+            questions = PreviewQuestion.samples
+            selectedContactId = selectedContact?.id
+            return
+        }
+        guard let familyId = environment.session.familyId else {
+            reset()
+            return
+        }
+        let userId = environment.session.user?.id
         do {
             let previousRelation = selectedContact?.relation
             let members = try await environment.api.members(familyId: familyId).filter(\.isCallable)
-            if !members.isEmpty {
-                contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
-                selectedContactId = contacts.first { $0.relation == previousRelation }?.id ?? contacts.first?.id
-            }
+            guard environment.session.user?.id == userId else { return }
+            contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
+            selectedContactId = contacts.first { $0.relation == previousRelation }?.id ?? contacts.first?.id
             loadError = nil
         } catch {
+            guard environment.session.user?.id == userId else { return }
             loadError = error.localizedDescription
         }
 
-        guard let parentId = await environment.subjectParentId() else { return }
-        if let remote = try? await environment.api.dailyQuestions(parentId: parentId), !remote.isEmpty {
-            questions = remote.map { PreviewQuestion(text: $0.text) }
+        let parentId = if let userId = selectedContact?.userId {
+            userId
+        } else {
+            await environment.subjectParentId()
         }
+        guard let parentId else { return }
+        do {
+            let remote = try await environment.api.dailyQuestions(parentId: parentId)
+            guard environment.session.user?.id == userId else { return }
+            questions = remote.map { PreviewQuestion(text: $0.text) }
+            if let selectedContactId { generatedQuestions[selectedContactId] = questions }
+        } catch {
+            guard environment.session.user?.id == userId else { return }
+            questions = []
+            if let selectedContactId { generatedQuestions.removeValue(forKey: selectedContactId) }
+            loadError = error.localizedDescription
+        }
+    }
+
+    func reset() {
+        contacts = []
+        questions = []
+        generatedQuestions = [:]
+        selectedContactId = contacts.first?.id
+        loadError = nil
+        defaults.removeObject(forKey: Key.generatedQuestions)
     }
 }

@@ -12,6 +12,8 @@ final class AppEnvironment {
     let settings: AppSettings
     let session: AuthSession
     let family: FamilyStore
+    var reportNotificationRevision = 0
+    private(set) var reportNotifications: [ReceivedReportNotification] = []
 
     init(
         settings: AppSettings = AppSettings(),
@@ -21,6 +23,11 @@ final class AppEnvironment {
         self.settings = settings
         self.session = session
         self.family = family
+        session.onAccountChanged = { [weak self] in
+            self?.family.reset()
+            self?.reportNotifications = []
+        }
+        if !session.isAuthenticated { family.reset() }
     }
 
     func subjectParentId() async -> String? {
@@ -35,8 +42,34 @@ final class AppEnvironment {
         CollogAPI(
             client: CollogAPIClient(
                 baseURL: settings.resolvedBaseURL,
-                accessToken: session.accessToken
+                accessToken: session.accessToken,
+                authentication: session
             )
         )
     }
+
+    func signOut() async {
+        let refreshToken = session.refreshToken
+        let api = api
+        session.signOut()
+        if let refreshToken { try? await api.logout(refreshToken: refreshToken) }
+    }
+
+    func receiveReportNotification(callId: String, title: String, message: String, openReport: Bool) {
+        guard session.isAuthenticated else { return }
+        if !reportNotifications.contains(where: { $0.id == callId }) {
+            reportNotifications.insert(
+                ReceivedReportNotification(id: callId, title: title, message: message, date: Date()),
+                at: 0
+            )
+        }
+        if openReport { reportNotificationRevision += 1 }
+    }
+}
+
+struct ReceivedReportNotification: Identifiable {
+    let id: String
+    let title: String
+    let message: String
+    let date: Date
 }
