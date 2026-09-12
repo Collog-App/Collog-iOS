@@ -12,27 +12,36 @@ final class LoginViewModel {
     private var challengeExpiresAt: Date?
     private var requestState: String?
     private var requestRole: String?
+    private var preparationId = UUID()
 
     var canSignIn: Bool {
         challenge != nil && !isSubmitting && !isLoadingChallenge
     }
 
     func prepareChallenge(using environment: AppEnvironment, clearError: Bool = true) async {
-        guard !isSubmitting, !isLoadingChallenge else { return }
+        guard !isSubmitting else { return }
+        let preparationId = UUID()
+        self.preparationId = preparationId
         if clearError { errorMessage = nil }
         challenge = nil
         challengeExpiresAt = nil
         isLoadingChallenge = true
-        defer { isLoadingChallenge = false }
+        defer {
+            if self.preparationId == preparationId { isLoadingChallenge = false }
+        }
         do {
             let response = try await environment.api.appleLoginChallenge()
+            try Task.checkCancellation()
+            guard self.preparationId == preparationId else { return }
             guard response.expiresIn > 0, !response.nonce.isEmpty, !response.challengeId.isEmpty else {
                 throw APIError.decoding("Invalid Apple login challenge")
             }
             challenge = response
             challengeExpiresAt = Date().addingTimeInterval(TimeInterval(response.expiresIn))
         } catch {
-            errorMessage = error.localizedDescription
+            if !Task.isCancelled, self.preparationId == preparationId {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

@@ -19,6 +19,7 @@ struct APIEndpoint {
     var query: [URLQueryItem] = []
     var body: Encodable?
     var requiresAuth: Bool = true
+    var timeoutInterval: TimeInterval = 60
 }
 
 enum APIError: LocalizedError, Equatable {

@@ -6,6 +6,24 @@
     <dict>
         <key>NSAllowsLocalNetworking</key>
         <true/>
+        <key>NSExceptionDomains</key>
+        <dict>
+            <key>192.168.0.0/16</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+            <key>10.0.0.0/8</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+            <key>172.16.0.0/12</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+            </dict>
+        </dict>
     </dict>
     <key>NSLocalNetworkUsageDescription</key>
     <string>같은 Wi-Fi의 콜록 서버에서 로그인과 가족 통화를 사용해요.</string>

@@ -12,7 +12,7 @@ struct CollogAPI {
 
     func appleLoginChallenge() async throws -> AppleLoginChallenge {
         try await client.send(
-            APIEndpoint(path: "/v1/auth/apple/challenge", method: .post, requiresAuth: false)
+            APIEndpoint(path: "/v1/auth/apple/challenge", method: .post, requiresAuth: false, timeoutInterval: 10)
         )
     }
 
