@@ -80,10 +80,13 @@ struct CollogAPI {
     }
 
     func members(familyId: String) async throws -> [FamilyMember] {
-        let response: FamilyMembersResponse = try await client.send(
+        try await familyMembers(familyId: familyId).members
+    }
+
+    func familyMembers(familyId: String) async throws -> FamilyMembersResponse {
+        try await client.send(
             APIEndpoint(path: "/v1/families/\(familyId)/members")
         )
-        return response.members
     }
 
     func dailyQuestions(parentId: String) async throws -> [APIQuestion] {
@@ -239,6 +242,16 @@ struct CollogAPI {
                 requiresAuth: false
             )
         )
+    }
+
+    func updateRole(_ role: UserRoleOption) async throws -> APIUser {
+        try await client.send(
+            APIEndpoint(path: "/v1/account/role", method: .patch, body: AccountRoleBody(role: role.rawValue))
+        )
+    }
+
+    func deleteAccount() async throws {
+        try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete))
     }
 
     func acceptCall(callId: String) async throws -> CallAccepted {

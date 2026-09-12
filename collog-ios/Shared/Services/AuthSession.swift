@@ -57,7 +57,7 @@ final class AuthSession {
     func apply(_ response: TokenResponse) throws {
         try CredentialStore.write(response)
         storageError = nil
-        if user?.id != response.user.id {
+        if user?.id != response.user.id || user?.role != response.user.role {
             generation = UUID()
             refreshTask?.cancel()
             refreshTask = nil
@@ -107,6 +107,13 @@ final class AuthSession {
     func joinFamily(_ familyId: String) throws {
         guard let accessToken, let refreshToken, var user else { throw APIError.unauthenticated }
         user.familyId = familyId
+        try apply(TokenResponse(accessToken: accessToken, refreshToken: refreshToken, user: user))
+    }
+
+    func updateUser(_ user: APIUser) throws {
+        guard self.user?.id == user.id, let accessToken, let refreshToken else {
+            throw APIError.unauthenticated
+        }
         try apply(TokenResponse(accessToken: accessToken, refreshToken: refreshToken, user: user))
     }
 

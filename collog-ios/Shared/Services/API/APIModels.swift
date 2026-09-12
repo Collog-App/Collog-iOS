@@ -39,6 +39,10 @@ struct RefreshTokenBody: Encodable {
     let refreshToken: String
 }
 
+struct AccountRoleBody: Encodable {
+    let role: String
+}
+
 struct InvitationAccepted: Decodable {
     let familyId: String
     let memberId: String
@@ -70,6 +74,8 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
         switch relation {
         case "MOTHER": "어머니"
         case "FATHER": "아버지"
+        case "CHILD": "자녀"
+        case "PARENT": "부모"
         default: name
         }
     }
@@ -88,6 +94,7 @@ struct FamilyInvitation: Decodable, Hashable, Identifiable {
 
 struct FamilyMembersResponse: Decodable {
     let members: [FamilyMember]
+    let canInvite: Bool?
 }
 
 struct APIQuestion: Decodable, Identifiable, Hashable {
