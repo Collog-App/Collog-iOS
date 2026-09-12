@@ -11,6 +11,7 @@ import SwiftUI
 final class AppSettings {
     enum Key {
         static let backendBaseURL = "settings.backendBaseURL"
+        static let serverOverride = "settings.serverOverride"
         static let callNotificationsEnabled = "settings.callNotificationsEnabled"
         static let reportNotificationsEnabled = "settings.reportNotificationsEnabled"
         static let questionVoiceEnabled = "settings.questionVoiceEnabled"
@@ -29,7 +30,9 @@ final class AppSettings {
     private let defaults: UserDefaults
 
     var backendBaseURL: String {
-        didSet { defaults.set(backendBaseURL, forKey: Key.backendBaseURL) }
+        didSet {
+            defaults.set(backendBaseURL, forKey: Key.serverOverride)
+        }
     }
 
     var callNotificationsEnabled: Bool {
@@ -55,11 +58,13 @@ final class AppSettings {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         let storedBaseURL = defaults.string(forKey: Key.backendBaseURL)
-        backendBaseURL = if let storedBaseURL, !Default.legacyBackendBaseURLs.contains(storedBaseURL) {
+        let fallback = if let storedBaseURL, !Default.legacyBackendBaseURLs.contains(storedBaseURL) {
             storedBaseURL
         } else {
             Default.backendBaseURL
         }
+        backendBaseURL = defaults.string(forKey: Key.serverOverride)
+            .flatMap(Self.normalizedServerAddress) ?? fallback
         callNotificationsEnabled = defaults.object(forKey: Key.callNotificationsEnabled) as? Bool ?? true
         reportNotificationsEnabled = defaults.object(forKey: Key.reportNotificationsEnabled) as? Bool ?? true
         questionVoiceEnabled = defaults.object(forKey: Key.questionVoiceEnabled) as? Bool ?? true
@@ -69,5 +74,21 @@ final class AppSettings {
 
     var resolvedBaseURL: URL {
         URL(string: backendBaseURL) ?? URL(string: Default.backendBaseURL)!
+    }
+
+    nonisolated static func normalizedServerAddress(_ input: String) -> String? {
+        let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard var components = URLComponents(string: value),
+              let scheme = components.scheme?.lowercased(), ["http", "https"].contains(scheme),
+              let host = components.host, !host.isEmpty,
+              !host.contains(where: \.isWhitespace),
+              components.user == nil, components.password == nil,
+              components.query == nil, components.fragment == nil,
+              components.path.isEmpty || components.path == "/" else { return nil }
+        if let port = components.port, !(1...65535).contains(port) { return nil }
+        components.scheme = scheme
+        components.host = host.lowercased()
+        components.path = ""
+        return components.url?.absoluteString
     }
 }

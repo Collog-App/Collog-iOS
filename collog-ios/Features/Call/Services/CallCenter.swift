@@ -72,6 +72,7 @@ final class CallCenter: NSObject {
     @ObservationIgnored private var didPublishMicrophone = false
 
     private(set) var activeCall: ActiveCall?
+    var hasCallInProgress: Bool { activeCall != nil || pendingOutgoing != nil }
     private(set) var voipToken: String?
     private(set) var apnsToken: String?
     private(set) var events: [String] = []
