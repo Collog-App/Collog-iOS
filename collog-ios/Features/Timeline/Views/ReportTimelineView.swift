@@ -50,7 +50,12 @@ struct ReportTimelineView: View {
                     stickyTimelineWeekHeader
                 }
             } content: {
-                Group {
+                VStack(spacing: Spacing.x3) {
+                    if let error = viewModel.loadError {
+                        Text(error)
+                            .caption_01_medium(.red500)
+                            .padding(.horizontal, Spacing.x5)
+                    }
                     if tab == .timeline {
                         verticalTimeline
                     } else {

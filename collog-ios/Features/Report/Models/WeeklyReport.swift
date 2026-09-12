@@ -46,7 +46,7 @@ struct WeeklyReport {
     let changeSignals: [ChangeSignalItem]
     let conversationGroups: [ConversationGroup]
     let repeatObservation: RepeatObservation
-    let acousticTrend: TrendSeries
+    let acousticTrend: TrendSeries?
     let metricTrends: [MetricTrend]
     let disclaimer: String
 }
@@ -59,7 +59,7 @@ extension WeeklyReport {
         changeSignals: [],
         conversationGroups: [],
         repeatObservation: RepeatObservation(countText: "0", perMinuteText: "", caption: ""),
-        acousticTrend: .speechRateSample,
+        acousticTrend: nil,
         metricTrends: [],
         disclaimer: ""
     )
@@ -196,7 +196,7 @@ extension WeeklyReport {
         let totalMinutes = (isFather ? 27 : 32) + (distance * 3) % 13
         let repeatCount = (isFather ? 1 : 3) + distance % 3
         let speechDelta = Double((distance * 3) % 9 - 4)
-        let acousticTrend = shiftedTrend(base.acousticTrend, offset: offset, delta: speechDelta)
+        let acousticTrend = shiftedTrend(base.acousticTrend ?? .speechRateSample, offset: offset, delta: speechDelta)
 
         return WeeklyReport(
             state: base.state,

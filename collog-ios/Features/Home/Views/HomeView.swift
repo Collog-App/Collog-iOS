@@ -15,6 +15,7 @@ struct HomeView: View {
     @State private var viewModel = HomeViewModel()
     @State private var isGeneratingQuestions = false
     @State private var questionGenerationId: UUID?
+    @State private var questionError: String?
     @Namespace private var detailTransition
 
     private var contacts: [FamilyContact] { environment.family.contacts }
@@ -41,11 +42,18 @@ struct HomeView: View {
                 notificationButton
             } content: {
                 VStack(alignment: .leading, spacing: 0) {
-                    HealthStatusCardView(summary: viewModel.healthSummary, isLoaded: viewModel.isLoaded) {
-                        navigation.manager(for: .home).push(Route.familyHealthOverview)
+                    if let summary = viewModel.healthSummary {
+                        HealthStatusCardView(summary: summary, isLoaded: viewModel.isLoaded) {
+                            navigation.manager(for: .home).push(Route.familyHealthOverview)
+                        }
+                        .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
+                        .padding(.bottom, Spacing.x5)
+                    } else {
+                        Text(viewModel.loadError ?? environment.family.loadError ?? "아직 분석된 통화 기록이 없어요")
+                            .body_02_medium(.gray700)
+                            .cardSurface()
+                            .padding(.bottom, Spacing.x5)
                     }
-                    .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
-                    .padding(.bottom, Spacing.x5)
 
                     QuestionListView(
                         questions: selectedQuestions,
@@ -54,7 +62,12 @@ struct HomeView: View {
                     )
                         .padding(.bottom, Spacing.x4)
 
-                    feedbackRow
+                    if let questionError {
+                        Text(questionError)
+                            .caption_01_medium(.red500)
+                            .padding(.bottom, Spacing.x4)
+                    }
+                    if let feedback = viewModel.healthFeedback { feedbackRow(feedback) }
                 }
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.18), value: environment.family.selectedContactId)
@@ -67,15 +80,19 @@ struct HomeView: View {
             .navigationDestination(for: Route.self) { route in
                 switch route {
                 case .familyHealthOverview:
-                    FamilyHealthOverviewView(summary: viewModel.healthSummary)
-                        .navigationTransition(
-                            .zoom(sourceID: Route.familyHealthOverview, in: detailTransition)
-                        )
+                    if let summary = viewModel.healthSummary {
+                        FamilyHealthOverviewView(summary: summary)
+                            .navigationTransition(
+                                .zoom(sourceID: Route.familyHealthOverview, in: detailTransition)
+                            )
+                    }
                 case .healthFeedbackDetail:
-                    HealthFeedbackDetailView(feedback: viewModel.healthFeedback)
-                    .navigationTransition(
-                        .zoom(sourceID: Route.healthFeedbackDetail, in: detailTransition)
-                    )
+                    if let feedback = viewModel.healthFeedback {
+                        HealthFeedbackDetailView(feedback: feedback)
+                            .navigationTransition(
+                                .zoom(sourceID: Route.healthFeedbackDetail, in: detailTransition)
+                            )
+                    }
                 case .notifications:
                     HomeNotificationsView()
                         .interactivePopGestureEnabled()
@@ -115,23 +132,20 @@ struct HomeView: View {
         } label: {
             Icon(name: "bell", color: .gray900)
                 .frame(width: 40, height: 40)
-                .overlay(alignment: .topTrailing) {
-                    NotificationDot().offset(x: -4, y: 4)
-                }
         }
         .buttonStyle(.plain)
     }
 
-    private var feedbackRow: some View {
+    private func feedbackRow(_ feedback: HealthFeedback) -> some View {
         Button {
             navigation.manager(for: .home).push(Route.healthFeedbackDetail)
         } label: {
             HStack(spacing: Spacing.x3) {
                 VStack(alignment: .leading, spacing: Spacing.x1) {
-                    Text(viewModel.healthFeedback.title)
+                    Text(feedback.title)
                         .caption_01_medium(.gray800)
 
-                    Text(viewModel.healthFeedback.headline)
+                    Text(feedback.headline)
                         .body_02_medium(.gray900)
                         .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
@@ -162,7 +176,28 @@ struct HomeView: View {
         let generationId = UUID()
         questionGenerationId = generationId
         isGeneratingQuestions = true
+        questionError = nil
         let existing = selectedQuestions.map(\.text)
+
+        if !environment.settings.isGuestMode {
+            Task {
+                do {
+                    guard let parentId = selectedContact.userId else { throw APIError.unauthenticated }
+                    let questions = try await environment.api.dailyQuestions(parentId: parentId)
+                    completeQuestionGeneration(
+                        questions.map(\.text),
+                        contact: selectedContact,
+                        generationId: generationId
+                    )
+                } catch {
+                    guard questionGenerationId == generationId else { return }
+                    questionError = error.localizedDescription
+                    questionGenerationId = nil
+                    isGeneratingQuestions = false
+                }
+            }
+            return
+        }
 
         Task {
             let generated = await QuestionGenerator.generate(

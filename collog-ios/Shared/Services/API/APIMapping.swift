@@ -126,7 +126,7 @@ extension WeeklyReport {
                 perMinuteText: "통화 \(dto.repeatObservation.callsWithRepeat)건에서 관찰",
                 caption: "대화 중 다시 물어보신 횟수예요"
             ),
-            acousticTrend: trend ?? .speechRateSample,
+            acousticTrend: trend,
             metricTrends: Self.metricTrends(from: dto),
             disclaimer: dto.disclaimer
         )

@@ -9,16 +9,24 @@ import SwiftUI
 
 @Observable
 final class HomeViewModel {
-    private(set) var healthSummary: FamilyHealthSummary = .sample
-    private(set) var healthFeedback: HealthFeedback = .sample
+    private(set) var healthSummary: FamilyHealthSummary?
+    private(set) var healthFeedback: HealthFeedback?
     private(set) var lastCallText = "아직 통화 기록이 없어요"
     private(set) var isLoaded = true
+    private(set) var loadError: String?
+    @ObservationIgnored private var generation = UUID()
 
     func refresh(
         using environment: AppEnvironment,
         contact: FamilyContact?,
         showsLoading: Bool = false
     ) async {
+        let generation = UUID()
+        self.generation = generation
+        healthSummary = nil
+        healthFeedback = nil
+        loadError = nil
+        lastCallText = "아직 통화 기록이 없어요"
         if environment.settings.isGuestMode {
             healthSummary = .sample(for: contact)
             healthFeedback = .sample(for: contact)
@@ -37,13 +45,22 @@ final class HomeViewModel {
         }
 
         let api = environment.api
-        await loadLastCall(api: api, parentId: parentId)
+        let lastCallText = await loadLastCall(api: api, parentId: parentId)
+        guard self.generation == generation else { return }
+        self.lastCallText = lastCallText
 
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
             .filter { $0.kind == "ROLLING" && $0.isReady }
             .reduce(into: [String: BaselineDTO]()) { $0[$1.metric] = $1 }
 
-        guard let dto = try? await api.report(parentId: parentId) else { return }
+        let dto: ReportDTO
+        do {
+            dto = try await api.report(parentId: parentId)
+        } catch {
+            if self.generation == generation { loadError = error.localizedDescription }
+            return
+        }
+        guard self.generation == generation else { return }
         let history = dto.recentAcousticHistory ?? dto.acousticTrends
         guard
             let trend = history
@@ -80,11 +97,11 @@ final class HomeViewModel {
         }
     }
 
-    private func loadLastCall(api: CollogAPI, parentId: String) async {
-        guard
-            let calls = try? await api.calls(parentId: parentId),
-            let latest = calls.first
-        else { return }
+    private func loadLastCall(api: CollogAPI, parentId: String) async -> String {
+        guard let calls = try? await api.calls(parentId: parentId) else {
+            return "통화 기록을 불러오지 못했어요"
+        }
+        guard let latest = calls.first else { return "아직 통화 기록이 없어요" }
 
         let calendar = Calendar.current
         let days = calendar.dateComponents(
@@ -93,7 +110,7 @@ final class HomeViewModel {
             to: calendar.startOfDay(for: Date())
         ).day ?? 0
 
-        lastCallText = switch days {
+        return switch days {
         case ..<1: "오늘 통화했어요"
         case 1: "어제 통화했어요"
         case 2: "그저께 통화했어요"

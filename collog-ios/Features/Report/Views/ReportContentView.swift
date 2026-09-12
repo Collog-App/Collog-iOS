@@ -29,8 +29,11 @@ struct ReportContentView: View {
                 Text("음향 추세")
                     .caption_01_medium(.gray800)
 
-                if isLoaded {
-                    TrendChartView(series: report.acousticTrend)
+                if isLoaded, let trend = report.acousticTrend {
+                    TrendChartView(series: trend)
+                } else if isLoaded {
+                    Text("아직 음향 분석 데이터가 없어요")
+                        .body_02_medium(.gray700)
                 } else {
                     RoundedRectangle(cornerRadius: Radius.btnXsmall, style: .continuous)
                         .fill(Color.gray100)

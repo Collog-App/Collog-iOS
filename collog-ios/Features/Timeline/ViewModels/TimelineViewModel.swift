@@ -12,7 +12,7 @@ final class TimelineViewModel {
     var selectedTabIndex: Int
 
     private(set) var pages: [Int: TimelineWeekPage] = [:]
-    private(set) var selectedMember = "어머니"
+    private(set) var selectedMember = "가족"
     private(set) var selectedContactId: String?
     private(set) var selectedRelation: String?
     private(set) var weekOffset = 0
@@ -54,6 +54,7 @@ final class TimelineViewModel {
     }
 
     func refresh(using environment: AppEnvironment, forceReload: Bool = false) async {
+        loadError = nil
         resolveSelection(using: environment)
         let generation = contentGeneration
 
@@ -65,7 +66,11 @@ final class TimelineViewModel {
             return
         }
 
-        guard let context = await loadContext(using: environment) else { return }
+        guard let context = await loadContext(using: environment) else {
+            pages[weekOffset] = TimelineWeekPage(offset: weekOffset, isLoaded: true)
+            loadError = environment.family.loadError
+            return
+        }
         guard generation == contentGeneration else { return }
 
         let anchor = weekOffset
@@ -91,7 +96,12 @@ final class TimelineViewModel {
             return
         }
 
-        guard offset <= 0, let context = await loadContext(using: environment) else { return }
+        guard offset <= 0 else { return }
+        guard let context = await loadContext(using: environment) else {
+            pages[offset] = TimelineWeekPage(offset: offset, isLoaded: true)
+            loadError = environment.family.loadError
+            return
+        }
         guard generation == contentGeneration else { return }
         await load(
             offset,
@@ -212,11 +222,17 @@ final class TimelineViewModel {
         baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
     ) async -> [CallTimelineEntry]? {
-        guard let calls = try? await api.calls(
-            parentId: parentId,
-            from: APIFormat.isoDate.string(from: bounds.start),
-            to: APIFormat.isoDate.string(from: bounds.end)
-        ) else { return nil }
+        let calls: [CallSummaryDTO]
+        do {
+            calls = try await api.calls(
+                parentId: parentId,
+                from: APIFormat.isoDate.string(from: bounds.start),
+                to: APIFormat.isoDate.string(from: bounds.end)
+            )
+        } catch {
+            loadError = error.localizedDescription
+            return nil
+        }
         let analyzed = calls.filter(\.isAnalyzed).prefix(5)
         guard !analyzed.isEmpty else { return [] }
 

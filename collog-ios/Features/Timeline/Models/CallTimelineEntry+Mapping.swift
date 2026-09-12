@@ -21,7 +21,6 @@ extension CallTimelineEntry {
 
         let speechRate = features.first { $0.metric == "SPEECH_RATE" && $0.isMeasured }
         let cough = features.first { $0.metric == "COUGH_EVENTS" && $0.isMeasured }
-        let repeatCount = bundle.transcript?.repeatRequestCount ?? 0
 
         var stats: [CallStat] = [
             CallStat(
@@ -42,9 +41,10 @@ extension CallTimelineEntry {
             )
         }
 
-        var counts: [CallStat] = [
-            CallStat(label: "되물으심", value: "\(repeatCount)", unit: "회", note: nil)
-        ]
+        var counts: [CallStat] = []
+        if let repeatCount = bundle.transcript?.repeatRequestCount {
+            counts.append(CallStat(label: "되물으심", value: "\(repeatCount)", unit: "회", note: nil))
+        }
         if let cough, let value = cough.value {
             counts.insert(
                 CallStat(label: "기침", value: "\(Int(value.rounded()))", unit: cough.unit, note: nil),
@@ -100,7 +100,8 @@ extension CallTimelineEntry {
                 let baseline = baselines[metric],
                 baseline.isReady,
                 let median = baseline.median,
-                let mad = baseline.mad
+                let mad = baseline.mad,
+                mad > 0
             else { return nil }
 
             let spread = mad * 1.5 / 0.6745
