@@ -70,6 +70,13 @@ struct RootView: View {
             environment.family.reset()
             Task { await authFlow.resolve(using: environment) }
         }
+        .onChange(of: environment.session.user?.role) { previous, current in
+            guard previous != nil, current != nil, environment.session.isAuthenticated else { return }
+            launcher.dismiss()
+            navigation = NavigationStore()
+            tabManager.selectedTab = .home
+            Task { await authFlow.resolve(using: environment) }
+        }
         .onChange(of: environment.settings.callNotificationsEnabled) {
             callCenter.registerDeviceIfPossible()
         }
@@ -130,7 +137,7 @@ struct RootView: View {
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
         case .ready:
             mainTabs
-                .id(isGuest ? "guest" : environment.session.user?.id ?? "signed-out")
+                .id(sessionIdentity)
                 .transition(.opacity.combined(with: .scale(scale: 0.99)))
         }
     }
@@ -181,6 +188,10 @@ struct RootView: View {
         }
         .onChange(of: environment.family.contacts) { syncLauncher() }
         .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
+    }
+
+    private var sessionIdentity: String {
+        isGuest ? "guest" : "\(environment.session.user?.id ?? "")-\(environment.session.user?.role ?? "")"
     }
 
     @ViewBuilder

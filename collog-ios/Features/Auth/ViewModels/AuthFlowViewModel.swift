@@ -49,22 +49,27 @@ final class AuthFlowViewModel {
 
         do {
             let consent = try await environment.api.myConsent()
+            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             guard consent.isGranted else {
                 step = .consent
                 return
             }
         } catch let error as APIError {
+            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = isMissingRecord(error) ? .consent : .ready
             return
         } catch {
+            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = .ready
             return
         }
 
         do {
             let profile = try await environment.api.profile(parentId: user.id)
+            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = profile.conditions.isEmpty ? .profile : .ready
         } catch {
+            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = .ready
         }
     }

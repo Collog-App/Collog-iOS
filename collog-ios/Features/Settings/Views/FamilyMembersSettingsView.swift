@@ -15,9 +15,11 @@ struct FamilyMembersSettingsView: View {
     @State private var showsInvitation = false
     @State private var selectedInvitation: FamilyInvitation?
     @State private var errorText: String?
+    @State private var serverAllowsInvitations = false
 
     private var canInvite: Bool {
         !environment.settings.isGuestMode && environment.session.user?.role == "CHILD"
+            && serverAllowsInvitations
     }
 
     var body: some View {
@@ -135,6 +137,7 @@ struct FamilyMembersSettingsView: View {
 
     private func load() async {
         errorText = nil
+        serverAllowsInvitations = false
         defer { isLoading = false }
         if environment.settings.isGuestMode {
             members = environment.family.contacts.map(ManagedFamilyMember.init(contact:))
@@ -144,9 +147,10 @@ struct FamilyMembersSettingsView: View {
         guard let familyId = environment.session.familyId else { return }
         let userId = environment.session.user?.id
         do {
-            let remote = try await environment.api.members(familyId: familyId)
+            let remote = try await environment.api.familyMembers(familyId: familyId)
             guard environment.session.user?.id == userId else { return }
-            members = remote.map(ManagedFamilyMember.init(member:))
+            members = remote.members.map(ManagedFamilyMember.init(member:))
+            serverAllowsInvitations = remote.canInvite ?? (environment.session.user?.role == "CHILD")
         } catch {
             guard environment.session.user?.id == userId else { return }
             errorText = error.localizedDescription
@@ -182,6 +186,7 @@ private struct ManagedFamilyMember: Identifiable {
         case "MOTHER": "어머니"
         case "FATHER": "아버지"
         case "CHILD": "자녀"
+        case "PARENT": "부모"
         default: "가족"
         }
     }
