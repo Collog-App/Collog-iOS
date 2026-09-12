@@ -1,22 +1,11 @@
-//
-//  LoginView.swift
-//  collog-ios
-//
-//  Created by dohyeoplim on 8/18/26.
-//
-
+import AuthenticationServices
 import SwiftUI
 
 struct LoginView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(\.scenePhase) private var scenePhase
     @State private var viewModel = LoginViewModel()
-    @FocusState private var focusedField: Field?
-
-    private enum Field: Hashable {
-        case name
-        case phone
-        case code
-    }
+    @FocusState private var isNameFocused: Bool
 
     var onSignedIn: () -> Void
 
@@ -24,18 +13,39 @@ struct LoginView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x6) {
                 VStack(alignment: .leading, spacing: Spacing.x2) {
-                    Text(headerTitle)
+                    Text("Apple 계정으로 시작하기")
                         .headline_02(.gray900)
-                    Text(headerMessage)
+                    Text("역할을 선택하고 가족과 통화를 시작하세요.")
                         .body_02_medium(.gray800)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                if viewModel.step == .identity {
-                    identityFields
-                } else {
-                    codeFields
+                VStack(alignment: .leading, spacing: Spacing.x4) {
+                    Text("역할")
+                        .caption_01_medium(.gray800)
+                    Picker("역할", selection: $viewModel.role) {
+                        ForEach(UserRoleOption.allCases) { option in
+                            Text(option.title).tag(option)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Text("가족에게 표시할 이름")
+                        .caption_01_medium(.gray800)
+                    TextField("비워두면 Apple 계정 이름을 사용해요", text: $viewModel.name)
+                        .pretendardStyle(.medium, 16)
+                        .textContentType(.name)
+                        .autocorrectionDisabled()
+                        .focused($isNameFocused)
+                        .submitLabel(.done)
+                        .onSubmit { isNameFocused = false }
+                        .padding(.horizontal, Spacing.x4)
+                        .frame(height: 52)
+                        .background(
+                            Color.gray00,
+                            in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                        )
                 }
+                .disabled(viewModel.isSubmitting)
 
                 if let errorMessage = viewModel.errorMessage ?? environment.session.storageError {
                     Text(errorMessage)
@@ -43,144 +53,71 @@ struct LoginView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                primaryButton
+                SignInWithAppleButton(.continue) { request in
+                    isNameFocused = false
+                    viewModel.configure(request)
+                } onCompletion: { result in
+                    Task {
+                        if await viewModel.complete(result, using: environment) {
+                            onSignedIn()
+                        }
+                    }
+                }
+                .signInWithAppleButtonStyle(.black)
+                .frame(height: 52)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.btnSmall))
+                .disabled(!viewModel.canSignIn)
+
+                if viewModel.isLoadingChallenge || viewModel.isSubmitting {
+                    ProgressView()
+                        .frame(maxWidth: .infinity)
+                } else if !viewModel.canSignIn {
+                    Button("로그인 다시 준비하기") {
+                        Task { await viewModel.prepareChallenge(using: environment) }
+                    }
+                    .frame(maxWidth: .infinity)
+                }
 
                 guestButton
+                    .disabled(viewModel.isSubmitting)
             }
             .padding(.horizontal, Spacing.x5)
-            .padding(.top, Spacing.x8)
-            .padding(.bottom, Spacing.x8)
+            .padding(.vertical, Spacing.x8)
         }
         .scrollDismissesKeyboard(.interactively)
         .background {
             Color.gray50
                 .ignoresSafeArea()
-                .onTapGesture { focusedField = nil }
+                .onTapGesture { isNameFocused = false }
         }
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
-                Button("완료") { focusedField = nil }
+                Button("완료") { isNameFocused = false }
             }
         }
-        .onChange(of: viewModel.step) { _, step in
-            if step == .code { focusedField = .code }
-        }
-    }
-
-    private var identityFields: some View {
-        VStack(alignment: .leading, spacing: Spacing.x4) {
-            VStack(alignment: .leading, spacing: Spacing.x2) {
-                Text("역할")
-                    .caption_01_medium(.gray800)
-
-                Picker("역할", selection: $viewModel.role) {
-                    ForEach(UserRoleOption.allCases) { option in
-                        Text(option.title).tag(option)
-                    }
+        .task {
+            await viewModel.prepareChallenge(using: environment)
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch {
+                    return
                 }
-                .pickerStyle(.segmented)
+                await viewModel.refreshChallengeIfNeeded(using: environment)
             }
-
-            field(
-                title: "이름",
-                placeholder: "김콜록",
-                text: $viewModel.name,
-                keyboard: .default,
-                focus: .name
-            )
-            field(
-                title: "전화번호",
-                placeholder: "01000000001",
-                text: $viewModel.phone,
-                keyboard: .numberPad,
-                focus: .phone
-            )
         }
-    }
-
-    private var headerTitle: String {
-        viewModel.step == .identity ? "전화번호로 시작하기" : "인증번호를 입력해주세요"
-    }
-
-    private var headerMessage: String {
-        if viewModel.step == .identity {
-            return "가족을 연결하고 통화를 기록하려면 번호가 필요해요."
-        }
-        return "\(viewModel.phone)로 보낸 6자리 숫자를 입력해주세요."
-    }
-
-    private var codeFields: some View {
-        VStack(alignment: .leading, spacing: Spacing.x2) {
-            field(
-                title: "인증번호",
-                placeholder: "000000",
-                text: $viewModel.code,
-                keyboard: .numberPad,
-                focus: .code
-            )
-
-            Text("개발 서버의 인증번호는 000000이에요")
-                .caption_01_medium(.gray700)
-        }
-    }
-
-    private func field(
-        title: String,
-        placeholder: String,
-        text: Binding<String>,
-        keyboard: UIKeyboardType,
-        focus: Field
-    ) -> some View {
-        VStack(alignment: .leading, spacing: Spacing.x2) {
-            Text(title)
-                .caption_01_medium(.gray800)
-
-            TextField(placeholder, text: text)
-                .pretendardStyle(.medium, 16)
-                .keyboardType(keyboard)
-                .textContentType(contentType(for: focus))
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .focused($focusedField, equals: focus)
-                .submitLabel(focus == .name ? .next : .done)
-                .onSubmit {
-                    focusedField = focus == .name ? .phone : nil
-                }
-                .padding(.horizontal, Spacing.x4)
-                .frame(height: 52)
-                .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
-        }
-    }
-
-    private var primaryButton: some View {
-        Button {
-            focusedField = nil
-            Task {
-                if viewModel.step == .identity {
-                    await viewModel.requestCode(using: environment)
-                } else if await viewModel.verify(using: environment) {
-                    onSignedIn()
-                }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                Task { await viewModel.refreshChallengeIfNeeded(using: environment) }
             }
-        } label: {
-            Text(viewModel.step == .identity ? "인증번호 받기" : "확인")
-                .body_01_semibold(.gray00)
-                .frame(maxWidth: .infinity)
-                .frame(height: 52)
-                .background(
-                    isEnabled ? Color.greenNormal : Color.gray500,
-                    in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
-                )
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
     }
 
     private var guestButton: some View {
         VStack(spacing: Spacing.x2) {
             Button {
-                focusedField = nil
+                isNameFocused = false
                 environment.settings.isGuestMode = true
                 onSignedIn()
             } label: {
@@ -200,18 +137,6 @@ struct LoginView: View {
                 .caption_01_medium(.gray700)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
-        }
-    }
-
-    private var isEnabled: Bool {
-        viewModel.step == .identity ? viewModel.canRequestCode : viewModel.canVerify
-    }
-
-    private func contentType(for field: Field) -> UITextContentType? {
-        switch field {
-        case .name: .name
-        case .phone: .telephoneNumber
-        case .code: .oneTimeCode
         }
     }
 }

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
@@ -28,7 +29,15 @@ struct RootView: View {
             authContent(for: authFlow.step)
         }
         .animation(.easeInOut(duration: 0.2), value: authFlow.step)
-        .task { await authFlow.resolve(using: environment) }
+        .task {
+            await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL)
+            await authFlow.resolve(using: environment)
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: ASAuthorizationAppleIDProvider.credentialRevokedNotification
+        )) { _ in
+            Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
+        }
         .onChange(of: environment.session.isAuthenticated) {
             if !environment.session.isAuthenticated {
                 callCenter.endActiveCall()
@@ -52,6 +61,7 @@ struct RootView: View {
         .onChange(of: scenePhase) {
             if scenePhase == .active, environment.session.isAuthenticated {
                 callCenter.updateNotificationAuthorization()
+                Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
             }
         }
         .onChange(of: environment.reportNotificationRevision) {

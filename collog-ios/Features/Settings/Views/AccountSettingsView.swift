@@ -26,8 +26,10 @@ struct AccountSettingsView: View {
                 SettingsSection(title: "기본 정보") {
                     SettingsValueRow(label: "이름", value: displayName)
                     DividerLine()
-                    SettingsValueRow(label: "전화번호", value: phoneText)
-                    DividerLine()
+                    if let phone = environment.session.user?.phone {
+                        SettingsValueRow(label: "전화번호", value: phone)
+                        DividerLine()
+                    }
                     SettingsValueRow(label: "역할", value: roleText)
                 }
 
@@ -47,10 +49,6 @@ struct AccountSettingsView: View {
 
     private var displayName: String {
         environment.session.user?.name ?? "데모 사용자"
-    }
-
-    private var phoneText: String {
-        environment.session.user?.phone ?? "010-0000-0000"
     }
 
     private var roleText: String {

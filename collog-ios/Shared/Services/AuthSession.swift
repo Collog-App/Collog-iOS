@@ -7,6 +7,7 @@
 
 import SwiftUI
 import Security
+import AuthenticationServices
 
 @Observable
 final class AuthSession {
@@ -82,6 +83,25 @@ final class AuthSession {
 
         [Key.accessToken, Key.refreshToken, Key.user].forEach(defaults.removeObject(forKey:))
         onAccountChanged?()
+    }
+
+    func checkAppleCredential(using baseURL: URL) async {
+        guard let appleUserId = user?.appleUserId else { return }
+        let currentGeneration = generation
+        do {
+            let state = try await ASAuthorizationAppleIDProvider().credentialState(forUserID: appleUserId)
+            guard currentGeneration == generation, user?.appleUserId == appleUserId else { return }
+            if state == .revoked || state == .notFound {
+                let refreshToken = refreshToken
+                signOut()
+                if let refreshToken {
+                    let api = CollogAPI(client: CollogAPIClient(baseURL: baseURL))
+                    try? await api.logout(refreshToken: refreshToken)
+                }
+            }
+        } catch {
+            return
+        }
     }
 
     func joinFamily(_ familyId: String) throws {
