@@ -1,0 +1,11 @@
+default_platform(:ios)
+
+platform :ios do
+  lane :certificates do
+    match(type: "development", readonly: true)
+  end
+
+  lane :create_certificates do
+    match(type: "development", readonly: false)
+  end
+end

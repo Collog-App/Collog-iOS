@@ -1,0 +1,6 @@
+storage_mode("git")
+git_url("git@github.com:Collog-App/Collog-Certificate.git")
+team_id("3X4434LYHD")
+app_identifier("com.dohyeoplim.collog-ios")
+type("development")
+readonly(true)

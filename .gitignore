@@ -6,3 +6,8 @@ xcuserdata/
 *.xcuserstate
 build/
 DerivedData/
+
+.bundle/
+vendor/bundle/
+fastlane/.env*
+fastlane/report.xml
