@@ -36,7 +36,13 @@ final class HomeViewModel {
         }
 
         guard environment.session.isAuthenticated else { return }
-        let resolvedId = if let userId = contact?.userId { userId } else { await environment.subjectParentId() }
+        let resolvedId = if environment.session.user?.role == "PARENT" {
+            environment.session.user?.id
+        } else if let userId = contact?.userId {
+            userId
+        } else {
+            await environment.subjectParentId()
+        }
         guard let parentId = resolvedId else { return }
 
         if showsLoading { isLoaded = false }
@@ -70,7 +76,8 @@ final class HomeViewModel {
 
         let signal = dto.promotedSignals.first ?? dto.acuteSignals.first
         healthSummary = FamilyHealthSummary(
-            memberName: contact?.name ?? "가족",
+            memberName: environment.session.user?.role == "PARENT"
+                ? environment.session.user?.name ?? "나" : contact?.name ?? "가족",
             periodText: APIFormat.shortRange(from: dto.from, to: dto.to),
             headline: signal.map { MetricLabel.korean(for: $0.metric) + "에 변화가 보여요" }
                 ?? "평소 범위 안에서 지내고 계세요",

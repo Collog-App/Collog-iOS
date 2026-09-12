@@ -165,6 +165,9 @@ struct HomeView: View {
     private func select(_ contact: FamilyContact) {
         guard environment.family.selectedContactId != contact.id else { return }
         Haptics.focus()
+        questionGenerationId = nil
+        isGeneratingQuestions = false
+        questionError = nil
         withAnimation(.easeInOut(duration: 0.18)) {
             environment.family.selectContact(contact)
         }
@@ -178,19 +181,22 @@ struct HomeView: View {
         isGeneratingQuestions = true
         questionError = nil
         let existing = selectedQuestions.map(\.text)
+        let userId = environment.session.user?.id
 
         if !environment.settings.isGuestMode {
             Task {
                 do {
-                    guard let parentId = selectedContact.userId else { throw APIError.unauthenticated }
+                    let parentId = environment.session.user?.role == "PARENT" ? userId : selectedContact.userId
+                    guard let parentId else { throw APIError.unauthenticated }
                     let questions = try await environment.api.dailyQuestions(parentId: parentId)
+                    guard environment.session.user?.id == userId else { return }
                     completeQuestionGeneration(
                         questions.map(\.text),
                         contact: selectedContact,
                         generationId: generationId
                     )
                 } catch {
-                    guard questionGenerationId == generationId else { return }
+                    guard questionGenerationId == generationId, environment.session.user?.id == userId else { return }
                     questionError = error.localizedDescription
                     questionGenerationId = nil
                     isGeneratingQuestions = false
@@ -227,7 +233,7 @@ struct HomeView: View {
         contact: FamilyContact,
         generationId: UUID
     ) {
-        guard questionGenerationId == generationId else { return }
+        guard questionGenerationId == generationId, environment.family.selectedContactId == contact.id else { return }
         environment.family.saveQuestions(questions, for: contact)
         questionGenerationId = nil
         isGeneratingQuestions = false

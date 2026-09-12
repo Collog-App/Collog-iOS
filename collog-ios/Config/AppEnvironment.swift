@@ -35,7 +35,7 @@ final class AppEnvironment {
         if user.role == UserRoleOption.parent.rawValue { return user.id }
         guard let familyId = user.familyId else { return nil }
         let members = try? await api.members(familyId: familyId)
-        return members?.first { $0.userId != nil }?.userId
+        return members?.first { $0.userId != nil && $0.role != "CHILD" && $0.userId != user.id }?.userId
     }
 
     var api: CollogAPI {

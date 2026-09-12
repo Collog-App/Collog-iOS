@@ -20,6 +20,7 @@ final class FamilyStore {
     private(set) var loadError: String?
 
     @ObservationIgnored private let defaults: UserDefaults
+    @ObservationIgnored private var refreshGeneration = UUID()
 
     var callableContacts: [FamilyContact] { contacts.filter(\.isCallable) }
 
@@ -37,7 +38,7 @@ final class FamilyStore {
     }
 
     func questions(for contact: FamilyContact?) -> [PreviewQuestion] {
-        let source = contact.flatMap { generatedQuestions[$0.id] } ?? questions
+        let source = contact.flatMap { generatedQuestions[$0.id] } ?? []
         return source.reduce(into: [PreviewQuestion]()) { result, question in
             guard !result.contains(where: { $0.text == question.text }) else { return }
             result.append(question)
@@ -46,6 +47,7 @@ final class FamilyStore {
 
     func selectContact(_ contact: FamilyContact) {
         selectedContactId = contact.id
+        refreshGeneration = UUID()
     }
 
     func saveQuestions(_ texts: [String], for contact: FamilyContact) {
@@ -55,9 +57,14 @@ final class FamilyStore {
     }
 
     func refresh(using environment: AppEnvironment) async {
+        let generation = UUID()
+        refreshGeneration = generation
         if environment.settings.isGuestMode {
             contacts = FamilyContact.samples
             questions = PreviewQuestion.samples
+            for contact in contacts where generatedQuestions[contact.id] == nil {
+                generatedQuestions[contact.id] = questions
+            }
             selectedContactId = selectedContact?.id
             return
         }
@@ -67,18 +74,25 @@ final class FamilyStore {
         }
         let userId = environment.session.user?.id
         do {
-            let previousRelation = selectedContact?.relation
-            let members = try await environment.api.members(familyId: familyId).filter(\.isCallable)
-            guard environment.session.user?.id == userId else { return }
+            let members = try await environment.api.members(familyId: familyId).filter {
+                $0.isCallable && $0.userId != userId && $0.role != environment.session.user?.role
+            }
+            guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
             contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
-            selectedContactId = contacts.first { $0.relation == previousRelation }?.id ?? contacts.first?.id
+            if !contacts.contains(where: { $0.id == selectedContactId }) {
+                selectedContactId = contacts.first?.id
+            }
             loadError = nil
         } catch {
-            guard environment.session.user?.id == userId else { return }
+            guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
             loadError = error.localizedDescription
+            return
         }
 
-        let parentId = if let userId = selectedContact?.userId {
+        let contactId = selectedContactId
+        let parentId = if environment.session.user?.role == "PARENT" {
+            userId
+        } else if let userId = selectedContact?.userId {
             userId
         } else {
             await environment.subjectParentId()
@@ -86,18 +100,21 @@ final class FamilyStore {
         guard let parentId else { return }
         do {
             let remote = try await environment.api.dailyQuestions(parentId: parentId)
-            guard environment.session.user?.id == userId else { return }
+            guard environment.session.user?.id == userId, refreshGeneration == generation,
+                  selectedContactId == contactId else { return }
             questions = remote.map { PreviewQuestion(text: $0.text) }
-            if let selectedContactId { generatedQuestions[selectedContactId] = questions }
+            if let contactId { generatedQuestions[contactId] = questions }
         } catch {
-            guard environment.session.user?.id == userId else { return }
+            guard environment.session.user?.id == userId, refreshGeneration == generation,
+                  selectedContactId == contactId else { return }
             questions = []
-            if let selectedContactId { generatedQuestions.removeValue(forKey: selectedContactId) }
+            if let contactId { generatedQuestions.removeValue(forKey: contactId) }
             loadError = error.localizedDescription
         }
     }
 
     func reset() {
+        refreshGeneration = UUID()
         contacts = []
         questions = []
         generatedQuestions = [:]
