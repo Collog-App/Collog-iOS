@@ -9,6 +9,7 @@ import SwiftUI
 
 struct HomeNotificationsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(CallCenter.self) private var callCenter
     @Environment(TabManager.self) private var tabManager
 
     var body: some View {
@@ -23,10 +24,20 @@ struct HomeNotificationsView: View {
 
                     DividerLine()
                         .padding(.leading, Spacing.x4)
-
                     Toggle("리포트 알림", isOn: $settings.reportNotificationsEnabled)
                         .pretendardStyle(.medium, 14, .gray900)
                         .padding(Spacing.x4)
+
+                    if let error = callCenter.deviceRegistrationError {
+                        Text(error)
+                            .caption_01_medium(.red500)
+                            .padding(Spacing.x4)
+                    }
+                    if let error = callCenter.notificationPermissionError {
+                        Text(error)
+                            .caption_01_medium(.red500)
+                            .padding(Spacing.x4)
+                    }
                 }
                 .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.card))
 
@@ -34,23 +45,43 @@ struct HomeNotificationsView: View {
                     .body_01_semibold(.gray900)
                     .padding(.leading, Spacing.x1)
 
-                VStack(spacing: Spacing.x3) {
-                    Button(action: openReport) {
+                if environment.settings.isGuestMode {
+                    VStack(spacing: Spacing.x3) {
+                        Button(action: openReport) {
+                            notificationRow(
+                                symbol: "doc.text.fill",
+                                title: "이번 주 리포트가 준비됐어요",
+                                message: "최근 통화에서 확인한 내용을 정리했어요.",
+                                time: "오늘"
+                            )
+                        }
+                        .buttonStyle(.plain)
+
                         notificationRow(
-                            symbol: "doc.text.fill",
-                            title: "이번 주 리포트가 준비됐어요",
-                            message: "최근 통화에서 확인한 내용을 정리했어요.",
-                            time: "오늘"
+                            symbol: "bubble.left.and.text.bubble.right.fill",
+                            title: "오늘의 질문이 도착했어요",
+                            message: "다음 통화에서 나눌 질문을 확인해보세요.",
+                            time: "어제"
                         )
                     }
-                    .buttonStyle(.plain)
-
-                    notificationRow(
-                        symbol: "bubble.left.and.text.bubble.right.fill",
-                        title: "오늘의 질문이 도착했어요",
-                        message: "다음 통화에서 나눌 질문을 확인해보세요.",
-                        time: "어제"
-                    )
+                } else if !environment.reportNotifications.isEmpty {
+                    VStack(spacing: Spacing.x3) {
+                        ForEach(environment.reportNotifications) { notification in
+                            Button(action: openReport) {
+                                notificationRow(
+                                    symbol: "doc.text.fill",
+                                    title: notification.title,
+                                    message: notification.message,
+                                    time: notification.date.formatted(date: .numeric, time: .shortened)
+                                )
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                } else {
+                    Text("표시할 알림이 없어요")
+                        .body_02_medium(.gray700)
+                        .cardSurface()
                 }
             }
             .padding(.horizontal, Spacing.x5)
@@ -101,9 +132,11 @@ struct HomeNotificationsView: View {
 }
 
 #Preview {
+    let environment = AppEnvironment()
     NavigationStack {
         HomeNotificationsView()
-            .environment(AppEnvironment())
+            .environment(environment)
+            .environment(CallCenter(environment: environment))
             .environment(TabManager())
     }
 }

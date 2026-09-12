@@ -10,6 +10,7 @@ import SwiftUI
 struct RootView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(CallCenter.self) private var callCenter
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var tabManager = TabManager()
     @State private var navigation = NavigationStore()
@@ -29,10 +30,33 @@ struct RootView: View {
         .animation(.easeInOut(duration: 0.2), value: authFlow.step)
         .task { await authFlow.resolve(using: environment) }
         .onChange(of: environment.session.isAuthenticated) {
+            if !environment.session.isAuthenticated {
+                callCenter.endActiveCall()
+                launcher.dismiss()
+            }
             Task { await authFlow.resolve(using: environment) }
         }
         .onChange(of: environment.settings.isGuestMode) {
+            environment.family.reset()
             Task { await authFlow.resolve(using: environment) }
+        }
+        .onChange(of: environment.settings.callNotificationsEnabled) {
+            callCenter.registerDeviceIfPossible()
+        }
+        .onChange(of: environment.settings.reportNotificationsEnabled) {
+            callCenter.updateNotificationAuthorization()
+        }
+        .onChange(of: environment.settings.questionVoiceEnabled) {
+            callCenter.updateQuestionVoicePreference()
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase == .active, environment.session.isAuthenticated {
+                callCenter.updateNotificationAuthorization()
+            }
+        }
+        .onChange(of: environment.reportNotificationRevision) {
+            navigation.popToRoot(.report)
+            tabManager.selectedTab = .report
         }
         .fullScreenCover(isPresented: callPresentation) {
             callScreen
@@ -56,6 +80,7 @@ struct RootView: View {
         case .login:
             LoginView {
                 callCenter.registerDeviceIfPossible()
+                if environment.session.isAuthenticated { callCenter.updateNotificationAuthorization() }
                 Task { await authFlow.resolve(using: environment) }
             }
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
@@ -76,6 +101,7 @@ struct RootView: View {
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
         case .ready:
             mainTabs
+                .id(isGuest ? "guest" : environment.session.user?.id ?? "signed-out")
                 .transition(.opacity.combined(with: .scale(scale: 0.99)))
         }
     }
@@ -86,6 +112,7 @@ struct RootView: View {
                 ZStack {
                     tabContent
                         .id(tabManager.selectedTab)
+                        .id(environment.reportNotificationRevision)
                         .transition(.opacity)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)

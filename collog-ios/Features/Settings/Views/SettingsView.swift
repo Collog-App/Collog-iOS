@@ -16,6 +16,7 @@ private enum SettingsRoute: Hashable {
 
 struct SettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(CallCenter.self) private var callCenter
     @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
     @Environment(\.openURL) private var openURL
@@ -49,15 +50,25 @@ struct SettingsView: View {
                         DividerLine()
                         SettingsToggleRow(
                             label: "리포트 알림",
-                            caption: "주간 리포트가 준비되면 알려드려요",
+                            caption: "새 통화 기록이 준비되면 알려드려요",
                             isOn: $settings.reportNotificationsEnabled
                         )
+                        if let error = callCenter.deviceRegistrationError {
+                            Text(error)
+                                .caption_01_medium(.red500)
+                                .padding(Spacing.x4)
+                        }
+                        if let error = callCenter.notificationPermissionError {
+                            Text(error)
+                                .caption_01_medium(.red500)
+                                .padding(Spacing.x4)
+                        }
                     }
 
                     SettingsSection(title: "통화") {
                         SettingsToggleRow(
                             label: "질문 음성 안내",
-                            caption: "연결을 기다리는 동안 오늘의 질문을 읽어줘요",
+                            caption: "상대가 전화를 받기 전에 오늘의 질문을 읽어줘요",
                             isOn: $settings.questionVoiceEnabled
                         )
                     }
@@ -172,8 +183,10 @@ extension Bundle {
 }
 
 #Preview {
+    let environment = AppEnvironment()
     SettingsView()
-        .environment(AppEnvironment())
+        .environment(environment)
+        .environment(CallCenter(environment: environment))
         .environment(NavigationStore())
         .environment(TabManager())
 }

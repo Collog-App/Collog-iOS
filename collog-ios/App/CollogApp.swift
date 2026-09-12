@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UIKit
+import UserNotifications
 
 @main
 struct CollogApp: App {
@@ -22,7 +23,7 @@ struct CollogApp: App {
     }
 }
 
-final class AppDelegate: NSObject, UIApplicationDelegate {
+final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
     let environment = AppEnvironment()
     private(set) lazy var callCenter = CallCenter(environment: environment)
 
@@ -32,6 +33,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         FontRegistrar.registerIfNeeded()
         NavigationBarAppearance.apply()
+        UNUserNotificationCenter.current().delegate = self
         callCenter.start()
         return true
     }
@@ -47,6 +49,36 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: Error
     ) {
-        callCenter.log("APNs 등록 실패: \(error.localizedDescription)")
+        callCenter.setRemoteNotificationError(error.localizedDescription)
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification
+    ) async -> UNNotificationPresentationOptions {
+        await receiveReportNotification(notification, openReport: false)
+        return [.banner, .sound]
+    }
+
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        await receiveReportNotification(response.notification, openReport: true)
+    }
+
+    private nonisolated func receiveReportNotification(_ notification: UNNotification, openReport: Bool) async {
+        guard let report = notification.request.content.userInfo["report"] as? [String: Any],
+              let callId = report["callId"] as? String, !callId.isEmpty else { return }
+        let title = notification.request.content.title
+        let message = notification.request.content.body
+        await MainActor.run {
+            environment.receiveReportNotification(
+                callId: callId,
+                title: title,
+                message: message,
+                openReport: openReport
+            )
+        }
     }
 }
