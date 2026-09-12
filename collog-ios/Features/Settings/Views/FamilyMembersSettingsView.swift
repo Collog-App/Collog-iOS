@@ -13,6 +13,12 @@ struct FamilyMembersSettingsView: View {
     @State private var members: [ManagedFamilyMember] = []
     @State private var isLoading = true
     @State private var showsInvitation = false
+    @State private var selectedInvitation: FamilyInvitation?
+    @State private var errorText: String?
+
+    private var canInvite: Bool {
+        !environment.settings.isGuestMode && environment.session.user?.role == "CHILD"
+    }
 
     var body: some View {
         ScrollView {
@@ -37,23 +43,30 @@ struct FamilyMembersSettingsView: View {
                     }
                 }
 
-                Button {
-                    showsInvitation = true
-                } label: {
-                    HStack(spacing: Spacing.x2) {
-                        Icon(name: "plus", size: 16, weight: .semibold, color: .greenDark)
-                        Text("가족 초대하기")
-                            .body_02_semibold(.greenDark)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 52)
-                    .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: Radius.btnSmall)
-                            .stroke(Color.green200, lineWidth: 1)
-                    }
+                if let errorText {
+                    Text(errorText).body_03_medium(.red500)
+                    Button("다시 시도") { Task { await load() } }
                 }
-                .buttonStyle(.plain)
+
+                if canInvite {
+                    Button {
+                        showsInvitation = true
+                    } label: {
+                        HStack(spacing: Spacing.x2) {
+                            Icon(name: "plus", size: 16, weight: .semibold, color: .greenDark)
+                            Text("가족 초대하기")
+                                .body_02_semibold(.greenDark)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.btnSmall)
+                                .stroke(Color.green200, lineWidth: 1)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x4)
@@ -65,12 +78,19 @@ struct FamilyMembersSettingsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
         .sheet(isPresented: $showsInvitation) {
-            FamilyInvitationSheet { member in
-                members.append(member)
+            FamilyInvitationSheet {
+                Task { await load() }
             }
             .environment(environment)
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
+        }
+        .sheet(item: $selectedInvitation) { invitation in
+            ExistingInvitationSheet(invitation: invitation) {
+                Task { await load() }
+            }
+            .environment(environment)
+            .presentationDetents([.medium])
         }
     }
 
@@ -96,8 +116,13 @@ struct FamilyMembersSettingsView: View {
 
             Spacer(minLength: Spacing.x3)
 
-            Text(member.isConnected ? "통화 가능" : "초대 대기")
+            Text(member.isConnected ? "가입 완료" : member.invitation?.isExpired == true ? "초대 만료" : "초대 대기")
                 .caption_01_semibold(member.isConnected ? .greenDark : .gray700)
+            if canInvite, let invitation = member.invitation, !member.isConnected {
+                Button { selectedInvitation = invitation } label: {
+                    Text("초대 보기").body_03_medium(.greenDark)
+                }
+            }
         }
         .padding(.horizontal, Spacing.x4)
         .frame(height: 72)
@@ -109,6 +134,7 @@ struct FamilyMembersSettingsView: View {
     }
 
     private func load() async {
+        errorText = nil
         defer { isLoading = false }
         if environment.settings.isGuestMode {
             members = environment.family.contacts.map(ManagedFamilyMember.init(contact:))
@@ -116,8 +142,14 @@ struct FamilyMembersSettingsView: View {
         }
 
         guard let familyId = environment.session.familyId else { return }
-        if let remote = try? await environment.api.members(familyId: familyId) {
+        let userId = environment.session.user?.id
+        do {
+            let remote = try await environment.api.members(familyId: familyId)
+            guard environment.session.user?.id == userId else { return }
             members = remote.map(ManagedFamilyMember.init(member:))
+        } catch {
+            guard environment.session.user?.id == userId else { return }
+            errorText = error.localizedDescription
         }
     }
 }
@@ -127,12 +159,14 @@ private struct ManagedFamilyMember: Identifiable {
     let name: String
     let relation: String
     let isConnected: Bool
+    let invitation: FamilyInvitation?
 
     init(contact: FamilyContact) {
         id = contact.id
         name = contact.name
         relation = contact.relation
         isConnected = true
+        invitation = nil
     }
 
     init(member: FamilyMember) {
@@ -140,19 +174,14 @@ private struct ManagedFamilyMember: Identifiable {
         name = member.name
         relation = member.relation
         isConnected = member.userId != nil
-    }
-
-    init(id: String, name: String, relation: String, isConnected: Bool) {
-        self.id = id
-        self.name = name
-        self.relation = relation
-        self.isConnected = isConnected
+        invitation = member.invitation
     }
 
     var relationTitle: String {
         switch relation {
         case "MOTHER": "어머니"
         case "FATHER": "아버지"
+        case "CHILD": "자녀"
         default: "가족"
         }
     }
@@ -169,7 +198,7 @@ private struct FamilyInvitationSheet: View {
     @State private var isSubmitting = false
     @State private var errorText: String?
 
-    let onCreated: (ManagedFamilyMember) -> Void
+    let onCreated: () -> Void
 
     var body: some View {
         NavigationStack {
@@ -261,21 +290,7 @@ private struct FamilyInvitationSheet: View {
         errorText = nil
         defer { isSubmitting = false }
 
-        if environment.settings.isGuestMode {
-            let code = String(format: "%06d", Int.random(in: 0...999_999))
-            invitationCode = code
-            shareText = "콜록 가족 초대 코드 \(code)를 앱에 입력해주세요."
-            onCreated(
-                ManagedFamilyMember(
-                    id: UUID().uuidString,
-                    name: name,
-                    relation: relation,
-                    isConnected: false
-                )
-            )
-            Haptics.commit()
-            return
-        }
+        guard !environment.settings.isGuestMode, environment.session.user?.role == "CHILD" else { return }
 
         guard let familyId = environment.session.familyId else { return }
         do {
@@ -286,17 +301,54 @@ private struct FamilyInvitationSheet: View {
             )
             invitationCode = invitation.code
             shareText = invitation.shareText
-            onCreated(
-                ManagedFamilyMember(
-                    id: invitation.invitationId,
-                    name: name,
-                    relation: relation,
-                    isConnected: false
-                )
-            )
+            onCreated()
             Haptics.commit()
         } catch {
             errorText = error.localizedDescription
+        }
+    }
+}
+
+private struct ExistingInvitationSheet: View {
+    @Environment(AppEnvironment.self) private var environment
+    @State var invitation: FamilyInvitation
+    @State private var replacement: InvitationDTO?
+    @State private var isSubmitting = false
+    @State private var errorText: String?
+    let onUpdated: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.x4) {
+            Text("가족 초대").headline_02(.gray900)
+            if replacement != nil || !invitation.isExpired {
+                Text(replacement?.code ?? invitation.code)
+                    .pretendard(.semiBold, 28, .gray900)
+                    .textSelection(.enabled)
+                ShareLink("초대 내용 공유", item: replacement?.shareText ?? invitation.shareText)
+            } else {
+                Text("초대가 만료됐어요. 새 코드를 만들어 주세요.").body_03_medium(.gray700)
+            }
+            Button(isSubmitting ? "만드는 중" : "새 초대 코드 만들기") {
+                Task { await resend() }
+            }
+            .disabled(isSubmitting)
+            if let errorText { Text(errorText).body_03_medium(.red500) }
+        }
+        .padding(Spacing.x5)
+    }
+
+    private func resend() async {
+        isSubmitting = true
+        errorText = nil
+        defer { isSubmitting = false }
+        do {
+            replacement = try await environment.api.resendInvitation(
+                invitationId: replacement?.invitationId ?? invitation.invitationId
+            )
+            onUpdated()
+        } catch {
+            errorText = error.localizedDescription
+            onUpdated()
         }
     }
 }
