@@ -10,6 +10,30 @@ import Foundation
 struct CollogAPI {
     let client: CollogAPIClient
 
+    func appleLoginChallenge() async throws -> AppleLoginChallenge {
+        try await client.send(
+            APIEndpoint(path: "/v1/auth/apple/challenge", method: .post, requiresAuth: false)
+        )
+    }
+
+    func loginWithApple(
+        identityToken: String,
+        challengeId: String,
+        role: String,
+        name: String?
+    ) async throws -> TokenResponse {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/auth/apple",
+                method: .post,
+                body: AppleLoginBody(
+                    identityToken: identityToken, challengeId: challengeId, role: role, name: name
+                ),
+                requiresAuth: false
+            )
+        )
+    }
+
     func requestOtp(phone: String, role: String, name: String) async throws {
         try await client.sendRaw(
             APIEndpoint(

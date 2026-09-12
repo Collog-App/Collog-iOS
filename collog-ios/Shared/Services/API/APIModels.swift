@@ -11,7 +11,8 @@ struct APIUser: Codable, Identifiable, Hashable {
     let id: String
     let role: String
     let name: String
-    let phone: String
+    let phone: String?
+    var appleUserId: String?
     var familyId: String?
 }
 
@@ -19,6 +20,19 @@ struct TokenResponse: Codable {
     let accessToken: String
     let refreshToken: String
     let user: APIUser
+}
+
+struct AppleLoginChallenge: Decodable {
+    let challengeId: String
+    let nonce: String
+    let expiresIn: Int
+}
+
+struct AppleLoginBody: Encodable {
+    let identityToken: String
+    let challengeId: String
+    let role: String
+    let name: String?
 }
 
 struct RefreshTokenBody: Encodable {
