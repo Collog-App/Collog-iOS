@@ -13,6 +13,7 @@ final class AuthFlowViewModel {
         case launching
         case onboarding
         case login
+        case invitation
         case consent
         case profile
         case ready
@@ -39,6 +40,10 @@ final class AuthFlowViewModel {
         }
         guard user.role == UserRoleOption.parent.rawValue else {
             step = .ready
+            return
+        }
+        guard user.familyId != nil else {
+            step = .invitation
             return
         }
 

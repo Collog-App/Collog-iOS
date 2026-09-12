@@ -64,6 +64,11 @@ struct RootView: View {
                 Task { await authFlow.resolve(using: environment) }
             }
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
+        case .invitation:
+            InvitationAcceptView {
+                Task { await authFlow.resolve(using: environment) }
+            }
+            .transition(.opacity.combined(with: .scale(scale: 0.99)))
         case .profile:
             HealthProfileSetupView {
                 Task { await authFlow.resolve(using: environment) }
