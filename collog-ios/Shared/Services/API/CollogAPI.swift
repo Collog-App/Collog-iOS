@@ -144,6 +144,12 @@ struct CollogAPI {
         )
     }
 
+    func resendInvitation(invitationId: String) async throws -> InvitationDTO {
+        try await client.send(
+            APIEndpoint(path: "/v1/invitations/\(invitationId)/resend", method: .post)
+        )
+    }
+
     func acceptInvitation(code: String) async throws -> InvitationAccepted {
         try await client.send(
             APIEndpoint(

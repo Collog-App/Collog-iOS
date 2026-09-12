@@ -62,6 +62,8 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
     let status: String
 
     var id: String { memberId }
+    let role: String?
+    let invitation: FamilyInvitation?
     var isCallable: Bool { userId != nil }
 
     var relationTitle: String {
@@ -71,6 +73,17 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
         default: name
         }
     }
+}
+
+struct FamilyInvitation: Decodable, Hashable, Identifiable {
+    let invitationId: String
+    let code: String
+    let shareText: String
+    let expiresAt: Date
+    let status: String
+
+    var id: String { invitationId }
+    var isExpired: Bool { status == "EXPIRED" || expiresAt <= Date() }
 }
 
 struct FamilyMembersResponse: Decodable {
@@ -105,6 +118,9 @@ struct AudioConstraints: Decodable, Hashable {
 
 struct CallCreated: Decodable {
     let callId: String
+    let callerId: String?
+    let calleeId: String?
+    let rawCaptureRequired: Bool?
     let livekitUrl: String
     let roomName: String
     let accessToken: String
