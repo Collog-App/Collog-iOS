@@ -25,6 +25,27 @@ struct RootView: View {
     private var isGuest: Bool { environment.settings.isGuestMode }
 
     var body: some View {
+        sessionContent
+            .alert("통화를 진행할 수 없어요", isPresented: Binding(
+                get: { callCenter.callError != nil },
+                set: { if !$0 { callCenter.callError = nil } }
+            )) {
+                if callCenter.needsMicrophoneSettings {
+                    Button("설정으로 이동") {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                    }
+                }
+                Button("확인", role: .cancel) { callCenter.callError = nil }
+            } message: {
+                Text(callCenter.callError ?? "")
+            }
+            .environment(tabManager)
+            .environment(navigation)
+    }
+
+    private var sessionContent: some View {
         ZStack {
             authContent(for: authFlow.step)
         }
@@ -71,8 +92,6 @@ struct RootView: View {
         .fullScreenCover(isPresented: callPresentation) {
             callScreen
         }
-        .environment(tabManager)
-        .environment(navigation)
     }
 
     @ViewBuilder
