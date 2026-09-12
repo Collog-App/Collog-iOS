@@ -9,7 +9,7 @@ import AVFoundation
 import LiveKit
 
 final class AnalysisPCMWriter: NSObject, AudioRenderer, @unchecked Sendable {
-    static let sampleRate: Double = 48_000
+    static let sampleRate: Double = 16_000
 
     private let queue = DispatchQueue(label: "collog.analysis-pcm")
     private let targetFormat = AVAudioFormat(
