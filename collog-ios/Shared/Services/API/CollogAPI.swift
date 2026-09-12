@@ -213,6 +213,12 @@ struct CollogAPI {
         try await client.send(APIEndpoint(path: "/v1/calls/\(callId)"))
     }
 
+    func questionTtsToken(callId: String, questionId: String) async throws -> QuestionTtsToken {
+        try await client.send(
+            APIEndpoint(path: "/v1/calls/\(callId)/questions/\(questionId)/tts-token", method: .post)
+        )
+    }
+
     func refreshSession(refreshToken: String) async throws -> TokenResponse {
         try await client.send(
             APIEndpoint(

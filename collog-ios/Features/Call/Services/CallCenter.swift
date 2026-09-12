@@ -176,7 +176,7 @@ final class CallCenter: NSObject {
               isAudioSessionActive, environment.settings.questionVoiceEnabled,
               spokenCallId != call.id else { return }
         spokenCallId = call.id
-        questionSpeaker.speak(serverQuestions) { [weak self] event in
+        questionSpeaker.speak(serverQuestions, callId: call.id, api: environment.api) { [weak self] event in
             self?.log(event)
         }
     }

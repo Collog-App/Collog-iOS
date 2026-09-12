@@ -107,6 +107,13 @@ struct DailyQuestionsResponse: Decodable {
     let questions: [APIQuestion]
 }
 
+struct QuestionTtsToken: Decodable {
+    let token: String
+    let voiceId: String
+    let modelId: String
+    let outputFormat: String
+}
+
 struct AudioConstraints: Decodable, Hashable {
     let echoCancellation: Bool
     let noiseSuppression: Bool
