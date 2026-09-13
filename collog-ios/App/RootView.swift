@@ -221,6 +221,10 @@ struct RootView: View {
                 questions: call.questions,
                 notice: call.notice,
                 recordingEnabled: call.recordingEnabled,
+                isMuted: call.isMuted,
+                isSpeakerEnabled: call.isSpeakerEnabled,
+                onMute: { callCenter.toggleMute() },
+                onSpeaker: { callCenter.toggleSpeaker() },
                 onEnd: { callCenter.endActiveCall() }
             )
         } else if let simulatedContact {
