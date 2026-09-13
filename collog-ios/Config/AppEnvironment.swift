@@ -12,17 +12,20 @@ final class AppEnvironment {
     let settings: AppSettings
     let session: AuthSession
     let family: FamilyStore
+    private let networkSession: URLSession
     var reportNotificationRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
 
     init(
         settings: AppSettings = AppSettings(),
         session: AuthSession = AuthSession(),
-        family: FamilyStore = FamilyStore()
+        family: FamilyStore = FamilyStore(),
+        networkSession: URLSession = .shared
     ) {
         self.settings = settings
         self.session = session
         self.family = family
+        self.networkSession = networkSession
         session.onAccountChanged = { [weak self] in
             self?.family.reset()
             self?.reportNotifications = []
@@ -45,6 +48,7 @@ final class AppEnvironment {
             client: CollogAPIClient(
                 baseURL: settings.resolvedBaseURL,
                 accessToken: session.accessToken,
+                session: networkSession,
                 authentication: session
             )
         )
