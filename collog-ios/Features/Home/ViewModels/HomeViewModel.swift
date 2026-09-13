@@ -95,13 +95,7 @@ final class HomeViewModel {
             ]
         )
 
-        if let advisory = dto.advisory {
-            healthFeedback = HealthFeedback(
-                title: "건강 피드백",
-                headline: advisory,
-                tags: ["최근 리포트", APIFormat.shortRange(from: dto.from, to: dto.to)]
-            )
-        }
+        healthFeedback = HealthFeedback(dto: dto)
     }
 
     private func loadLastCall(api: CollogAPI, parentId: String) async -> String {
