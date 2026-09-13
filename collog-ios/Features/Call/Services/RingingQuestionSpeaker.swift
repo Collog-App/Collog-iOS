@@ -1,3 +1,10 @@
+//
+//  RingingQuestionSpeaker.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 9/12/26.
+//
+
 import AVFAudio
 import Foundation
 

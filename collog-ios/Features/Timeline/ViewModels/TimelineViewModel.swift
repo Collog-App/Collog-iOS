@@ -226,12 +226,14 @@ final class TimelineViewModel {
         }
 
         do {
-            page.entries = try await entries(
+            let content = try await entries(
                 parentId: parentId,
                 api: api,
                 baselines: baselines,
                 bounds: bounds
             )
+            page.calls = content.calls
+            page.entries = content.entries
         } catch {
             page.timelineError = error.localizedDescription
         }
@@ -245,14 +247,14 @@ final class TimelineViewModel {
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
-    ) async throws -> [CallTimelineEntry] {
+    ) async throws -> (calls: [CallSummaryDTO], entries: [CallTimelineEntry]) {
         let calls = try await api.calls(
             parentId: parentId,
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
         let analyzed = calls.filter(\.isAnalyzed).prefix(5)
-        guard !analyzed.isEmpty else { return [] }
+        guard !analyzed.isEmpty else { return (calls, []) }
 
         var result: [CallTimelineEntry] = []
         for call in analyzed {
@@ -269,6 +271,6 @@ final class TimelineViewModel {
             result.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
         }
 
-        return result
+        return (calls, result)
     }
 }

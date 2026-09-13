@@ -244,6 +244,7 @@ struct ReportTimelineView: View {
 
     private func moveToCurrentWeek() {
         if tab == .timeline {
+            memberSelectionCount += 1
             activeVerticalWeek = 0
             weekHeaderMinYs.removeAll()
             viewModel.setWeek(0)
@@ -270,7 +271,11 @@ struct ReportTimelineView: View {
         if let error = page.reportError {
             errorContent(error, offset: page.offset)
         } else if page.report.state == .empty {
-            emptyAnalysisContent
+            if let error = page.timelineError {
+                errorContent(error, offset: page.offset)
+            } else {
+                emptyAnalysisContent(page)
+            }
         } else {
             ReportContentView(report: page.report, isLoaded: true)
                 .padding(.horizontal, Spacing.x5)
@@ -283,7 +288,7 @@ struct ReportTimelineView: View {
         if let error = page.timelineError {
             errorContent(error, offset: page.offset)
         } else if page.entries.isEmpty {
-            emptyAnalysisContent
+            emptyAnalysisContent(page)
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(page.entries.enumerated()), id: \.element.id) { index, entry in
@@ -301,11 +306,16 @@ struct ReportTimelineView: View {
         }
     }
 
-    private var emptyAnalysisContent: some View {
-        EmptyStateView(
-            symbol: "doc.text.magnifyingglass",
-            title: "아직 분석된 데이터가 없어요.",
-            message: "선택한 기간에 통화 분석이 완료되면 여기에 표시돼요."
+    private func emptyAnalysisContent(_ page: TimelineWeekPage) -> some View {
+        AnalysisEmptyStateView(
+            contact: contacts.first { $0.id == viewModel.selectedContactId },
+            calls: page.calls,
+            isCurrentWeek: page.offset == 0,
+            onCurrentWeek: moveToCurrentWeek,
+            onRefresh: {
+                await environment.family.refresh(using: environment)
+                await viewModel.loadPage(page.offset, using: environment, forceReload: true)
+            }
         )
     }
 
@@ -355,5 +365,6 @@ struct ReportTimelineView: View {
 
     ReportTimelineView()
         .environment(environment)
+        .environment(CallCenter(environment: environment))
         .environment(NavigationStore())
 }

@@ -48,9 +48,22 @@ struct HomeView: View {
                         }
                         .matchedTransitionSource(id: Route.familyHealthOverview, in: detailTransition)
                         .padding(.bottom, Spacing.x5)
+                    } else if !viewModel.isLoaded {
+                        ProgressView("통화 기록을 불러오고 있어요")
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, Spacing.x8)
+                    } else if let error = viewModel.loadError ?? viewModel.recentCallsError
+                        ?? environment.family.loadError {
+                        EmptyStateView(
+                            symbol: "exclamationmark.circle", title: "데이터를 불러오지 못했어요.",
+                            message: error, actionTitle: "다시 시도"
+                        ) { Task { await refresh() } }
+                            .cardSurface()
+                            .padding(.bottom, Spacing.x5)
                     } else {
-                        Text(viewModel.loadError ?? environment.family.loadError ?? "아직 분석된 통화 기록이 없어요")
-                            .body_02_medium(.gray700)
+                        AnalysisEmptyStateView(
+                            contact: selectedContact, calls: viewModel.recentCalls, onRefresh: refresh
+                        )
                             .cardSurface()
                             .padding(.bottom, Spacing.x5)
                     }
