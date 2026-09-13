@@ -199,6 +199,7 @@ final class CallCenter: NSObject {
             let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: name))
             action.contactIdentifier = name
             do {
+                try prepareCallAudio()
                 try await callController.request(CXTransaction(action: action))
             } catch {
                 failCall(uuid: uuid, message: error.localizedDescription)
@@ -247,6 +248,7 @@ final class CallCenter: NSObject {
         }
         log("LiveKit 접속: room=\(roomName)")
         isMediaConnected = true
+        log("미디어 준비 완료, CallKit 오디오 활성화=\(isAudioSessionActive)")
         publishMicrophoneIfReady()
     }
 
@@ -265,6 +267,10 @@ final class CallCenter: NSObject {
                 log("마이크 publish 완료")
                 attachAnalysisWriter(to: publication)
             } catch {
+                if (error as? LiveKitError)?.type == .roomDeleted {
+                    handleMediaError(error, uuid: call.uuid)
+                    return
+                }
                 failCall(uuid: call.uuid, message: "마이크를 사용할 수 없어요. \(error.localizedDescription)")
             }
         }
@@ -407,6 +413,25 @@ final class CallCenter: NSObject {
         teardown()
     }
 
+    private func handleMediaError(_ error: Error, uuid: UUID) {
+        guard activeCall?.uuid == uuid else { return }
+        if (error as? LiveKitError)?.type == .roomDeleted {
+            log("서버 통화 종료")
+            finishRemoteCall()
+        } else {
+            failCall(uuid: uuid, message: error.localizedDescription)
+        }
+    }
+
+    private func prepareCallAudio() throws {
+        try AVAudioSession.sharedInstance().setCategory(
+            .playAndRecord, mode: .voiceChat, options: [.mixWithOthers]
+        )
+        let configuration = provider.configuration
+        provider.configuration = configuration
+        log("CallKit 오디오 준비 완료")
+    }
+
     private func markCallActive() {
         guard let call = activeCall else { return }
         questionSpeaker.stop()
@@ -488,6 +513,15 @@ extension CallCenter: PKPushRegistryDelegate {
                expiry < Date() {
                 log("만료된 push 무시: \(callId)")
                 reportAndImmediatelyEnd(uuid: uuid, completion: completion)
+                return
+            }
+
+            do {
+                try prepareCallAudio()
+            } catch {
+                log("수신 오디오 준비 실패: \(error.localizedDescription)")
+                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
+                declineIncomingCall(callId)
                 return
             }
 
@@ -610,7 +644,11 @@ extension CallCenter: CXProviderDelegate {
                     }
                 } catch {
                     if !actionFulfilled { action.fail() }
-                    failCall(uuid: pending.uuid, message: error.localizedDescription)
+                    if activeCall?.uuid == pending.uuid {
+                        handleMediaError(error, uuid: pending.uuid)
+                    } else {
+                        failCall(uuid: pending.uuid, message: error.localizedDescription)
+                    }
                 }
             }
         }
@@ -623,6 +661,7 @@ extension CallCenter: CXProviderDelegate {
                 return
             }
             Task {
+                var actionFulfilled = false
                 do {
                     let permitted = await AVAudioApplication.requestRecordPermission()
                     guard activeCall?.uuid == call.uuid else {
@@ -647,6 +686,8 @@ extension CallCenter: CXProviderDelegate {
                         return
                     }
                     rawCaptureRequired = accepted.rawCaptureRequired
+                    action.fulfill()
+                    actionFulfilled = true
                     try await connectMedia(
                         callId: call.id,
                         url: accepted.livekitUrl,
@@ -655,14 +696,12 @@ extension CallCenter: CXProviderDelegate {
                         constraints: accepted.audioConstraints
                     )
                     guard activeCall?.id == call.id else {
-                        action.fail()
                         return
                     }
                     markCallActive()
-                    action.fulfill()
                 } catch {
-                    action.fail()
-                    failCall(uuid: call.uuid, message: error.localizedDescription)
+                    if !actionFulfilled { action.fail() }
+                    handleMediaError(error, uuid: call.uuid)
                 }
             }
         }
@@ -697,6 +736,7 @@ extension CallCenter: CXProviderDelegate {
 
     nonisolated func provider(_ provider: CXProvider, didActivate session: AVAudioSession) {
         MainActor.assumeIsolated {
+            guard hasCallInProgress else { return }
             do {
                 try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.mixWithOthers])
                 guard setEngine(.default) else {
@@ -706,6 +746,8 @@ extension CallCenter: CXProviderDelegate {
                     return
                 }
                 isAudioSessionActive = true
+                let outputs = session.currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
+                log("CallKit 오디오 활성화, 출력=\(outputs)")
                 publishMicrophoneIfReady()
                 speakQuestionsIfReady()
             } catch {
@@ -716,6 +758,7 @@ extension CallCenter: CXProviderDelegate {
 
     nonisolated func provider(_ provider: CXProvider, didDeactivate session: AVAudioSession) {
         MainActor.assumeIsolated {
+            log("CallKit 오디오 비활성화")
             setEngine(.none)
             questionSpeaker.stop()
             isAudioSessionActive = false
@@ -728,7 +771,7 @@ extension CallCenter: RoomDelegate {
         Task { @MainActor in
             guard self.room === room else { return }
             if let error, let call = activeCall {
-                failCall(uuid: call.uuid, message: error.localizedDescription)
+                handleMediaError(error, uuid: call.uuid)
                 return
             }
             finishRemoteCall(reason: error == nil ? .remoteEnded : .failed)
@@ -744,12 +787,26 @@ extension CallCenter: RoomDelegate {
         }
     }
 
+    nonisolated func room(
+        _ room: Room, participant: RemoteParticipant, didSubscribeTrack publication: RemoteTrackPublication
+    ) {
+        Task { @MainActor in
+            guard self.room === room, activeCall?.peerId == participant.identity?.stringValue else { return }
+            log("상대 오디오 트랙 수신, muted=\(publication.isMuted)")
+        }
+    }
+
     nonisolated func room(_ room: Room, participantDidDisconnect participant: RemoteParticipant) {
         Task { @MainActor in
-            guard self.room === room else { return }
-            guard activeCall?.peerId == participant.identity?.stringValue else { return }
+            guard self.room === room, let call = activeCall,
+                  call.peerId == participant.identity?.stringValue else { return }
             log("상대 퇴장")
-            endActiveCall()
+            finishRemoteCall()
+            do {
+                try await environment.api.endCall(callId: call.id)
+            } catch {
+                log("종료 보고 실패: \(error.localizedDescription)")
+            }
         }
     }
 }
