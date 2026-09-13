@@ -1,6 +1,6 @@
 [submodule "Collog-Privacy"]
 	path = Collog-Privacy
-	url = https://github.com/dohyeoplim/Collog-Privacy.git
+	url = git@github.com:Collog-App/Collog-Privacy.git
 [submodule "Collog-Server"]
 	path = Collog-Server
 	url = git@github.com:Collog-App/Collog-Server.git
