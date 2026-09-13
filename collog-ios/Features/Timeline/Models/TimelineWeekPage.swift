@@ -10,8 +10,11 @@ import Foundation
 struct TimelineWeekPage: Identifiable {
     let offset: Int
     var entries: [CallTimelineEntry] = []
+    var calls: [CallSummaryDTO] = []
     var report: WeeklyReport = .empty
     var isLoaded = false
+    var reportError: String?
+    var timelineError: String?
 
     var id: Int { offset }
 

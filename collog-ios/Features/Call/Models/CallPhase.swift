@@ -11,6 +11,7 @@ enum CallPhase: Equatable {
     case connecting
     case ringing
     case active
+    case reconnecting
     case ended
 
     var statusText: String {
@@ -18,6 +19,7 @@ enum CallPhase: Equatable {
         case .connecting: "통화 연결 중..."
         case .ringing: "받으실 때까지 기다리는 중"
         case .active: ""
+        case .reconnecting: "통신 상태를 확인하고 있어요"
         case .ended: "통화 종료"
         }
     }

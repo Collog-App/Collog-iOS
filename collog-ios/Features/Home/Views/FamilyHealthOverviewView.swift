@@ -14,15 +14,20 @@ struct FamilyHealthOverviewView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x4) {
                 statusCard
-                comparisonCard
-
-                VStack(alignment: .leading, spacing: Spacing.x4) {
-                    Text(summary.periodText)
-                        .body_01_semibold(.gray900)
-
-                    TrendChartView(series: summary.trend)
+                if !summary.conversationGroups.isEmpty {
+                    ConversationCardView(groups: summary.conversationGroups)
                 }
-                .cardSurface(padding: Spacing.x5)
+                if let trend = summary.trend {
+                    comparisonCard
+
+                    VStack(alignment: .leading, spacing: Spacing.x4) {
+                        Text(summary.periodText)
+                            .body_01_semibold(.gray900)
+
+                        TrendChartView(series: trend)
+                    }
+                    .cardSurface(padding: Spacing.x5)
+                }
 
                 insightCard
 
@@ -34,7 +39,7 @@ struct FamilyHealthOverviewView: View {
         }
         .background(Color.gray50)
         .safeAreaInset(edge: .top, spacing: 0) {
-            HomeDetailHeader(title: "가족 건강")
+            HomeDetailHeader(title: "통화 기록")
         }
         .toolbar(.hidden, for: .navigationBar)
     }
@@ -106,11 +111,11 @@ struct FamilyHealthOverviewView: View {
     }
 
     private var firstValue: String {
-        formattedValue(summary.trend.points.first)
+        formattedValue(summary.trend?.points.first)
     }
 
     private var latestValue: String {
-        formattedValue(summary.trend.latest)
+        formattedValue(summary.trend?.latest)
     }
 
     private var changeText: String {
@@ -120,29 +125,32 @@ struct FamilyHealthOverviewView: View {
 
     private var changeRate: Double? {
         guard
-            let first = summary.trend.points.first?.value,
-            let latest = summary.trend.latest?.value,
+            let first = summary.trend?.points.first?.value,
+            let latest = summary.trend?.latest?.value,
             first != 0
         else { return nil }
         return (latest - first) / abs(first) * 100
     }
 
     private var interpretation: String {
-        guard let latest = summary.trend.latest else {
-            return "통화 기록이 더 모이면 자세히 알려드릴게요."
+        guard let trend = summary.trend, let latest = trend.latest else {
+            return "음성 변화를 비교할 기록이 부족해요. 대화 내용은 먼저 확인할 수 있어요."
         }
-        let status = summary.trend.isWithinNormalRange(latest)
+        guard trend.hasPersonalBaseline else {
+            return "측정값을 모으고 있어요. 아직 평소와의 차이를 판단하기 어려워요."
+        }
+        let status = trend.isWithinNormalRange(latest)
             ? "평소 범위 안에 있어요."
             : "평소 범위를 벗어난 값이 확인됐어요."
-        guard let changeRate else { return "\(summary.trend.metricName)은 \(status)" }
+        guard let changeRate else { return "\(trend.metricName)은 \(status)" }
         let direction = changeRate >= 0 ? "높아졌어요" : "낮아졌어요"
         let amount = String(format: "%.1f%%", abs(changeRate))
-        return "\(summary.trend.metricName)은 \(status) 첫 기록보다 \(amount) \(direction)."
+        return "\(trend.metricName)은 \(status) 첫 기록보다 \(amount) \(direction)."
     }
 
     private func formattedValue(_ point: TrendPoint?) -> String {
         guard let point else { return "-" }
-        return "\(Int(point.value.rounded()))\(summary.trend.unit)"
+        return "\(Int(point.value.rounded()))\(summary.trend?.unit ?? "")"
     }
 }
 

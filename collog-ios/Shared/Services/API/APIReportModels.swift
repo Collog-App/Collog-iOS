@@ -45,6 +45,10 @@ struct ConsentRecordDTO: Decodable {
 struct ProfileDTO: Decodable {
     let parentId: String
     let conditions: [String]
+    let isCompleted: Bool?
+    let updatedAt: Date?
+
+    var hasCompletedSetup: Bool { isCompleted ?? (updatedAt != nil || !conditions.isEmpty) }
 }
 
 struct InvitationDTO: Decodable {

@@ -77,13 +77,18 @@ extension TrendSeries {
             metricName: MetricLabel.korean(for: trend.metric),
             unit: MetricLabel.unit(for: trend.metric),
             points: points,
-            normalRange: range
+            normalRange: range,
+            hasPersonalBaseline: baseline?.isReady == true
         )
     }
 }
 
 extension WeeklyReport {
     init(dto: ReportDTO, trend: TrendSeries?) {
+        guard dto.analyzedCallCount > 0 else {
+            self = .empty
+            return
+        }
         let labels = ["symptom": "증상", "medication": "복약", "activity": "활동", "sleep": "수면"]
         let symbols = [
             "symptom": "stethoscope",

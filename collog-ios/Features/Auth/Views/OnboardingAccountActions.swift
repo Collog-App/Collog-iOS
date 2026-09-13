@@ -1,3 +1,10 @@
+//
+//  OnboardingAccountActions.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 9/13/26.
+//
+
 import SwiftUI
 
 struct OnboardingAccountActions: View {

@@ -9,6 +9,12 @@ import SwiftUI
 import Security
 import AuthenticationServices
 
+protocol SessionCredentialStorage {
+    func read() throws -> TokenResponse?
+    func write(_ response: TokenResponse) throws
+    func delete() throws
+}
+
 @Observable
 final class AuthSession {
     enum Key {
@@ -18,6 +24,8 @@ final class AuthSession {
     }
 
     private let defaults: UserDefaults
+    private let credentialStore: any SessionCredentialStorage
+    private let networkSession: URLSession
     @ObservationIgnored private var refreshTask: Task<String, Error>?
     @ObservationIgnored private var generation = UUID()
     @ObservationIgnored var onAccountChanged: (() -> Void)?
@@ -30,18 +38,24 @@ final class AuthSession {
     var isAuthenticated: Bool { accessToken != nil }
     var familyId: String? { user?.familyId }
 
-    init(defaults: UserDefaults = .standard) {
+    init(
+        defaults: UserDefaults = .standard,
+        credentialStore: any SessionCredentialStorage = CredentialStore(),
+        networkSession: URLSession = .shared
+    ) {
         self.defaults = defaults
+        self.credentialStore = credentialStore
+        self.networkSession = networkSession
         accessToken = defaults.string(forKey: Key.accessToken)
         refreshToken = defaults.string(forKey: Key.refreshToken)
         user = defaults.data(forKey: Key.user).flatMap { try? JSONDecoder().decode(APIUser.self, from: $0) }
         do {
-            if let saved = try CredentialStore.read() {
+            if let saved = try credentialStore.read() {
                 accessToken = saved.accessToken
                 refreshToken = saved.refreshToken
                 user = saved.user
             } else if let accessToken, let refreshToken, let user {
-                try CredentialStore.write(
+                try credentialStore.write(
                     TokenResponse(accessToken: accessToken, refreshToken: refreshToken, user: user)
                 )
             }
@@ -55,7 +69,7 @@ final class AuthSession {
     }
 
     func apply(_ response: TokenResponse) throws {
-        try CredentialStore.write(response)
+        try credentialStore.write(response)
         storageError = nil
         if user?.id != response.user.id || user?.role != response.user.role {
             generation = UUID()
@@ -73,7 +87,7 @@ final class AuthSession {
         refreshTask?.cancel()
         refreshTask = nil
         do {
-            try CredentialStore.delete()
+            try credentialStore.delete()
         } catch {
             storageError = error.localizedDescription
         }
@@ -95,7 +109,7 @@ final class AuthSession {
                 let refreshToken = refreshToken
                 signOut()
                 if let refreshToken {
-                    let api = CollogAPI(client: CollogAPIClient(baseURL: baseURL))
+                    let api = CollogAPI(client: CollogAPIClient(baseURL: baseURL, session: networkSession))
                     try? await api.logout(refreshToken: refreshToken)
                 }
             }
@@ -125,11 +139,19 @@ final class AuthSession {
         }
         let currentGeneration = generation
         let task = Task { @MainActor in
-            let api = CollogAPI(client: CollogAPIClient(baseURL: baseURL))
+            let api = CollogAPI(client: CollogAPIClient(baseURL: baseURL, session: networkSession))
             do {
                 let response = try await api.refreshSession(refreshToken: refreshToken)
                 guard currentGeneration == generation else { throw APIError.unauthenticated }
-                try apply(response)
+                var refreshedUser = response.user
+                if user?.id == refreshedUser.id, user?.role == refreshedUser.role {
+                    refreshedUser.familyId = user?.familyId ?? refreshedUser.familyId
+                }
+                try apply(TokenResponse(
+                    accessToken: response.accessToken,
+                    refreshToken: response.refreshToken,
+                    user: refreshedUser
+                ))
                 return response.accessToken
             } catch APIError.unauthenticated {
                 if currentGeneration == generation { signOut() }
@@ -144,8 +166,8 @@ final class AuthSession {
     }
 }
 
-private enum CredentialStore {
-    private static var query: [String: Any] {
+struct CredentialStore: SessionCredentialStorage {
+    private var query: [String: Any] {
         [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: Bundle.main.bundleIdentifier ?? "com.dohyeoplim.collog-ios",
@@ -153,7 +175,7 @@ private enum CredentialStore {
         ]
     }
 
-    static func read() throws -> TokenResponse? {
+    func read() throws -> TokenResponse? {
         var query = query
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -166,7 +188,7 @@ private enum CredentialStore {
         return try JSONDecoder().decode(TokenResponse.self, from: data)
     }
 
-    static func write(_ response: TokenResponse) throws {
+    func write(_ response: TokenResponse) throws {
         let attributes: [String: Any] = [
             kSecValueData as String: try JSONEncoder().encode(response),
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
@@ -180,7 +202,7 @@ private enum CredentialStore {
         }
     }
 
-    static func delete() throws {
+    func delete() throws {
         let status = SecItemDelete(query as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw APIError.transport("저장된 로그인 정보를 삭제하지 못했어요")

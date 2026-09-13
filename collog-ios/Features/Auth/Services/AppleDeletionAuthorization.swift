@@ -1,3 +1,10 @@
+//
+//  AppleDeletionAuthorization.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 9/13/26.
+//
+
 import AuthenticationServices
 import UIKit
 

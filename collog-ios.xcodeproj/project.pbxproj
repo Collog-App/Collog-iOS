@@ -10,14 +10,35 @@
 		9CDE9003303481C20025DDCD /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 9CDE9002303481C20025DDCD /* LiveKit */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		A10000000000000000000008 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9CDE8F52303481C20025DDCD /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9CDE8F59303481C20025DDCD;
+			remoteInfo = "collog-ios";
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		9CDE8F5A303481C20025DDCD /* collog-ios.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "collog-ios.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000001 /* collog-iosTests.xctest */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.cfbundle;
+			path = "collog-iosTests.xctest";
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		9CDE8F5C303481C20025DDCD /* collog-ios */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = "collog-ios";
+			sourceTree = "<group>";
+		};
+		A10000000000000000000002 /* collog-iosTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "collog-iosTests";
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -31,12 +52,20 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000006 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		9CDE8F51303481C20025DDCD = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000002 /* collog-iosTests */,
 				9CDE8F5C303481C20025DDCD /* collog-ios */,
 				9CDE8F5B303481C20025DDCD /* Products */,
 			);
@@ -46,6 +75,7 @@
 			isa = PBXGroup;
 			children = (
 				9CDE8F5A303481C20025DDCD /* collog-ios.app */,
+				A10000000000000000000001 /* collog-iosTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +106,26 @@
 			productReference = 9CDE8F5A303481C20025DDCD /* collog-ios.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A10000000000000000000003 /* collog-iosTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000004 /* Build configuration list for PBXNativeTarget "collog-iosTests" */;
+			buildPhases = (
+				A10000000000000000000005 /* Sources */,
+				A10000000000000000000006 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000007 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000002 /* collog-iosTests */,
+			);
+			name = "collog-iosTests";
+			productName = "collog-iosTests";
+			productReference = A10000000000000000000001 /* collog-iosTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -101,7 +151,7 @@
 			mainGroup = 9CDE8F51303481C20025DDCD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+				9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "LiveKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9CDE8F5B303481C20025DDCD /* Products */;
@@ -109,6 +159,7 @@
 			projectRoot = "";
 			targets = (
 				9CDE8F59303481C20025DDCD /* collog-ios */,
+				A10000000000000000000003 /* collog-iosTests */,
 			);
 		};
 /* End PBXProject section */
@@ -131,7 +182,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000005 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A10000000000000000000007 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9CDE8F59303481C20025DDCD /* collog-ios */;
+			targetProxy = A10000000000000000000008 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		9CDE8F63303481C30025DDCD /* Debug */ = {
@@ -266,7 +332,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 3X4434LYHD;
 				ENABLE_PREVIEWS = YES;
@@ -297,7 +363,7 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
@@ -311,7 +377,7 @@
 				CODE_SIGN_IDENTITY = "Apple Development";
 				"CODE_SIGN_IDENTITY[sdk=iphoneos*]" = "iPhone Developer";
 				CODE_SIGN_STYLE = Manual;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 24;
 				DEVELOPMENT_TEAM = "";
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 3X4434LYHD;
 				ENABLE_PREVIEWS = YES;
@@ -342,8 +408,34 @@
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 5.0;
+				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		A10000000000000000000009 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dohyeoplim.collog-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/collog-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/collog-ios";
+			};
+			name = Debug;
+		};
+		A1000000000000000000000A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dohyeoplim.collog-iosTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/collog-ios.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/collog-ios";
 			};
 			name = Release;
 		};
@@ -368,15 +460,24 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
+		A10000000000000000000004 /* Build configuration list for PBXNativeTarget "collog-iosTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000009 /* Debug */,
+				A1000000000000000000000A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
-		9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+		9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "LiveKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/livekit/client-sdk-swift";
+			repositoryURL = "https://github.com/Collog-App/LiveKit.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.16.0;
+				kind = revision;
+				revision = 1b2fd72bd986d619d81bef90b89b7f12e6faa514;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -384,7 +485,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		9CDE9002303481C20025DDCD /* LiveKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			package = 9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "LiveKit" */;
 			productName = LiveKit;
 		};
 /* End XCSwiftPackageProductDependency section */

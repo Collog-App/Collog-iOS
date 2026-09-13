@@ -59,6 +59,7 @@ struct CallStatus: Decodable {
     let state: String
     let endedAt: Date?
     let recordingEnabled: Bool?
+    var recordingDisabledMessage: String? = nil
 
     var hasEnded: Bool {
         endedAt != nil || ["ENDED", "PROCESSING", "ANALYZED", "ANALYSIS_EXCLUDED", "ANALYSIS_FAILED"].contains(state)
@@ -102,6 +103,17 @@ struct FamilyInvitation: Decodable, Hashable, Identifiable {
 struct FamilyMembersResponse: Decodable {
     let members: [FamilyMember]
     let canInvite: Bool?
+}
+
+struct FamilySummary: Decodable, Identifiable, Hashable {
+    let familyId: String
+    let name: String
+
+    var id: String { familyId }
+}
+
+struct FamiliesResponse: Decodable {
+    let families: [FamilySummary]
 }
 
 struct APIQuestion: Decodable, Identifiable, Hashable {
@@ -150,6 +162,10 @@ struct CallCreated: Decodable {
     let recordingDisabledMessage: String?
     let questions: [APIQuestion]
     let audioConstraints: AudioConstraints
+}
+
+struct CallAcceptBody: Encodable {
+    let requestId: String?
 }
 
 struct CallAccepted: Decodable {

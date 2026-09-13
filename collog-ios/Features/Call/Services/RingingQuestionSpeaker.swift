@@ -1,3 +1,10 @@
+//
+//  RingingQuestionSpeaker.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 9/12/26.
+//
+
 import AVFAudio
 import Foundation
 
@@ -212,16 +219,18 @@ final class RingingQuestionSpeaker: NSObject, AVAudioPlayerDelegate, AVSpeechSyn
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        let identifier = ObjectIdentifier(player)
         Task { @MainActor in
-            if self.player === player { playbackResult = flag }
+            if self.player.map(ObjectIdentifier.init) == identifier { playbackResult = flag }
         }
     }
 
     nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        let identifier = ObjectIdentifier(player)
         Task { @MainActor in
-            if self.player === player {
+            if self.player.map(ObjectIdentifier.init) == identifier {
                 playbackResult = false
-                player.stop()
+                self.player?.stop()
             }
         }
     }

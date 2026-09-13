@@ -57,18 +57,25 @@ struct TrendChartView: View {
                         .caption_01_medium(.gray800)
                 }
 
-                Text(series.isWithinNormalRange(focusedPoint) ? "평소 범위" : "평소와 다름")
-                    .caption_01_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
+                if series.hasPersonalBaseline {
+                    Text(series.isWithinNormalRange(focusedPoint) ? "평소 범위" : "평소와 다름")
+                        .caption_01_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
+                } else {
+                    Text("비교할 기록 수집 중")
+                        .caption_01_medium(.gray700)
+                }
             }
         }
     }
 
     private var chart: some View {
         Chart {
-            RuleMark(y: .value("평소", series.median))
-                .lineStyle(StrokeStyle(lineWidth: 1))
-                .foregroundStyle(Color.gray300)
-                .accessibilityHidden(true)
+            if series.hasPersonalBaseline {
+                RuleMark(y: .value("평소", series.median))
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+                    .foregroundStyle(Color.gray300)
+                    .accessibilityHidden(true)
+            }
 
             ForEach(series.points) { point in
                 AreaMark(

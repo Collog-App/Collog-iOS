@@ -154,21 +154,19 @@ extension ISO8601DateFormatter {
         return formatter
     }()
 
-    static let collogWholeSecond: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime]
-        return formatter
-    }()
 }
 
 extension Date {
-    static func fromCollogTimestamp(_ raw: String) -> Date? {
+    nonisolated static func fromCollogTimestamp(_ raw: String) -> Date? {
         let normalized = hasTimeZone(raw) ? raw : raw + "Z"
-        return ISO8601DateFormatter.collog.date(from: normalized)
-            ?? ISO8601DateFormatter.collogWholeSecond.date(from: normalized)
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = formatter.date(from: normalized) { return date }
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: normalized)
     }
 
-    private static func hasTimeZone(_ raw: String) -> Bool {
+    nonisolated private static func hasTimeZone(_ raw: String) -> Bool {
         guard let timeStart = raw.firstIndex(of: "T") else { return false }
         let time = raw[timeStart...]
         return time.hasSuffix("Z") || time.contains("+") || time.dropFirst().contains("-")

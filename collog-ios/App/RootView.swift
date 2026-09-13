@@ -60,6 +60,7 @@ struct RootView: View {
             Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
         }
         .onChange(of: environment.session.isAuthenticated) {
+            callCenter.sessionDidChange()
             if !environment.session.isAuthenticated {
                 callCenter.endActiveCall()
                 launcher.dismiss()
@@ -70,8 +71,10 @@ struct RootView: View {
             environment.family.reset()
             Task { await authFlow.resolve(using: environment) }
         }
-        .onChange(of: environment.session.user?.role) { previous, current in
-            guard previous != nil, current != nil, environment.session.isAuthenticated else { return }
+        .onChange(of: environment.session.user) { previous, current in
+            callCenter.sessionDidChange()
+            guard let previous, let current,
+                  previous.role != current.role || previous.familyId != current.familyId else { return }
             launcher.dismiss()
             navigation = NavigationStore()
             tabManager.selectedTab = .home
@@ -88,6 +91,7 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) {
             if scenePhase == .active, environment.session.isAuthenticated {
+                callCenter.resumePendingUploads()
                 callCenter.updateNotificationAuthorization()
                 Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
             }
@@ -217,6 +221,10 @@ struct RootView: View {
                 questions: call.questions,
                 notice: call.notice,
                 recordingEnabled: call.recordingEnabled,
+                isMuted: call.isMuted,
+                isSpeakerEnabled: call.isSpeakerEnabled,
+                onMute: { callCenter.toggleMute() },
+                onSpeaker: { callCenter.toggleSpeaker() },
                 onEnd: { callCenter.endActiveCall() }
             )
         } else if let simulatedContact {

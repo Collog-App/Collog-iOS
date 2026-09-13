@@ -14,6 +14,10 @@ struct CallView: View {
     let questions: [String]
     var notice: String?
     var recordingEnabled = false
+    var isMuted = false
+    var isSpeakerEnabled = false
+    var onMute: (() -> Void)?
+    var onSpeaker: (() -> Void)?
     var onEnd: () -> Void
 
     @State private var connectedAt: Date?
@@ -50,6 +54,23 @@ struct CallView: View {
             .scrollBounceBehavior(.basedOnSize)
 
             Spacer(minLength: Spacing.x4)
+
+            HStack(spacing: Spacing.x8) {
+                if let onMute {
+                    Button(action: onMute) {
+                        Label(isMuted ? "음소거 해제" : "음소거", systemImage: isMuted ? "mic.slash.fill" : "mic.fill")
+                    }
+                    .accessibilityValue(isMuted ? "켜짐" : "꺼짐")
+                }
+                if let onSpeaker {
+                    Button(action: onSpeaker) {
+                        Label("스피커", systemImage: isSpeakerEnabled ? "speaker.wave.3.fill" : "speaker.fill")
+                    }
+                    .accessibilityValue(isSpeakerEnabled ? "켜짐" : "꺼짐")
+                }
+            }
+            .foregroundStyle(Color.gray00)
+            .padding(.bottom, Spacing.x5)
 
             endButton
                 .padding(.bottom, Spacing.x8)

@@ -12,14 +12,9 @@ struct FamilyHealthSummary {
     let periodText: String
     let headline: String
     let detail: String
-    let trend: TrendSeries
+    let trend: TrendSeries?
     let stats: [CallStat]
-}
-
-struct HealthFeedback {
-    let title: String
-    let headline: String
-    let tags: [String]
+    var conversationGroups: [ConversationGroup] = []
 }
 
 extension FamilyHealthSummary {
@@ -49,23 +44,6 @@ extension FamilyHealthSummary {
                     note: StatNote(text: "2.11%", trend: .up)
                 )
             ]
-        )
-    }
-}
-
-extension HealthFeedback {
-    static let sample = HealthFeedback(
-        title: "건강 피드백",
-        headline: "최근 생활 변화 살펴보기",
-        tags: ["최근 기록", "3일 전 통화"]
-    )
-
-    static func sample(for contact: FamilyContact?) -> HealthFeedback {
-        guard contact?.relation == "FATHER" else { return .sample }
-        return HealthFeedback(
-            title: "건강 피드백",
-            headline: "산책과 수면 이야기를 확인해보세요",
-            tags: ["최근 기록", "그저께 통화"]
         )
     }
 }

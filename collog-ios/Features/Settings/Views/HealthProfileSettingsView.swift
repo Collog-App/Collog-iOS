@@ -8,11 +8,20 @@
 import SwiftUI
 
 struct HealthProfileSettingsView: View {
+    private struct ProfileTarget: Identifiable {
+        let id: String
+        let name: String
+    }
+
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("settings.guestHealthConditions") private var guestConditions = "HYPERTENSION"
     @State private var selected: Set<HealthCondition> = []
+    @State private var hasNoConditions = false
+    @State private var targets: [ProfileTarget] = []
+    @State private var target: ProfileTarget?
+    @State private var profileLoaded = false
     @State private var isLoading = true
     @State private var isSaving = false
     @State private var errorText: String?
@@ -30,11 +39,45 @@ struct HealthProfileSettingsView: View {
                 }
                 .cardSurface()
 
+                if !environment.settings.isGuestMode {
+                    VStack(alignment: .leading, spacing: Spacing.x2) {
+                        Text("건강 프로필을 수정할 사람")
+                            .body_02_medium(.gray900)
+                        ForEach(targets) { candidate in
+                            Button {
+                                Task { await loadProfile(for: candidate) }
+                            } label: {
+                                HStack {
+                                    Text(candidate.name)
+                                    Spacer()
+                                    if target?.id == candidate.id {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                                .padding(Spacing.x4)
+                                .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isLoading || isSaving)
+                            .accessibilityAddTraits(target?.id == candidate.id ? .isSelected : [])
+                        }
+                        if let target {
+                            Text("\(target.name)님의 건강 정보를 수정해요.")
+                                .body_03_medium(.gray700)
+                        } else if !targets.isEmpty {
+                            Text("이름을 선택한 뒤 건강 정보를 입력해주세요.")
+                                .body_03_medium(.gray700)
+                        }
+                    }
+                }
+
                 VStack(spacing: Spacing.x2) {
                     ForEach(HealthCondition.allCases) { condition in
                         conditionRow(condition)
                     }
+                    conditionRow(nil)
                 }
+                .disabled(!profileLoaded || isLoading || isSaving)
 
                 if let errorText {
                     Text(errorText)
@@ -50,38 +93,48 @@ struct HealthProfileSettingsView: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: 52)
                         .background(
-                            selected.isEmpty || isSaving ? Color.gray500 : Color.greenNormal,
+                            canSave ? Color.greenNormal : Color.gray500,
                             in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
                         )
                 }
                 .buttonStyle(.plain)
-                .disabled(selected.isEmpty || isSaving || isLoading)
+                .disabled(!canSave)
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x4)
         }
         .background(Color.gray50)
         .safeAreaInset(edge: .top, spacing: 0) {
-            HomeDetailHeader(title: "나의 건강 프로필")
+            HomeDetailHeader(title: "건강 프로필")
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
     }
 
-    private func conditionRow(_ condition: HealthCondition) -> some View {
-        let isSelected = selected.contains(condition)
+    private var canSave: Bool {
+        profileLoaded && (!selected.isEmpty || hasNoConditions) && !isSaving && !isLoading
+    }
+
+    private func conditionRow(_ condition: HealthCondition?) -> some View {
+        let isSelected = condition.map { selected.contains($0) } ?? hasNoConditions
 
         return Button {
             errorText = nil
-            if isSelected {
-                selected.remove(condition)
+            if let condition {
+                hasNoConditions = false
+                if isSelected {
+                    selected.remove(condition)
+                } else {
+                    selected.insert(condition)
+                }
             } else {
-                selected.insert(condition)
+                selected.removeAll()
+                hasNoConditions.toggle()
             }
             Haptics.focus()
         } label: {
             HStack(spacing: Spacing.x3) {
-                Text(condition.title)
+                Text(condition?.title ?? "해당 없음")
                     .body_02_medium(.gray900)
 
                 Spacer(minLength: Spacing.x3)
@@ -100,6 +153,7 @@ struct HealthProfileSettingsView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func load() async {
@@ -107,19 +161,57 @@ struct HealthProfileSettingsView: View {
         if environment.settings.isGuestMode {
             let values = guestConditions.split(separator: ",").map(String.init)
             selected = Set(values.compactMap(HealthCondition.init(rawValue:)))
+            hasNoConditions = selected.isEmpty
+            profileLoaded = true
             return
         }
 
-        guard let parentId = await environment.subjectParentId() else { return }
+        guard let user = environment.session.user else {
+            errorText = "로그인이 필요해요."
+            return
+        }
+        if user.role == "PARENT" {
+            let ownProfile = ProfileTarget(id: user.id, name: user.name)
+            targets = [ownProfile]
+            await loadProfile(for: ownProfile)
+            return
+        }
+        guard let familyId = environment.session.familyId else {
+            errorText = "가족을 먼저 초대해주세요."
+            return
+        }
         do {
-            let profile = try await environment.api.profile(parentId: parentId)
+            let members = try await environment.api.members(familyId: familyId)
+            targets = members.compactMap { member in
+                guard member.role == "PARENT", let id = member.userId else { return nil }
+                return ProfileTarget(id: id, name: member.name)
+            }
+            if targets.isEmpty { errorText = "등록된 부모님이 없어요. 가족 초대를 먼저 완료해주세요." }
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
+    private func loadProfile(for candidate: ProfileTarget) async {
+        isLoading = true
+        profileLoaded = false
+        errorText = nil
+        target = candidate
+        selected.removeAll()
+        hasNoConditions = false
+        defer { isLoading = false }
+        do {
+            let profile = try await environment.api.profile(parentId: candidate.id)
             selected = Set(profile.conditions.compactMap(HealthCondition.init(rawValue:)))
+            hasNoConditions = profile.hasCompletedSetup && selected.isEmpty
+            profileLoaded = true
         } catch {
             errorText = error.localizedDescription
         }
     }
 
     private func save() async {
+        guard canSave else { return }
         isSaving = true
         errorText = nil
         defer { isSaving = false }
@@ -132,7 +224,10 @@ struct HealthProfileSettingsView: View {
             return
         }
 
-        guard let parentId = await environment.subjectParentId() else { return }
+        guard let parentId = target?.id else {
+            errorText = "건강 프로필을 수정할 사람을 선택해주세요."
+            return
+        }
         do {
             _ = try await environment.api.updateProfile(parentId: parentId, conditions: values)
             Haptics.commit()

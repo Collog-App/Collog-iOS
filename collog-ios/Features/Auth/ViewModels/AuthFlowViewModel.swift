@@ -63,7 +63,7 @@ final class AuthFlowViewModel {
         do {
             let profile = try await environment.api.profile(parentId: user.id)
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
-            step = profile.conditions.isEmpty ? .profile : .ready
+            step = profile.hasCompletedSetup ? .ready : .profile
         } catch {
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = .ready
