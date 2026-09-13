@@ -249,8 +249,7 @@ struct HomeView: View {
         await environment.family.refresh(using: environment)
         await viewModel.refresh(
             using: environment,
-            contact: selectedContact,
-            showsLoading: true
+            contact: selectedContact
         )
     }
 }

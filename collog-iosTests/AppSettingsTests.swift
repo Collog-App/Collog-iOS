@@ -1,3 +1,10 @@
+//
+//  AppSettingsTests.swift
+//  collog-ios
+//
+//  Created by dohyeoplim on 9/13/26.
+//
+
 import Foundation
 import Testing
 @testable import collog_ios

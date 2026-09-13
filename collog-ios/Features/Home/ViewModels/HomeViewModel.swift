@@ -14,18 +14,25 @@ final class HomeViewModel {
     private(set) var lastCallText = "아직 통화 기록이 없어요"
     private(set) var isLoaded = true
     private(set) var loadError: String?
+    private(set) var recentCalls: [CallSummaryDTO] = []
+    private(set) var recentCallsError: String?
     @ObservationIgnored private var generation = UUID()
 
     func refresh(
         using environment: AppEnvironment,
-        contact: FamilyContact?,
-        showsLoading: Bool = false
+        contact: FamilyContact?
     ) async {
         let generation = UUID()
         self.generation = generation
+        isLoaded = false
+        defer {
+            if self.generation == generation { isLoaded = true }
+        }
         healthSummary = nil
         healthFeedback = nil
         loadError = nil
+        recentCalls = []
+        recentCallsError = nil
         lastCallText = "아직 통화 기록이 없어요"
         if environment.settings.isGuestMode {
             healthSummary = .sample(for: contact)
@@ -45,15 +52,19 @@ final class HomeViewModel {
         }
         guard let parentId = resolvedId else { return }
 
-        if showsLoading { isLoaded = false }
-        defer {
-            if showsLoading { isLoaded = true }
-        }
-
         let api = environment.api
-        let lastCallText = await loadLastCall(api: api, parentId: parentId)
+        let calls: [CallSummaryDTO]
+        do {
+            calls = try await api.calls(parentId: parentId)
+        } catch {
+            guard self.generation == generation else { return }
+            recentCallsError = error.localizedDescription
+            calls = []
+        }
         guard self.generation == generation else { return }
-        self.lastCallText = lastCallText
+        recentCalls = calls
+        lastCallText = recentCallsError == nil
+            ? Self.lastCallText(calls: calls) : "통화 기록을 불러오지 못했어요"
 
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
             .filter { $0.kind == "ROLLING" && $0.isReady }
@@ -67,42 +78,19 @@ final class HomeViewModel {
             return
         }
         guard self.generation == generation else { return }
-        let history = dto.recentAcousticHistory ?? dto.acousticTrends
-        guard
-            let trend = history
-                .first(where: { $0.metric == "SPEECH_RATE" })
-                .flatMap({ TrendSeries(trend: $0, baseline: baselines["SPEECH_RATE"]) })
-        else { return }
-
-        let signal = dto.promotedSignals.first ?? dto.acuteSignals.first
         healthSummary = FamilyHealthSummary(
+            dto: dto,
             memberName: environment.session.user?.role == "PARENT"
                 ? environment.session.user?.name ?? "나" : contact?.name ?? "가족",
-            periodText: APIFormat.shortRange(from: dto.from, to: dto.to),
-            headline: signal.map { MetricLabel.korean(for: $0.metric) + "에 변화가 보여요" }
-                ?? "평소 범위 안에서 지내고 계세요",
-            detail: signal?.summaryText ?? signal?.acuteText
-                ?? "최근 \(dto.analyzedCallCount)건의 통화를 분석했어요.",
-            trend: trend,
-            stats: [
-                CallStat(label: "분석된 통화", value: "\(dto.analyzedCallCount)", unit: "건", note: nil),
-                CallStat(
-                    label: "되물으심",
-                    value: "\(dto.repeatObservation.count)",
-                    unit: "회",
-                    note: nil
-                )
-            ]
+            baseline: baselines["SPEECH_RATE"]
         )
-
         healthFeedback = HealthFeedback(dto: dto)
     }
 
-    private func loadLastCall(api: CollogAPI, parentId: String) async -> String {
-        guard let calls = try? await api.calls(parentId: parentId) else {
-            return "통화 기록을 불러오지 못했어요"
+    private static func lastCallText(calls: [CallSummaryDTO]) -> String {
+        guard let latest = calls.max(by: { $0.startedAt < $1.startedAt }) else {
+            return "아직 통화 기록이 없어요"
         }
-        guard let latest = calls.first else { return "아직 통화 기록이 없어요" }
 
         let calendar = Calendar.current
         let days = calendar.dateComponents(

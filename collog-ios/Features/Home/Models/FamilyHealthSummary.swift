@@ -12,8 +12,9 @@ struct FamilyHealthSummary {
     let periodText: String
     let headline: String
     let detail: String
-    let trend: TrendSeries
+    let trend: TrendSeries?
     let stats: [CallStat]
+    var conversationGroups: [ConversationGroup] = []
 }
 
 extension FamilyHealthSummary {

@@ -27,6 +27,7 @@ struct TrendSeries {
     let unit: String
     let points: [TrendPoint]
     let normalRange: ClosedRange<Double>
+    var hasPersonalBaseline = true
 
     var latest: TrendPoint? { points.last }
 

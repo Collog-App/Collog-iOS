@@ -77,7 +77,8 @@ extension TrendSeries {
             metricName: MetricLabel.korean(for: trend.metric),
             unit: MetricLabel.unit(for: trend.metric),
             points: points,
-            normalRange: range
+            normalRange: range,
+            hasPersonalBaseline: baseline?.isReady == true
         )
     }
 }
