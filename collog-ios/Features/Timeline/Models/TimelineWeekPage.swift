@@ -12,6 +12,8 @@ struct TimelineWeekPage: Identifiable {
     var entries: [CallTimelineEntry] = []
     var report: WeeklyReport = .empty
     var isLoaded = false
+    var reportError: String?
+    var timelineError: String?
 
     var id: Int { offset }
 

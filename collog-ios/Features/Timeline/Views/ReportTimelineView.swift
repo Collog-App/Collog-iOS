@@ -51,11 +51,6 @@ struct ReportTimelineView: View {
                 }
             } content: {
                 VStack(spacing: Spacing.x3) {
-                    if let error = viewModel.loadError {
-                        Text(error)
-                            .caption_01_medium(.red500)
-                            .padding(.horizontal, Spacing.x5)
-                    }
                     if tab == .timeline {
                         verticalTimeline
                     } else {
@@ -272,13 +267,10 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private func reportContent(_ page: TimelineWeekPage) -> some View {
-        if page.report.summaryStats.isEmpty {
-            EmptyStateView(
-                symbol: "doc.text.magnifyingglass",
-                title: "이번 주 리포트가 아직 없어요",
-                message: "분석된 통화가 쌓이면 변화를 정리해드려요."
-            )
-            .padding(.top, Spacing.x6)
+        if let error = page.reportError {
+            errorContent(error, offset: page.offset)
+        } else if page.report.state == .empty {
+            emptyAnalysisContent
         } else {
             ReportContentView(report: page.report, isLoaded: true)
                 .padding(.horizontal, Spacing.x5)
@@ -288,12 +280,10 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private func timelineEntries(_ page: TimelineWeekPage) -> some View {
-        if page.entries.isEmpty {
-            Text("분석된 통화가 없어요")
-                .body_03_medium(.gray700)
-                .padding(.horizontal, Spacing.x5)
-                .padding(.vertical, Spacing.x6)
-                .frame(maxWidth: .infinity, alignment: .leading)
+        if let error = page.timelineError {
+            errorContent(error, offset: page.offset)
+        } else if page.entries.isEmpty {
+            emptyAnalysisContent
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(page.entries.enumerated()), id: \.element.id) { index, entry in
@@ -308,6 +298,25 @@ struct ReportTimelineView: View {
                     }
                 }
             }
+        }
+    }
+
+    private var emptyAnalysisContent: some View {
+        EmptyStateView(
+            symbol: "doc.text.magnifyingglass",
+            title: "아직 분석된 데이터가 없어요.",
+            message: "선택한 기간에 통화 분석이 완료되면 여기에 표시돼요."
+        )
+    }
+
+    private func errorContent(_ message: String, offset: Int) -> some View {
+        EmptyStateView(
+            symbol: "exclamationmark.circle",
+            title: "데이터를 불러오지 못했어요.",
+            message: message,
+            actionTitle: "다시 시도"
+        ) {
+            Task { await viewModel.loadPage(offset, using: environment, forceReload: true) }
         }
     }
 

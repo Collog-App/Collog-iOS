@@ -16,7 +16,6 @@ final class TimelineViewModel {
     private(set) var selectedContactId: String?
     private(set) var selectedRelation: String?
     private(set) var weekOffset = 0
-    private(set) var loadError: String?
 
     @ObservationIgnored private var baselineCache: [String: [String: BaselineDTO]] = [:]
     @ObservationIgnored private var loading: Set<Int> = []
@@ -50,11 +49,9 @@ final class TimelineViewModel {
         pages.removeAll()
         loading.removeAll()
         contentGeneration += 1
-        loadError = nil
     }
 
     func refresh(using environment: AppEnvironment, forceReload: Bool = false) async {
-        loadError = nil
         resolveSelection(using: environment)
         let generation = contentGeneration
 
@@ -67,8 +64,13 @@ final class TimelineViewModel {
         }
 
         guard let context = await loadContext(using: environment) else {
-            pages[weekOffset] = TimelineWeekPage(offset: weekOffset, isLoaded: true)
-            loadError = environment.family.loadError
+            guard generation == contentGeneration else { return }
+            pages[weekOffset] = TimelineWeekPage(
+                offset: weekOffset,
+                isLoaded: true,
+                reportError: environment.family.loadError,
+                timelineError: environment.family.loadError
+            )
             return
         }
         guard generation == contentGeneration else { return }
@@ -87,7 +89,7 @@ final class TimelineViewModel {
         }
     }
 
-    func loadPage(_ offset: Int, using environment: AppEnvironment) async {
+    func loadPage(_ offset: Int, using environment: AppEnvironment, forceReload: Bool = false) async {
         resolveSelection(using: environment)
         let generation = contentGeneration
 
@@ -98,8 +100,13 @@ final class TimelineViewModel {
 
         guard offset <= 0 else { return }
         guard let context = await loadContext(using: environment) else {
-            pages[offset] = TimelineWeekPage(offset: offset, isLoaded: true)
-            loadError = environment.family.loadError
+            guard generation == contentGeneration else { return }
+            pages[offset] = TimelineWeekPage(
+                offset: offset,
+                isLoaded: true,
+                reportError: environment.family.loadError,
+                timelineError: environment.family.loadError
+            )
             return
         }
         guard generation == contentGeneration else { return }
@@ -108,7 +115,8 @@ final class TimelineViewModel {
             parentId: context.parentId,
             api: context.api,
             baselines: context.baselines,
-            generation: generation
+            generation: generation,
+            forceReload: forceReload
         )
     }
 
@@ -129,10 +137,8 @@ final class TimelineViewModel {
         let contact = selectedContact(using: environment)
         let resolvedId = if environment.session.user?.role == "PARENT" {
             environment.session.user?.id
-        } else if let userId = contact?.userId {
-            userId
         } else {
-            await environment.subjectParentId()
+            contact?.userId
         }
         guard let parentId = resolvedId else { return nil }
         let api = environment.api
@@ -153,6 +159,13 @@ final class TimelineViewModel {
 
     private func resolveSelection(using environment: AppEnvironment) {
         guard let contact = selectedContact(using: environment) else {
+            if selectedContactId != nil {
+                selectedContactId = nil
+                selectedRelation = nil
+                pages.removeAll()
+                loading.removeAll()
+                contentGeneration += 1
+            }
             selectedMember = environment.session.user?.name ?? selectedMember
             return
         }
@@ -192,6 +205,10 @@ final class TimelineViewModel {
 
         let bounds = TimelineWeekPage.bounds(offset: offset)
         var page = pages[offset] ?? TimelineWeekPage(offset: offset)
+        page.reportError = nil
+        page.timelineError = nil
+        page.isLoaded = false
+        pages[offset] = page
 
         do {
             let dto = try await api.report(
@@ -205,18 +222,18 @@ final class TimelineViewModel {
 
             page.report = WeeklyReport(dto: dto, trend: trend)
         } catch {
-            if generation == contentGeneration {
-                loadError = error.localizedDescription
-            }
+            page.reportError = error.localizedDescription
         }
 
-        if let entries = await entries(
-            parentId: parentId,
-            api: api,
-            baselines: baselines,
-            bounds: bounds
-        ) {
-            page.entries = entries
+        do {
+            page.entries = try await entries(
+                parentId: parentId,
+                api: api,
+                baselines: baselines,
+                bounds: bounds
+            )
+        } catch {
+            page.timelineError = error.localizedDescription
         }
         guard generation == contentGeneration else { return }
         page.isLoaded = true
@@ -228,18 +245,12 @@ final class TimelineViewModel {
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
-    ) async -> [CallTimelineEntry]? {
-        let calls: [CallSummaryDTO]
-        do {
-            calls = try await api.calls(
-                parentId: parentId,
-                from: APIFormat.isoDate.string(from: bounds.start),
-                to: APIFormat.isoDate.string(from: bounds.end)
-            )
-        } catch {
-            loadError = error.localizedDescription
-            return nil
-        }
+    ) async throws -> [CallTimelineEntry] {
+        let calls = try await api.calls(
+            parentId: parentId,
+            from: APIFormat.isoDate.string(from: bounds.start),
+            to: APIFormat.isoDate.string(from: bounds.end)
+        )
         let analyzed = calls.filter(\.isAnalyzed).prefix(5)
         guard !analyzed.isEmpty else { return [] }
 
