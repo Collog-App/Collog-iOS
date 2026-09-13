@@ -27,6 +27,8 @@ final class AppEnvironment {
             self?.family.reset()
             self?.reportNotifications = []
         }
+        if settings.requiresServerSessionReset { session.signOut() }
+        if session.storageError == nil { settings.completeServerMigration() }
         if !session.isAuthenticated { family.reset() }
     }
 

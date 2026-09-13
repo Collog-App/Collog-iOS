@@ -22,9 +22,6 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     private let privacyPolicyURL = URL(string: "https://collog-app.github.io/Collog-Privacy/")!
-    @State private var serverAddress = ""
-    @State private var serverAddressError: String?
-    @State private var serverAddressSaved = false
 
     var body: some View {
         @Bindable var settings = environment.settings
@@ -82,7 +79,6 @@ struct SettingsView: View {
                         }
                     }
 
-                    developerSection
                     footer
                 }
                 .padding(.horizontal, Spacing.x5)
@@ -119,64 +115,6 @@ struct SettingsView: View {
         }
     }
 
-    private var developerSection: some View {
-        SettingsSection(title: "Developer Debug") {
-            SettingsFieldRow(
-                label: "서버 주소",
-                placeholder: "http://192.168.0.9:8080",
-                text: $serverAddress
-            )
-            VStack(alignment: .leading, spacing: Spacing.x3) {
-                Text("/v1을 제외한 서버 주소를 입력하세요. 서버를 바꾸면 다시 로그인해야 해요.")
-                    .caption_01_medium(.gray700)
-                if callCenter.hasCallInProgress {
-                    Text("통화를 마친 뒤 서버 주소를 변경할 수 있어요.")
-                        .caption_01_medium(.gray700)
-                }
-                if let serverAddressError {
-                    Text(serverAddressError).caption_01_medium(.red500)
-                } else if serverAddressSaved,
-                          AppSettings.normalizedServerAddress(serverAddress) == environment.settings.backendBaseURL {
-                    Text("서버 주소를 저장했어요.").caption_01_medium(.greenDark)
-                }
-                HStack {
-                    Button("기본 주소") {
-                        serverAddress = AppSettings.Default.backendBaseURL
-                        serverAddressError = nil
-                        serverAddressSaved = false
-                    }
-                    Spacer()
-                    Button("저장", action: saveServerAddress)
-                        .disabled(callCenter.hasCallInProgress)
-                }
-                .tint(.greenDark)
-            }
-            .padding(.horizontal, Spacing.x4)
-            .padding(.bottom, Spacing.x4)
-        }
-        .onAppear { serverAddress = environment.settings.backendBaseURL }
-    }
-
-    private func saveServerAddress() {
-        guard !callCenter.hasCallInProgress else { return }
-        guard let address = AppSettings.normalizedServerAddress(serverAddress) else {
-            serverAddressError = "http 또는 https로 시작하는 서버 기본 주소를 입력해주세요."
-            serverAddressSaved = false
-            return
-        }
-        serverAddressError = nil
-        if address != environment.settings.backendBaseURL {
-            let previousAPI = environment.api
-            let refreshToken = environment.session.refreshToken
-            environment.session.signOut()
-            environment.settings.backendBaseURL = address
-            if let refreshToken {
-                Task { try? await previousAPI.logout(refreshToken: refreshToken) }
-            }
-        }
-        serverAddress = address
-        serverAddressSaved = true
-    }
 
     @ViewBuilder
     private func settingsDestination(for route: SettingsRoute) -> some View {

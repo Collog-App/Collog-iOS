@@ -105,11 +105,11 @@ struct CollogAPIClient {
             case .cancelled:
                 throw CancellationError()
             case .timedOut:
-                throw APIError.transport("서버 응답 시간이 초과됐어요. 서버 주소와 Wi-Fi를 확인해주세요.")
+                throw APIError.transport("서버 응답 시간이 초과됐어요. 잠시 후 다시 시도해주세요.")
             case .notConnectedToInternet, .cannotConnectToHost, .cannotFindHost, .networkConnectionLost:
-                throw APIError.transport("서버에 접속하지 못했어요. Wi-Fi와 iPhone 설정의 콜록 로컬 네트워크 권한을 확인해주세요.")
+                throw APIError.transport("서버에 접속하지 못했어요. 인터넷 상태를 확인한 뒤 다시 시도해주세요.")
             case .appTransportSecurityRequiresSecureConnection:
-                throw APIError.transport("이 서버의 HTTP 접속이 차단됐어요. 앱을 업데이트하거나 HTTPS 주소를 사용해주세요.")
+                throw APIError.transport("보안 통신을 시작하지 못했어요. 잠시 후 다시 시도해주세요.")
             default:
                 throw APIError.transport(error.localizedDescription)
             }

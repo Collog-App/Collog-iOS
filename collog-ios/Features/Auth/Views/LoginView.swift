@@ -78,13 +78,6 @@ struct LoginView: View {
                     .frame(maxWidth: .infinity)
                 }
 
-                if viewModel.isLoadingChallenge || (!viewModel.canSignIn && !viewModel.isSubmitting) {
-                    Text("서버 \(environment.settings.backendBaseURL)")
-                        .caption_01_medium(.gray700)
-                        .textSelection(.enabled)
-                        .frame(maxWidth: .infinity)
-                }
-
                 guestButton
                     .disabled(viewModel.isSubmitting)
             }
@@ -103,7 +96,7 @@ struct LoginView: View {
                 Button("완료") { isNameFocused = false }
             }
         }
-        .task(id: environment.settings.backendBaseURL) {
+        .task {
             await viewModel.prepareChallenge(using: environment)
             while !Task.isCancelled {
                 do {
