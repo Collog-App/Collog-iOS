@@ -17,6 +17,7 @@ struct FamilyMembersSettingsView: View {
     @State private var errorText: String?
     @State private var serverAllowsInvitations = false
     @State private var showsInvitationCode = false
+    @State private var families: [FamilySummary] = []
 
     private var canInvite: Bool {
         !environment.settings.isGuestMode && environment.session.user?.role == "CHILD"
@@ -26,6 +27,17 @@ struct FamilyMembersSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x5) {
+                if families.count > 1 {
+                    Picker("가족 선택", selection: Binding(
+                        get: { environment.session.familyId ?? "" },
+                        set: { familyId in Task { await selectFamily(familyId) } }
+                    )) {
+                        ForEach(families) { family in
+                            Text(family.name).tag(family.id)
+                        }
+                    }
+                    .disabled(isLoading)
+                }
                 HStack(alignment: .firstTextBaseline) {
                     Text("함께 연결된 가족")
                         .subtitle_01(.gray900)
@@ -150,6 +162,7 @@ struct FamilyMembersSettingsView: View {
     }
 
     private func load() async {
+        isLoading = true
         errorText = nil
         serverAllowsInvitations = false
         defer { isLoading = false }
@@ -158,15 +171,40 @@ struct FamilyMembersSettingsView: View {
             return
         }
 
-        guard let familyId = environment.session.familyId else { return }
         let userId = environment.session.user?.id
         do {
-            let remote = try await environment.api.familyMembers(familyId: familyId)
+            let available = try await environment.api.families()
             guard environment.session.user?.id == userId else { return }
+            families = available
+            if !available.contains(where: { $0.id == environment.session.familyId }), let first = available.first {
+                try environment.session.joinFamily(first.id)
+                environment.family.reset()
+                await environment.family.refresh(using: environment)
+            }
+            guard let familyId = environment.session.familyId else {
+                members = []
+                return
+            }
+            let remote = try await environment.api.familyMembers(familyId: familyId)
+            guard environment.session.user?.id == userId, environment.session.familyId == familyId else { return }
             members = remote.members.map(ManagedFamilyMember.init(member:))
             serverAllowsInvitations = remote.canInvite ?? (environment.session.user?.role == "CHILD")
         } catch {
             guard environment.session.user?.id == userId else { return }
+            errorText = error.localizedDescription
+        }
+    }
+
+    private func selectFamily(_ familyId: String) async {
+        guard !isLoading, families.contains(where: { $0.id == familyId }),
+              familyId != environment.session.familyId else { return }
+        do {
+            try environment.session.joinFamily(familyId)
+            environment.family.reset()
+            members = []
+            await load()
+            await environment.family.refresh(using: environment)
+        } catch {
             errorText = error.localizedDescription
         }
     }

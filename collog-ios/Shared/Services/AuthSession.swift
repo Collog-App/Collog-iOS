@@ -129,7 +129,15 @@ final class AuthSession {
             do {
                 let response = try await api.refreshSession(refreshToken: refreshToken)
                 guard currentGeneration == generation else { throw APIError.unauthenticated }
-                try apply(response)
+                var refreshedUser = response.user
+                if user?.id == refreshedUser.id, user?.role == refreshedUser.role {
+                    refreshedUser.familyId = user?.familyId ?? refreshedUser.familyId
+                }
+                try apply(TokenResponse(
+                    accessToken: response.accessToken,
+                    refreshToken: response.refreshToken,
+                    user: refreshedUser
+                ))
                 return response.accessToken
             } catch APIError.unauthenticated {
                 if currentGeneration == generation { signOut() }

@@ -104,6 +104,17 @@ struct FamilyMembersResponse: Decodable {
     let canInvite: Bool?
 }
 
+struct FamilySummary: Decodable, Identifiable, Hashable {
+    let familyId: String
+    let name: String
+
+    var id: String { familyId }
+}
+
+struct FamiliesResponse: Decodable {
+    let families: [FamilySummary]
+}
+
 struct APIQuestion: Decodable, Identifiable, Hashable {
     let questionId: String
     let text: String

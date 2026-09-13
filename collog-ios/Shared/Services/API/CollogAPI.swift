@@ -83,6 +83,11 @@ struct CollogAPI {
         try await familyMembers(familyId: familyId).members
     }
 
+    func families() async throws -> [FamilySummary] {
+        let response: FamiliesResponse = try await client.send(APIEndpoint(path: "/v1/families"))
+        return response.families
+    }
+
     func familyMembers(familyId: String) async throws -> FamilyMembersResponse {
         try await client.send(
             APIEndpoint(path: "/v1/families/\(familyId)/members")
