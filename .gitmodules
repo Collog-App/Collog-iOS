@@ -3,4 +3,4 @@
 	url = https://github.com/dohyeoplim/Collog-Privacy.git
 [submodule "Collog-Server"]
 	path = Collog-Server
-	url = https://github.com/Collog-App/Collog-Server
+	url = git@github.com:Collog-App/Collog-Server.git
