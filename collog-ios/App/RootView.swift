@@ -216,6 +216,7 @@ struct RootView: View {
                 phase: call.phase,
                 questions: call.questions,
                 notice: call.notice,
+                recordingEnabled: call.recordingEnabled,
                 onEnd: { callCenter.endActiveCall() }
             )
         } else if let simulatedContact {

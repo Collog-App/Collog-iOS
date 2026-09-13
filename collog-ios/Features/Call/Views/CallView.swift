@@ -13,6 +13,7 @@ struct CallView: View {
     let phase: CallPhase
     let questions: [String]
     var notice: String?
+    var recordingEnabled = false
     var onEnd: () -> Void
 
     @State private var connectedAt: Date?
@@ -22,6 +23,16 @@ struct CallView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if recordingEnabled, phase == .active {
+                Label("통화 녹음 중", systemImage: "record.circle.fill")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, Spacing.x4)
+                    .padding(.vertical, Spacing.x2)
+                    .background(Color.red500, in: Capsule())
+                    .padding(.top, Spacing.x3)
+                    .accessibilityLabel("건강 기록을 위해 통화 음성을 녹음 중이에요")
+            }
             if let notice {
                 noticeView(notice)
                     .padding(.top, Spacing.x3)

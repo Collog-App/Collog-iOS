@@ -52,16 +52,6 @@ struct BottomNavBarView: View {
 
             callButton
 
-            if launcher.showsHoldHint {
-                Text("길게 눌러보세요")
-                    .body_03_medium(.gray00)
-                    .padding(.horizontal, Spacing.x4)
-                    .padding(.vertical, Spacing.x2)
-                    .background(Color.gray900, in: Capsule())
-                    .offset(y: -86)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .allowsHitTesting(false)
-            }
         }
         .frame(height: Self.barHeight)
         .frame(maxWidth: .infinity)
@@ -120,11 +110,11 @@ struct BottomNavBarView: View {
         .offset(y: -Self.buttonLift)
         .contentShape(Circle())
         .gesture(pressGesture)
+        .accessibilityElement(children: .ignore)
+        .accessibilityAddTraits(.isButton)
         .accessibilityLabel("가족에게 전화")
-        .accessibilityHint(
-            "길게 누른 채 원하는 가족으로 "
-            + "손가락을 옮긴 뒤 떼면 전화를 걸어요"
-        )
+        .accessibilityHint("통화할 가족을 선택해요")
+        .accessibilityAction { launcher.presentSelection() }
         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: scale)
     }
 

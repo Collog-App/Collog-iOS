@@ -30,6 +30,7 @@ final class CallCenter: NSObject {
         var phase: CallPhase
         let questions: [String]
         var notice: String?
+        var recordingEnabled = false
     }
 
     private struct PendingOutgoing {
@@ -390,6 +391,9 @@ final class CallCenter: NSObject {
                         finishRemoteCall()
                         return
                     }
+                    if let recordingEnabled = status.recordingEnabled {
+                        activeCall?.recordingEnabled = recordingEnabled
+                    }
                     if status.state == "ACTIVE" { markCallActive() }
                 } catch APIError.unauthenticated {
                     guard !Task.isCancelled, activeCall?.id == callId else { return }
@@ -622,7 +626,8 @@ extension CallCenter: CXProviderDelegate {
                         peerName: pending.name,
                         phase: .connecting,
                         questions: created.questions.map(\.text),
-                        notice: created.recordingEnabled ? nil : created.recordingDisabledMessage
+                        notice: created.recordingEnabled ? nil : created.recordingDisabledMessage,
+                        recordingEnabled: created.recordingEnabled
                     )
                     serverQuestions = created.questions
                     rawCaptureRequired = created.rawCaptureRequired ?? false
@@ -686,6 +691,7 @@ extension CallCenter: CXProviderDelegate {
                         return
                     }
                     rawCaptureRequired = accepted.rawCaptureRequired
+                    activeCall?.recordingEnabled = accepted.recordingEnabled ?? accepted.rawCaptureRequired
                     action.fulfill()
                     actionFulfilled = true
                     try await connectMedia(

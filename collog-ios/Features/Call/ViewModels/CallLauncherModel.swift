@@ -21,12 +21,10 @@ final class CallLauncherModel {
     private(set) var focusedIndex: Int?
     private(set) var targets: [FamilyContact] = []
     private(set) var questions: [String] = []
-    private(set) var showsHoldHint = false
 
     var isPresented: Bool { mode != .idle }
 
     private var activationTask: Task<Void, Never>?
-    private var hintTask: Task<Void, Never>?
     private var didActivateByHold = false
     private var latestDragVector: CGSize = .zero
 
@@ -44,7 +42,6 @@ final class CallLauncherModel {
 
     func pressBegan() {
         guard mode != .sticky else { return }
-        hideHoldHint()
         Haptics.prepare()
         Haptics.press()
         didActivateByHold = false
@@ -72,8 +69,7 @@ final class CallLauncherModel {
         }
 
         guard didActivateByHold else {
-            showHoldHint()
-            focusedIndex = nil
+            if mode == .sticky { dismiss() } else { presentSelection() }
             return nil
         }
 
@@ -105,10 +101,18 @@ final class CallLauncherModel {
         return targets[index]
     }
 
+    func presentSelection() {
+        activationTask?.cancel()
+        activationTask = nil
+        focusedIndex = nil
+        didActivateByHold = false
+        latestDragVector = .zero
+        withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .sticky }
+    }
+
     func dismiss() {
         activationTask?.cancel()
         activationTask = nil
-        hideHoldHint()
         if mode != .idle { Haptics.cancel() }
         withAnimation(.spring(response: 0.22, dampingFraction: 0.9)) { mode = .idle }
         focusedIndex = nil
@@ -144,27 +148,6 @@ final class CallLauncherModel {
         Haptics.open()
     }
 
-    private func showHoldHint() {
-        hintTask?.cancel()
-        withAnimation(.spring(response: 0.24, dampingFraction: 0.9)) {
-            showsHoldHint = true
-        }
-        hintTask = Task { [weak self] in
-            try? await Task.sleep(for: .milliseconds(1600))
-            guard !Task.isCancelled else { return }
-            withAnimation(.easeOut(duration: 0.18)) {
-                self?.showsHoldHint = false
-            }
-        }
-    }
-
-    private func hideHoldHint() {
-        hintTask?.cancel()
-        hintTask = nil
-        if showsHoldHint {
-            withAnimation(.easeOut(duration: 0.12)) { showsHoldHint = false }
-        }
-    }
 
     private func updateFocus(for vector: CGSize) {
         let nearest = selectionIndex(for: vector)

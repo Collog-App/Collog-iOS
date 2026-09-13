@@ -43,6 +43,7 @@ struct CallLauncherOverlay: View {
         }
         .transition(.opacity)
         .animation(.spring(response: 0.32, dampingFraction: 0.82), value: model.isPresented)
+        .accessibilityAction(.escape, onDismiss)
     }
 
     private var ambientGradient: some View {
@@ -71,7 +72,9 @@ struct CallLauncherOverlay: View {
 
     private var questionStack: some View {
         VStack(alignment: .center, spacing: 0) {
-            if model.questions.isEmpty {
+            if model.targets.isEmpty {
+                hint("설정에서 통화할 가족을 등록해주세요")
+            } else if model.questions.isEmpty {
                 hint("오늘의 질문이 아직 없어요")
             } else {
                 Text("이 질문으로 시작해보세요")
@@ -183,6 +186,7 @@ struct CallLauncherOverlay: View {
                 )
                 .onTapGesture { onSelect(index) }
                 .allowsHitTesting(model.mode == .sticky)
+                .accessibilityHidden(true)
                 .scaleEffect(isFocused ? 1.025 : 1, anchor: .bottom)
                 .animation(.spring(response: 0.2, dampingFraction: 0.88), value: isFocused)
             }
@@ -219,6 +223,10 @@ struct CallLauncherOverlay: View {
         .contentShape(Circle())
         .onTapGesture { onSelect(index) }
         .allowsHitTesting(model.mode == .sticky)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(contact.name)에게 전화")
+        .accessibilityAddTraits(.isButton)
+        .accessibilityAction { onSelect(index) }
     }
 }
 
