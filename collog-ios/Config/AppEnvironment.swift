@@ -13,6 +13,7 @@ final class AppEnvironment {
     let session: AuthSession
     let family: FamilyStore
     private let networkSession: URLSession
+    @ObservationIgnored var beforeSignOut: (() async -> Void)?
     var reportNotificationRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
 
@@ -55,6 +56,7 @@ final class AppEnvironment {
     }
 
     func signOut() async {
+        await beforeSignOut?()
         let refreshToken = session.refreshToken
         let api = api
         session.signOut()

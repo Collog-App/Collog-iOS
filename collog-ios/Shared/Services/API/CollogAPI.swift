@@ -260,8 +260,10 @@ struct CollogAPI {
         try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete, body: authorization))
     }
 
-    func acceptCall(callId: String) async throws -> CallAccepted {
-        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)/accept", method: .post))
+    func acceptCall(callId: String, requestId: String? = nil) async throws -> CallAccepted {
+        try await client.send(APIEndpoint(
+            path: "/v1/calls/\(callId)/accept", method: .post, body: CallAcceptBody(requestId: requestId)
+        ))
     }
 
     func declineCall(callId: String) async throws {

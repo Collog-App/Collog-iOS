@@ -26,8 +26,20 @@ final class AnalysisPCMWriter: NSObject, AudioRenderer, @unchecked Sendable {
     private var peakSample: Int32 = 0
     private var squareSum: Double = 0
     private var sampleCount: Double = 0
+    private var muted = false
 
     private(set) var url: URL?
+
+    static func purgeAbandonedRecordings() {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "collog-analysis", directoryHint: .isDirectory)
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: nil
+        ) else { return }
+        for file in files where file.pathExtension == "wav" {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
 
     var durationSeconds: Double {
         queue.sync { Double(frameCount) / AnalysisPCMWriter.sampleRate }
@@ -54,6 +66,9 @@ final class AnalysisPCMWriter: NSObject, AudioRenderer, @unchecked Sendable {
                 commonFormat: .pcmFormatInt16,
                 interleaved: true
             )
+            try FileManager.default.setAttributes(
+                [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: target.path
+            )
             converter = nil
             sourceFormat = nil
             url = target
@@ -68,7 +83,17 @@ final class AnalysisPCMWriter: NSObject, AudioRenderer, @unchecked Sendable {
         queue.sync { [weak self] in
             guard let self, let file = self.file else { return }
             do {
-                let converted = try self.convert(pcmBuffer)
+                var converted = try self.convert(pcmBuffer)
+                if self.muted {
+                    guard let silence = AVAudioPCMBuffer(
+                        pcmFormat: self.targetFormat, frameCapacity: max(converted.frameLength, 1)
+                    ), let samples = silence.int16ChannelData?.pointee else {
+                        throw ConversionError.allocationFailed
+                    }
+                    silence.frameLength = converted.frameLength
+                    samples.update(repeating: 0, count: Int(silence.frameLength))
+                    converted = silence
+                }
                 try file.write(from: converted)
                 self.frameCount += AVAudioFramePosition(converted.frameLength)
                 self.accumulateLevels(converted)
@@ -85,6 +110,10 @@ final class AnalysisPCMWriter: NSObject, AudioRenderer, @unchecked Sendable {
             sourceFormat = nil
             return url
         }
+    }
+
+    func setMuted(_ muted: Bool) {
+        queue.sync { self.muted = muted }
     }
 
     func discard() {

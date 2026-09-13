@@ -31,6 +31,8 @@ final class CallCenter: NSObject {
         let questions: [String]
         var notice: String?
         var recordingEnabled = false
+        var isMuted = false
+        var isSpeakerEnabled = false
     }
 
     private struct PendingOutgoing {
@@ -55,6 +57,13 @@ final class CallCenter: NSObject {
 
     @ObservationIgnored private var pendingOutgoing: PendingOutgoing?
     @ObservationIgnored private var answeredCallIds: Set<String> = []
+    @ObservationIgnored private var answeringCallIds: Set<String> = []
+    @ObservationIgnored private var serverAccepted = false
+    @ObservationIgnored private var callOwnerId: String?
+    @ObservationIgnored private var microphoneTask: Task<Void, Never>?
+    @ObservationIgnored private var muteTask: Task<Void, Never>?
+    @ObservationIgnored private var statusUnavailable = false
+    @ObservationIgnored private var recordingStopped = false
     @ObservationIgnored private var pendingCapture: AudioCaptureOptions?
     @ObservationIgnored private var analysisWriter: AnalysisPCMWriter?
     @ObservationIgnored private weak var analysisTrack: LocalAudioTrack?
@@ -67,10 +76,41 @@ final class CallCenter: NSObject {
     @ObservationIgnored private var spokenCallId: String?
     @ObservationIgnored private var notificationAuthorizationTask: Task<Void, Never>?
     @ObservationIgnored private var reportNotificationsAuthorized = false
+    @ObservationIgnored private var uploadBackgroundTask: UIBackgroundTaskIdentifier = .invalid
+    @ObservationIgnored private lazy var uploads: RawAudioUploadQueue? = {
+        do {
+            return try RawAudioUploadQueue(
+                currentOwner: { [weak self] in self?.environment.session.user?.id },
+                validatePermission: { [weak self] callId in
+                    guard let self else { throw CancellationError() }
+                    let status = try await environment.api.callStatus(callId: callId)
+                    guard status.recordingEnabled == true else { throw APIError.unauthenticated }
+                },
+                requestUpload: { [weak self] callId, duration, sampleRate in
+                    guard let self else { throw CancellationError() }
+                    return try await environment.api.rawAudioUploadURL(
+                        callId: callId, durationSec: duration, sampleRate: sampleRate
+                    )
+                },
+                upload: { [weak self] file, url in
+                    guard let self else { throw CancellationError() }
+                    try await environment.api.uploadRawAudio(fileURL: file, to: url)
+                },
+                complete: { [weak self] callId, assetId in
+                    guard let self else { throw CancellationError() }
+                    try await environment.api.completeRawAudio(callId: callId, assetId: assetId)
+                }
+            )
+        } catch {
+            log("음성 업로드 대기열을 준비하지 못했어요")
+            return nil
+        }
+    }()
 
     @ObservationIgnored private var isAudioSessionActive = false
     @ObservationIgnored private var isMediaConnected = false
     @ObservationIgnored private var didPublishMicrophone = false
+    @ObservationIgnored private var microphoneReady = false
 
     private(set) var activeCall: ActiveCall?
     var hasCallInProgress: Bool { activeCall != nil || pendingOutgoing != nil }
@@ -88,6 +128,8 @@ final class CallCenter: NSObject {
     }
 
     func start() {
+        AnalysisPCMWriter.purgeAbandonedRecordings()
+        environment.beforeSignOut = { [weak self] in await self?.prepareSignOut() }
         AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
         setEngine(.none)
         provider.setDelegate(self, queue: nil)
@@ -97,6 +139,58 @@ final class CallCenter: NSObject {
         UIApplication.shared.registerForRemoteNotifications()
         if environment.session.isAuthenticated { updateNotificationAuthorization() }
         log("PushKit 등록 시작")
+        resumePendingUploads()
+    }
+
+    func sessionDidChange() {
+        if let owner = callOwnerId, owner != environment.session.user?.id {
+            if let call = activeCall {
+                provider.reportCall(with: call.uuid, endedAt: nil, reason: .failed)
+            }
+            discardAnalysisRecording()
+            teardown()
+        }
+        uploads?.discardInvalidOwners()
+        resumePendingUploads()
+    }
+
+    private func prepareSignOut() async {
+        let call = activeCall
+        let acceptedHere = call.map { answeredCallIds.contains($0.id) } ?? false
+        let api = environment.api
+        if let call { provider.reportCall(with: call.uuid, endedAt: nil, reason: .remoteEnded) }
+        discardAnalysisRecording()
+        uploads?.discardAll()
+        teardown()
+        guard let call else { return }
+        do {
+            if call.direction == .incoming, !acceptedHere {
+                try await api.declineCall(callId: call.id)
+            } else {
+                try await api.endCall(callId: call.id)
+            }
+        } catch { log("로그아웃 전 통화 종료 요청을 보내지 못했어요") }
+    }
+
+    func resumePendingUploads() {
+        uploads?.discardInvalidOwners()
+        guard let uploads, uploads.hasPending, uploadBackgroundTask == .invalid else { return }
+        uploadBackgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
+            Task { @MainActor in
+                self?.uploads?.pause()
+                self?.endUploadBackgroundTask()
+            }
+        }
+        Task {
+            await uploads.resume()
+            endUploadBackgroundTask()
+        }
+    }
+
+    private func endUploadBackgroundTask() {
+        guard uploadBackgroundTask != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(uploadBackgroundTask)
+        uploadBackgroundTask = .invalid
     }
 
     func setRemoteNotificationToken(_ deviceToken: Data) {
@@ -119,8 +213,10 @@ final class CallCenter: NSObject {
         guard deviceRegistrationTask == nil else { return }
         deviceRegistrationTask = Task {
             defer { deviceRegistrationTask = nil }
+            var failures = 0
             while needsDeviceRegistration, let apnsToken, environment.session.isAuthenticated {
                 needsDeviceRegistration = false
+                let ownerId = environment.session.user?.id
                 do {
                     _ = try await environment.api.registerDevice(
                         token: apnsToken,
@@ -131,10 +227,16 @@ final class CallCenter: NSObject {
                             && reportNotificationsAuthorized
                     )
                     deviceRegistrationError = nil
+                    failures = 0
                     log("기기 등록 완료")
                 } catch {
                     deviceRegistrationError = error.localizedDescription
                     log("기기 등록 실패: \(error.localizedDescription)")
+                    failures += 1
+                    if failures < 4, CallSafety.canRetry(error), ownerId == environment.session.user?.id {
+                        needsDeviceRegistration = true
+                        do { try await Task.sleep(for: .seconds(5 * failures)) } catch { return }
+                    }
                 }
             }
         }
@@ -183,7 +285,9 @@ final class CallCenter: NSObject {
     }
 
     func startOutgoingCall(calleeId: String, name: String, questions _: [String]) {
-        guard activeCall == nil, pendingOutgoing == nil else { return }
+        guard activeCall == nil, pendingOutgoing == nil,
+              let userId = environment.session.user?.id, environment.session.isAuthenticated else { return }
+        callOwnerId = userId
         let uuid = UUID()
         pendingOutgoing = PendingOutgoing(
             uuid: uuid,
@@ -216,6 +320,23 @@ final class CallCenter: NSObject {
                 self?.failCall(uuid: uuid, message: error.localizedDescription)
             }
         }
+    }
+
+    func toggleMute() {
+        guard let call = activeCall else { return }
+        let action = CXSetMutedCallAction(call: call.uuid, muted: !call.isMuted)
+        callController.request(CXTransaction(action: action)) { [weak self] error in
+            guard let error else { return }
+            Task { @MainActor in self?.callError = error.localizedDescription }
+        }
+    }
+
+    func toggleSpeaker() {
+        guard let call = activeCall, isAudioSessionActive else { return }
+        do {
+            try AVAudioSession.sharedInstance().overrideOutputAudioPort(call.isSpeakerEnabled ? .none : .speaker)
+            activeCall?.isSpeakerEnabled = !call.isSpeakerEnabled
+        } catch { callError = "통화 음성 출력을 바꾸지 못했어요." }
     }
 
     func log(_ message: String) {
@@ -258,14 +379,16 @@ final class CallCenter: NSObject {
               let call = activeCall else { return }
         let room = room
         didPublishMicrophone = true
-        Task {
+        microphoneTask = Task {
             do {
                 let publication = try await room.localParticipant.setMicrophone(
-                    enabled: true,
+                    enabled: !call.isMuted,
                     captureOptions: options
                 )
                 guard self.room === room, activeCall?.uuid == call.uuid else { return }
+                microphoneReady = true
                 log("마이크 publish 완료")
+                markCallActive()
                 attachAnalysisWriter(to: publication)
             } catch {
                 if (error as? LiveKitError)?.type == .roomDeleted {
@@ -278,7 +401,11 @@ final class CallCenter: NSObject {
     }
 
     private func attachAnalysisWriter(to publication: LocalTrackPublication?) {
-        guard analysisWriter == nil, rawCaptureRequired, activeCall?.phase == .active else { return }
+        guard analysisWriter == nil, let call = activeCall,
+              CallSafety.canRecord(
+                enabled: call.recordingEnabled, rawRequired: rawCaptureRequired,
+                accepted: serverAccepted, phase: call.phase
+              ) else { return }
         let resolved = publication?.track ?? room.localParticipant.audioTracks.first?.track
         guard let track = resolved as? LocalAudioTrack else {
             log("분석 PCM 실패: local audio track을 찾지 못했다")
@@ -289,10 +416,12 @@ final class CallCenter: NSObject {
         do {
             try writer.start()
         } catch {
+            writer.discard()
             log("분석 PCM 시작 실패: \(error.localizedDescription)")
             return
         }
         track.add(audioRenderer: writer)
+        writer.setMuted(call.isMuted)
         analysisWriter = writer
         analysisTrack = track
         log("분석 PCM 기록 시작")
@@ -313,20 +442,39 @@ final class CallCenter: NSObject {
             return
         }
 
-        Task {
-            do {
-                let upload = try await environment.api.rawAudioUploadURL(
-                    callId: callId,
-                    durationSec: duration,
-                    sampleRate: Int(AnalysisPCMWriter.sampleRate)
-                )
-                try await environment.api.uploadRawAudio(fileURL: fileURL, to: upload.uploadUrl)
-                try await environment.api.completeRawAudio(callId: callId, assetId: upload.assetId)
-                log("분석 PCM 업로드 완료 (\(Int(duration))초)")
-            } catch {
-                log("분석 PCM 업로드 실패: \(error.localizedDescription)")
+        do {
+            guard let ownerId = callOwnerId, ownerId == environment.session.user?.id,
+                  let uploads, activeCall?.recordingEnabled == true else {
+                writer.discard()
+                return
             }
+            try uploads.enqueue(
+                fileURL: fileURL, callId: callId, ownerID: ownerId,
+                durationSec: duration, sampleRate: Int(AnalysisPCMWriter.sampleRate)
+            )
+            resumePendingUploads()
+        } catch {
             try? FileManager.default.removeItem(at: fileURL)
+            log("분석 음성을 업로드 대기열에 저장하지 못했어요")
+        }
+    }
+
+    private func discardAnalysisRecording() {
+        if let writer = analysisWriter { analysisTrack?.remove(audioRenderer: writer) }
+        analysisWriter?.discard()
+        analysisWriter = nil
+        analysisTrack = nil
+        rawCaptureRequired = false
+        if let callId = activeCall?.id { uploads?.discard(callId: callId) }
+    }
+
+    private func applyRecordingStatus(_ enabled: Bool, message: String?) {
+        let shouldStop = !enabled && !recordingStopped
+        if !enabled { recordingStopped = true }
+        activeCall?.recordingEnabled = enabled && !recordingStopped
+        if !enabled {
+            if shouldStop { discardAnalysisRecording() }
+            activeCall?.notice = message ?? "이번 통화는 녹음과 분석 없이 진행해요."
         }
     }
 
@@ -338,6 +486,7 @@ final class CallCenter: NSObject {
         statusTask = nil
         if let callId = activeCall?.id {
             answeredCallIds.remove(callId)
+            answeringCallIds.remove(callId)
             finishAnalysisRecording(callId: callId)
         } else {
             analysisTrack = nil
@@ -345,9 +494,18 @@ final class CallCenter: NSObject {
             analysisWriter = nil
         }
         rawCaptureRequired = false
+        serverAccepted = false
+        statusUnavailable = false
+        recordingStopped = false
+        callOwnerId = nil
+        microphoneTask?.cancel()
+        microphoneTask = nil
+        muteTask?.cancel()
+        muteTask = nil
         isAudioSessionActive = false
         isMediaConnected = false
         didPublishMicrophone = false
+        microphoneReady = false
         pendingCapture = nil
         pendingOutgoing = nil
         activeCall = nil
@@ -362,6 +520,7 @@ final class CallCenter: NSObject {
     private func failCall(uuid: UUID, message: String, microphone: Bool = false) {
         guard activeCall?.uuid == uuid || pendingOutgoing?.uuid == uuid else { return }
         let call = activeCall
+        let acceptedHere = call.map { answeredCallIds.contains($0.id) } ?? false
         callError = message
         needsMicrophoneSettings = microphone
         provider.reportCall(with: uuid, endedAt: nil, reason: .failed)
@@ -369,7 +528,7 @@ final class CallCenter: NSObject {
         if let call {
             Task {
                 do {
-                    if call.direction == .incoming, call.phase == .ringing {
+                    if call.direction == .incoming, !acceptedHere {
                         try await environment.api.declineCall(callId: call.id)
                     } else {
                         try await environment.api.endCall(callId: call.id)
@@ -382,25 +541,51 @@ final class CallCenter: NSObject {
     private func monitorCall(_ callId: String) {
         statusTask?.cancel()
         statusTask = Task { [weak self] in
+            var lastSuccess = Date()
             while !Task.isCancelled {
                 guard let self, activeCall?.id == callId else { return }
                 do {
                     let status = try await environment.api.callStatus(callId: callId)
                     guard !Task.isCancelled, activeCall?.id == callId else { return }
+                    lastSuccess = Date()
+                    if statusUnavailable, activeCall?.recordingEnabled == true { activeCall?.notice = nil }
+                    statusUnavailable = false
                     if status.hasEnded {
+                        if status.recordingEnabled == false {
+                            applyRecordingStatus(false, message: status.recordingDisabledMessage)
+                        }
                         finishRemoteCall()
                         return
                     }
                     if let recordingEnabled = status.recordingEnabled {
-                        activeCall?.recordingEnabled = recordingEnabled
+                        applyRecordingStatus(recordingEnabled, message: status.recordingDisabledMessage)
                     }
-                    if status.state == "ACTIVE" { markCallActive() }
-                } catch APIError.unauthenticated {
-                    guard !Task.isCancelled, activeCall?.id == callId else { return }
-                    finishRemoteCall(reason: .failed)
-                    return
+                    if status.state == "ACTIVE" {
+                        if activeCall?.direction == .incoming, !answeredCallIds.contains(callId) {
+                            if !answeringCallIds.contains(callId) {
+                                finishRemoteCall(reason: .answeredElsewhere)
+                                return
+                            }
+                        } else {
+                            serverAccepted = true
+                            markCallActive()
+                        }
+                    }
                 } catch {
-                    if Task.isCancelled { return }
+                    guard !Task.isCancelled, activeCall?.id == callId else { return }
+                    if CallSafety.isPermanentStatusError(error) {
+                        discardAnalysisRecording()
+                        finishRemoteCall(reason: .failed)
+                        return
+                    }
+                    activeCall?.notice = "통화 상태를 확인하고 있어요. 인터넷 상태를 확인해 주세요."
+                    statusUnavailable = true
+                    if Date().timeIntervalSince(lastSuccess) >= 30 {
+                        if let call = activeCall {
+                            failCall(uuid: call.uuid, message: "통화 상태를 확인할 수 없어 통화를 종료했어요.")
+                        }
+                        return
+                    }
                 }
                 do {
                     try await Task.sleep(for: .seconds(2))
@@ -437,7 +622,8 @@ final class CallCenter: NSObject {
     }
 
     private func markCallActive() {
-        guard let call = activeCall else { return }
+        guard let call = activeCall, serverAccepted, isMediaConnected,
+              isAudioSessionActive, microphoneReady else { return }
         questionSpeaker.stop()
         activeCall?.phase = .active
         if didPublishMicrophone { attachAnalysisWriter(to: nil) }
@@ -501,6 +687,13 @@ extension CallCenter: PKPushRegistryDelegate {
                 reportAndImmediatelyEnd(uuid: uuid, completion: completion)
                 return
             }
+            guard CallSafety.acceptsPush(
+                userId: environment.session.isAuthenticated ? environment.session.user?.id : nil,
+                calleeId: call["calleeId"] as? String
+            ) else {
+                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
+                return
+            }
             guard activeCall == nil, pendingOutgoing == nil else {
                 if let activeCall, activeCall.id == callId {
                     let update = CXCallUpdate()
@@ -529,6 +722,7 @@ extension CallCenter: PKPushRegistryDelegate {
                 return
             }
 
+            callOwnerId = environment.session.user?.id
             activeCall = ActiveCall(
                 id: callId,
                 uuid: uuid,
@@ -546,6 +740,7 @@ extension CallCenter: PKPushRegistryDelegate {
             update.supportsHolding = false
             update.supportsGrouping = false
             update.supportsUngrouping = false
+            update.supportsDTMF = false
 
             provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
                 MainActor.assumeIsolated {
@@ -634,6 +829,13 @@ extension CallCenter: CXProviderDelegate {
                     action.fulfill()
                     actionFulfilled = true
                     provider.reportOutgoingCall(with: pending.uuid, startedConnectingAt: nil)
+                    let update = CXCallUpdate()
+                    update.localizedCallerName = pending.name
+                    update.supportsHolding = false
+                    update.supportsGrouping = false
+                    update.supportsUngrouping = false
+                    update.supportsDTMF = false
+                    provider.reportCall(with: pending.uuid, updated: update)
                     monitorCall(created.callId)
 
                     try await connectMedia(
@@ -665,8 +867,15 @@ extension CallCenter: CXProviderDelegate {
                 action.fail()
                 return
             }
+            guard !answeredCallIds.contains(call.id), !answeringCallIds.contains(call.id) else {
+                action.fail()
+                return
+            }
+            answeringCallIds.insert(call.id)
             Task {
                 var actionFulfilled = false
+                let requestId = UUID().uuidString
+                defer { answeringCallIds.remove(call.id) }
                 do {
                     let permitted = await AVAudioApplication.requestRecordPermission()
                     guard activeCall?.uuid == call.uuid else {
@@ -683,15 +892,19 @@ extension CallCenter: CXProviderDelegate {
                         return
                     }
                     activeCall?.phase = .connecting
-                    answeredCallIds.insert(call.id)
-                    let accepted = try await environment.api.acceptCall(callId: call.id)
+                    let accepted = try await acceptCallWithRetry(callId: call.id, requestId: requestId)
                     guard activeCall?.id == call.id else {
                         try? await environment.api.endCall(callId: call.id)
                         action.fail()
                         return
                     }
+                    answeredCallIds.insert(call.id)
+                    serverAccepted = true
                     rawCaptureRequired = accepted.rawCaptureRequired
-                    activeCall?.recordingEnabled = accepted.recordingEnabled ?? accepted.rawCaptureRequired
+                    applyRecordingStatus(
+                        accepted.recordingEnabled ?? accepted.rawCaptureRequired,
+                        message: nil
+                    )
                     action.fulfill()
                     actionFulfilled = true
                     try await connectMedia(
@@ -707,7 +920,59 @@ extension CallCenter: CXProviderDelegate {
                     markCallActive()
                 } catch {
                     if !actionFulfilled { action.fail() }
+                    if case let APIError.server(status, _, _) = error, [409, 410].contains(status) {
+                        guard activeCall?.id == call.id else { return }
+                        finishRemoteCall(reason: status == 409 ? .answeredElsewhere : .unanswered)
+                        return
+                    }
                     handleMediaError(error, uuid: call.uuid)
+                }
+            }
+        }
+    }
+
+    private func acceptCallWithRetry(callId: String, requestId: String) async throws -> CallAccepted {
+        for attempt in 0..<3 {
+            do {
+                return try await environment.api.acceptCall(callId: callId, requestId: requestId)
+            } catch {
+                guard attempt < 2, CallSafety.canRetry(error), activeCall?.id == callId else { throw error }
+                try await Task.sleep(for: .seconds(1))
+            }
+        }
+        throw CancellationError()
+    }
+
+    nonisolated func provider(_ provider: CXProvider, perform action: CXSetMutedCallAction) {
+        MainActor.assumeIsolated {
+            guard let call = activeCall, call.uuid == action.callUUID else {
+                action.fail()
+                return
+            }
+            activeCall?.isMuted = action.isMuted
+            analysisWriter?.setMuted(action.isMuted)
+            let targetRoom = room
+            let previousMute = muteTask
+            muteTask = Task {
+                await previousMute?.value
+                await microphoneTask?.value
+                guard room === targetRoom, activeCall?.uuid == call.uuid else {
+                    action.fail()
+                    return
+                }
+                do {
+                    if isMediaConnected || didPublishMicrophone {
+                        let publication = try await targetRoom.localParticipant.setMicrophone(enabled: !action.isMuted)
+                        guard room === targetRoom, activeCall?.uuid == call.uuid else {
+                            action.fail()
+                            return
+                        }
+                        attachAnalysisWriter(to: publication)
+                    }
+                    action.fulfill()
+                } catch {
+                    action.fail()
+                    failCall(uuid: call.uuid, message: "마이크 상태를 바꾸지 못해 통화를 종료했어요.")
                 }
             }
         }
@@ -752,9 +1017,11 @@ extension CallCenter: CXProviderDelegate {
                     return
                 }
                 isAudioSessionActive = true
+                analysisWriter?.setMuted(activeCall?.isMuted ?? true)
                 let outputs = session.currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
                 log("CallKit 오디오 활성화, 출력=\(outputs)")
                 publishMicrophoneIfReady()
+                markCallActive()
                 speakQuestionsIfReady()
             } catch {
                 if let call = activeCall { failCall(uuid: call.uuid, message: error.localizedDescription) }
@@ -768,11 +1035,39 @@ extension CallCenter: CXProviderDelegate {
             setEngine(.none)
             questionSpeaker.stop()
             isAudioSessionActive = false
+            analysisWriter?.setMuted(true)
         }
     }
 }
 
 extension CallCenter: RoomDelegate {
+    nonisolated func room(
+        _ room: Room, didUpdateConnectionState connectionState: ConnectionState,
+        from oldConnectionState: ConnectionState
+    ) {
+        Task { @MainActor in
+            guard self.room === room, activeCall != nil else { return }
+            if connectionState == .reconnecting {
+                isMediaConnected = false
+                analysisWriter?.setMuted(true)
+                activeCall?.phase = .reconnecting
+            } else if connectionState == .connected {
+                isMediaConnected = true
+                if didPublishMicrophone, let call = activeCall {
+                    do {
+                        _ = try await room.localParticipant.setMicrophone(enabled: !call.isMuted)
+                        guard self.room === room, activeCall?.uuid == call.uuid else { return }
+                    } catch {
+                        failCall(uuid: call.uuid, message: "마이크 상태를 복구하지 못해 통화를 종료했어요.")
+                        return
+                    }
+                }
+                analysisWriter?.setMuted(activeCall?.isMuted ?? true)
+                markCallActive()
+                if !serverAccepted, activeCall?.direction == .outgoing { activeCall?.phase = .ringing }
+            }
+        }
+    }
     nonisolated func room(_ room: Room, didDisconnectWithError error: LiveKitError?) {
         Task { @MainActor in
             guard self.room === room else { return }

@@ -60,6 +60,7 @@ struct RootView: View {
             Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
         }
         .onChange(of: environment.session.isAuthenticated) {
+            callCenter.sessionDidChange()
             if !environment.session.isAuthenticated {
                 callCenter.endActiveCall()
                 launcher.dismiss()
@@ -71,6 +72,7 @@ struct RootView: View {
             Task { await authFlow.resolve(using: environment) }
         }
         .onChange(of: environment.session.user) { previous, current in
+            callCenter.sessionDidChange()
             guard let previous, let current,
                   previous.role != current.role || previous.familyId != current.familyId else { return }
             launcher.dismiss()
@@ -89,6 +91,7 @@ struct RootView: View {
         }
         .onChange(of: scenePhase) {
             if scenePhase == .active, environment.session.isAuthenticated {
+                callCenter.resumePendingUploads()
                 callCenter.updateNotificationAuthorization()
                 Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
             }
