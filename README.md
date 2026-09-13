@@ -44,7 +44,8 @@ flowchart LR
 
 ### Signing & Provisioning
 
-개발용 인증서와 프로비저닝 프로파일은 [Fastlane Match 저장소](https://github.com/Collog-App/Collog-Certificate)에서 공유함.
+Development certificates and provisioning profiles are shared through the
+[Fastlane Match repository](https://github.com/Collog-App/Collog-Certificate).
 저장소 접근 권한과 Match 암호가 필요함.
 
 ```bash
