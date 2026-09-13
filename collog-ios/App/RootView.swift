@@ -70,8 +70,9 @@ struct RootView: View {
             environment.family.reset()
             Task { await authFlow.resolve(using: environment) }
         }
-        .onChange(of: environment.session.user?.role) { previous, current in
-            guard previous != nil, current != nil, environment.session.isAuthenticated else { return }
+        .onChange(of: environment.session.user) { previous, current in
+            guard let previous, let current,
+                  previous.role != current.role || previous.familyId != current.familyId else { return }
             launcher.dismiss()
             navigation = NavigationStore()
             tabManager.selectedTab = .home

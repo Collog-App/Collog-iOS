@@ -16,6 +16,7 @@ struct FamilyMembersSettingsView: View {
     @State private var selectedInvitation: FamilyInvitation?
     @State private var errorText: String?
     @State private var serverAllowsInvitations = false
+    @State private var showsInvitationCode = false
 
     private var canInvite: Bool {
         !environment.settings.isGuestMode && environment.session.user?.role == "CHILD"
@@ -69,6 +70,14 @@ struct FamilyMembersSettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
+                if !environment.settings.isGuestMode, environment.session.user?.role == "PARENT" {
+                    Button { showsInvitationCode = true } label: {
+                        Text("초대 코드 입력")
+                            .body_02_semibold(.greenDark)
+                            .frame(maxWidth: .infinity, minHeight: 52)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x4)
@@ -79,6 +88,11 @@ struct FamilyMembersSettingsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
+        .sheet(isPresented: $showsInvitationCode) {
+            InvitationAcceptSheet {
+                Task { await load() }
+            }
+        }
         .sheet(isPresented: $showsInvitation) {
             FamilyInvitationSheet {
                 Task { await load() }

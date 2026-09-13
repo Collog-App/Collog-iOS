@@ -16,6 +16,7 @@ struct AccountSettingsView: View {
     @State private var confirmsRoleChange = false
     @State private var confirmsDeletion = false
     @State private var errorMessage: String?
+    @State private var showsInvitationCode = false
 
     var body: some View {
         ScrollView {
@@ -42,6 +43,11 @@ struct AccountSettingsView: View {
 
                 SettingsSection(title: "가족") {
                     SettingsValueRow(label: "등록된 가족", value: "\(environment.family.contacts.count)명")
+                    if environment.session.isAuthenticated, environment.session.user?.role == "PARENT" {
+                        DividerLine()
+                        SettingsNavigationRow(label: "초대 코드 입력") { showsInvitationCode = true }
+                            .disabled(isSubmitting || callCenter.hasCallInProgress)
+                    }
                 }
 
                 if environment.session.isAuthenticated {
@@ -85,6 +91,9 @@ struct AccountSettingsView: View {
             HomeDetailHeader(title: "계정 정보")
         }
         .toolbar(.hidden, for: .navigationBar)
+        .sheet(isPresented: $showsInvitationCode) {
+            InvitationAcceptSheet()
+        }
         .onAppear {
             selectedRole = UserRoleOption(rawValue: environment.session.user?.role ?? "") ?? .child
         }

@@ -7,6 +7,7 @@ struct InvitationAcceptView: View {
     @State private var errorMessage: String?
 
     var onAccepted: () -> Void
+    var showsAccountActions = true
 
     var body: some View {
         ScrollView {
@@ -44,8 +45,10 @@ struct InvitationAcceptView: View {
                 .buttonStyle(.plain)
                 .disabled(code.count != 6 || !code.allSatisfy(\.isNumber) || isSubmitting)
 
-                OnboardingAccountActions()
-                    .disabled(isSubmitting)
+                if showsAccountActions {
+                    OnboardingAccountActions()
+                        .disabled(isSubmitting)
+                }
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x8)
@@ -68,6 +71,25 @@ struct InvitationAcceptView: View {
             onAccepted()
         } catch {
             errorMessage = error.localizedDescription
+        }
+    }
+}
+
+struct InvitationAcceptSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    var onAccepted: () -> Void = {}
+
+    var body: some View {
+        NavigationStack {
+            InvitationAcceptView(onAccepted: {
+                dismiss()
+                onAccepted()
+            }, showsAccountActions: false)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("취소") { dismiss() }
+                }
+            }
         }
     }
 }
