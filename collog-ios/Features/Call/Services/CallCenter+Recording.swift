@@ -93,14 +93,14 @@ extension CallCenter {
         analysisTrack?.remove(audioRenderer: writer)
         analysisTrack = nil
 
-        let duration = writer.durationSeconds
-        log("분석 PCM \(writer.levelText)")
-
-        guard let fileURL = writer.finish(), duration > 0 else {
+        guard let recording = writer.finish(), recording.durationSeconds > 0 else {
             writer.discard()
             log("분석 PCM 없음")
             return
         }
+        let fileURL = recording.url
+        let duration = recording.durationSeconds
+        log("분석 PCM \(recording.levelText)")
 
         do {
             guard let ownerId = callOwnerId, ownerId == environment.session.user?.id,
