@@ -43,7 +43,7 @@ extension CallCenter {
         uploads?.discardInvalidOwners()
         guard let uploads, uploads.hasPending, uploadBackgroundTask == .invalid else { return }
         uploadBackgroundTask = UIApplication.shared.beginBackgroundTask { [weak self] in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.uploads?.pause()
                 self?.endUploadBackgroundTask()
             }

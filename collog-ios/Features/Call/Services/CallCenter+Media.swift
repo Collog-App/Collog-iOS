@@ -34,7 +34,7 @@ extension CallCenter {
         let action = CXSetMutedCallAction(call: call.uuid, muted: !call.isMuted)
         callController.request(CXTransaction(action: action)) { [weak self] error in
             guard let error else { return }
-            Task { @MainActor in self?.callError = error.localizedDescription }
+            Task { @MainActor [weak self] in self?.callError = error.localizedDescription }
         }
     }
 
