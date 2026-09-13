@@ -83,118 +83,115 @@ extension CallCenter {
     }
 }
 
-extension CallCenter: PKPushRegistryDelegate {
-    nonisolated func pushRegistry(
+extension CallCenter: @MainActor PKPushRegistryDelegate {
+    func pushRegistry(
         _ registry: PKPushRegistry,
         didUpdate credentials: PKPushCredentials,
         for type: PKPushType
     ) {
-        MainActor.assumeIsolated {
-            voipToken = credentials.token.hexString
-            log("VoIP 토큰 수신")
-            registerDeviceIfPossible()
-        }
+        voipToken = credentials.token.hexString
+        log("VoIP 토큰 수신")
+        registerDeviceIfPossible()
     }
 
-    nonisolated func pushRegistry(
+    func pushRegistry(
         _ registry: PKPushRegistry,
         didInvalidatePushTokenFor type: PKPushType
     ) {
-        MainActor.assumeIsolated {
-            voipToken = nil
-            registerDeviceIfPossible()
-        }
+        voipToken = nil
+        registerDeviceIfPossible()
     }
 
-    nonisolated func pushRegistry(
+    func pushRegistry(
         _ registry: PKPushRegistry,
         didReceiveIncomingPushWith payload: PKPushPayload,
         for type: PKPushType,
         completion: @escaping () -> Void
     ) {
-        MainActor.assumeIsolated {
-            let call = payload.dictionaryPayload["call"] as? [String: Any] ?? [:]
-            let uuid = (call["callUUID"] as? String).flatMap(UUID.init) ?? UUID()
-            let callerName = call["callerName"] as? String ?? "콜록"
-            let callerId = call["callerId"] as? String
-            let contact = environment.family.contacts.first { contact in
-                contact.userId == callerId || contact.name == callerName
-            }
-            let questions = environment.family.questions(for: contact).map(\.text)
+        let response = IncomingPushCompletion(completion)
+        let call = payload.dictionaryPayload["call"] as? [String: Any] ?? [:]
+        let uuid = (call["callUUID"] as? String).flatMap(UUID.init) ?? UUID()
+        let callerName = call["callerName"] as? String ?? "콜록"
+        let callerId = call["callerId"] as? String
+        let contact = environment.family.contacts.first { contact in
+            contact.userId == callerId || contact.name == callerName
+        }
+        let questions = environment.family.questions(for: contact).map(\.text)
 
-            guard let callId = call["callId"] as? String else {
-                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
+        guard let callId = call["callId"] as? String else {
+            reportAndImmediatelyEnd(uuid: uuid, completion: response)
+            return
+        }
+        guard CallSafety.acceptsPush(
+            userId: environment.session.isAuthenticated ? environment.session.user?.id : nil,
+            calleeId: call["calleeId"] as? String
+        ) else {
+            reportAndImmediatelyEnd(uuid: uuid, completion: response)
+            return
+        }
+        guard activeCall == nil, pendingOutgoing == nil else {
+            if let activeCall, activeCall.id == callId {
+                let update = CXCallUpdate()
+                update.localizedCallerName = activeCall.peerName
+                provider.reportNewIncomingCall(with: activeCall.uuid, update: update) { _ in
+                    Task { @MainActor in response.finish() }
+                }
                 return
             }
-            guard CallSafety.acceptsPush(
-                userId: environment.session.isAuthenticated ? environment.session.user?.id : nil,
-                calleeId: call["calleeId"] as? String
-            ) else {
-                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
-                return
-            }
-            guard activeCall == nil, pendingOutgoing == nil else {
-                if let activeCall, activeCall.id == callId {
-                    let update = CXCallUpdate()
-                    update.localizedCallerName = activeCall.peerName
-                    provider.reportNewIncomingCall(with: activeCall.uuid, update: update) { _ in completion() }
+            reportAndImmediatelyEnd(uuid: uuid, completion: response)
+            declineIncomingCall(callId)
+            return
+        }
+        if let expiresAt = call["expiresAt"] as? String,
+           let expiry = Date.fromCollogTimestamp(expiresAt),
+           expiry < Date() {
+            log("만료된 push 무시: \(callId)")
+            reportAndImmediatelyEnd(uuid: uuid, completion: response)
+            return
+        }
+
+        do {
+            try prepareCallAudio()
+        } catch {
+            log("수신 오디오 준비 실패: \(error.localizedDescription)")
+            reportAndImmediatelyEnd(uuid: uuid, completion: response)
+            declineIncomingCall(callId)
+            return
+        }
+
+        callOwnerId = environment.session.user?.id
+        activeCall = ActiveCall(
+            id: callId,
+            uuid: uuid,
+            direction: .incoming,
+            peerId: callerId,
+            peerName: callerName,
+            phase: .ringing,
+            questions: questions
+        )
+
+        let update = CXCallUpdate()
+        update.localizedCallerName = callerName
+        update.remoteHandle = CXHandle(type: .generic, value: call["callerId"] as? String ?? "collog")
+        update.hasVideo = false
+        update.supportsHolding = false
+        update.supportsGrouping = false
+        update.supportsUngrouping = false
+        update.supportsDTMF = false
+
+        provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
+            Task { @MainActor [weak self] in
+                guard self?.activeCall?.uuid == uuid else {
+                    response.finish()
                     return
                 }
-                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
-                declineIncomingCall(callId)
-                return
-            }
-            if let expiresAt = call["expiresAt"] as? String,
-               let expiry = Date.fromCollogTimestamp(expiresAt),
-               expiry < Date() {
-                log("만료된 push 무시: \(callId)")
-                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
-                return
-            }
-
-            do {
-                try prepareCallAudio()
-            } catch {
-                log("수신 오디오 준비 실패: \(error.localizedDescription)")
-                reportAndImmediatelyEnd(uuid: uuid, completion: completion)
-                declineIncomingCall(callId)
-                return
-            }
-
-            callOwnerId = environment.session.user?.id
-            activeCall = ActiveCall(
-                id: callId,
-                uuid: uuid,
-                direction: .incoming,
-                peerId: callerId,
-                peerName: callerName,
-                phase: .ringing,
-                questions: questions
-            )
-
-            let update = CXCallUpdate()
-            update.localizedCallerName = callerName
-            update.remoteHandle = CXHandle(type: .generic, value: call["callerId"] as? String ?? "collog")
-            update.hasVideo = false
-            update.supportsHolding = false
-            update.supportsGrouping = false
-            update.supportsUngrouping = false
-            update.supportsDTMF = false
-
-            provider.reportNewIncomingCall(with: uuid, update: update) { [weak self] error in
-                MainActor.assumeIsolated {
-                    guard self?.activeCall?.uuid == uuid else {
-                        completion()
-                        return
-                    }
-                    if let error {
-                        self?.failCall(uuid: uuid, message: error.localizedDescription)
-                    } else {
-                        self?.log("수신 통화 표시: \(callerName)")
-                        self?.monitorCall(callId)
-                    }
-                    completion()
+                if let error {
+                    self?.failCall(uuid: uuid, message: error.localizedDescription)
+                } else {
+                    self?.log("수신 통화 표시: \(callerName)")
+                    self?.monitorCall(callId)
                 }
+                response.finish()
             }
         }
     }
@@ -206,14 +203,14 @@ extension CallCenter: PKPushRegistryDelegate {
         }
     }
 
-    private func reportAndImmediatelyEnd(uuid: UUID, completion: @escaping () -> Void) {
+    private func reportAndImmediatelyEnd(uuid: UUID, completion response: IncomingPushCompletion) {
         let reportedUUID = activeCall?.uuid == uuid || pendingOutgoing?.uuid == uuid ? UUID() : uuid
         let update = CXCallUpdate()
         update.localizedCallerName = "콜록"
         provider.reportNewIncomingCall(with: reportedUUID, update: update) { [weak self] _ in
-            MainActor.assumeIsolated {
+            Task { @MainActor [weak self] in
                 self?.provider.reportCall(with: reportedUUID, endedAt: nil, reason: .unanswered)
-                completion()
+                response.finish()
             }
         }
     }

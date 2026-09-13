@@ -62,6 +62,7 @@ final class CallCenter: NSObject {
     @ObservationIgnored var callOwnerId: String?
     @ObservationIgnored var microphoneTask: Task<Void, Never>?
     @ObservationIgnored var muteTask: Task<Void, Never>?
+    @ObservationIgnored var actionResponses: [UUID: CallActionResponse] = [:]
     @ObservationIgnored var statusUnavailable = false
     @ObservationIgnored var recordingStopped = false
     @ObservationIgnored var pendingCapture: AudioCaptureOptions?
@@ -104,7 +105,7 @@ final class CallCenter: NSObject {
         environment.beforeSignOut = { [weak self] in await self?.prepareSignOut() }
         AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
         setEngine(.none)
-        provider.setDelegate(self, queue: nil)
+        provider.setDelegate(self, queue: .main)
         room.add(delegate: self)
         registry.delegate = self
         registry.desiredPushTypes = [.voIP]
