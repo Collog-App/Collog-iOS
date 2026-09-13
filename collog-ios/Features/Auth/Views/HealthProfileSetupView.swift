@@ -52,6 +52,9 @@ struct HealthProfileSetupView: View {
             }
             .buttonStyle(.plain)
             .disabled(selected.isEmpty || isSubmitting)
+
+            OnboardingAccountActions()
+                .disabled(isSubmitting)
         }
         .padding(.horizontal, Spacing.x5)
         .padding(.top, Spacing.x8)

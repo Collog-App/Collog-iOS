@@ -24,6 +24,7 @@ enum ConsentItemLabel {
         case "VOICE_FEATURE_EXTRACTION": "음성 특징값 추출"
         case "CALL_RECORDING": "통화 녹음과 분석"
         case "REPORT_SHARING_WITH_CHILD": "자녀와 리포트 공유"
+        case "THIRD_PARTY_AI_PROCESSING": "Deepgram, Google Gemini, ElevenLabs에 데이터 전송"
         default: code
         }
     }
@@ -35,6 +36,8 @@ struct ConsentRecordDTO: Decodable {
     let documentVersion: String
     let status: String
     let agreedItems: [String]
+    let isCurrent: Bool
+    let currentDocumentVersion: String
 
     var isGranted: Bool { status == "GRANTED" }
 }

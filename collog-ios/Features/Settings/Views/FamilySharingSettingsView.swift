@@ -14,6 +14,9 @@ struct FamilySharingSettingsView: View {
     @State private var isGranted = false
     @State private var isLoading = true
     @State private var errorText: String?
+    @State private var showsConsent = false
+    @State private var confirmsRevocation = false
+    @State private var isSubmitting = false
 
     var body: some View {
         ScrollView {
@@ -37,10 +40,19 @@ struct FamilySharingSettingsView: View {
                     )
                 }
 
-                SettingsSection(title: "기기에만 보관") {
-                    SettingsScopeRow(title: "계정 인증 정보", detail: "로그인 토큰과 기기 정보")
+                SettingsSection(title: "계정과 알림") {
+                    SettingsScopeRow(title: "로그인 정보", detail: "로그인 토큰은 기기 키체인에 보관돼요.")
                     DividerLine()
-                    SettingsScopeRow(title: "알림 설정", detail: "개인별 알림 선택")
+                    SettingsScopeRow(title: "푸시 토큰", detail: "전화와 알림 수신을 위해 서버에 등록돼요.")
+                }
+
+                if !environment.settings.isGuestMode {
+                    Button("분석 동의 내용 확인 및 변경") { showsConsent = true }
+                        .disabled(isLoading || isSubmitting)
+                    if isGranted {
+                        Button("분석 동의 철회", role: .destructive) { confirmsRevocation = true }
+                            .disabled(isLoading || isSubmitting)
+                    }
                 }
 
                 if !agreedItems.isEmpty {
@@ -63,6 +75,8 @@ struct FamilySharingSettingsView: View {
                     Text(errorText)
                         .body_03_medium(.red500)
                         .fixedSize(horizontal: false, vertical: true)
+                    Button("다시 시도") { Task { await load() } }
+                        .disabled(isLoading || isSubmitting)
                 }
             }
             .padding(.horizontal, Spacing.x5)
@@ -74,14 +88,23 @@ struct FamilySharingSettingsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
+        .sheet(isPresented: $showsConsent, onDismiss: { Task { await load() } }) {
+            ConsentView(onAgreed: { showsConsent = false }, showsAccountActions: false)
+        }
+        .alert("통화 분석 동의를 철회할까요?", isPresented: $confirmsRevocation) {
+            Button("취소", role: .cancel) {}
+            Button("철회", role: .destructive) { Task { await revoke() } }
+        } message: {
+            Text("일반 통화는 계속 이용할 수 있어요. 기존 기록 삭제는 계정 관리에서 요청할 수 있어요.")
+        }
     }
 
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
-            Text(isLoading ? "확인 중" : isGranted ? "가족과 공유 중" : "공유 대기")
+            Text(isLoading ? "확인 중" : isGranted ? "통화 분석에 동의함" : "통화 분석 동의 없음")
                 .subtitle_01(.gray900)
 
-            Text("가족은 요약된 기록만 확인할 수 있어요.")
+            Text("두 사람 모두 동의해야 통화를 녹음하고 외부 AI로 분석해요.")
                 .body_03_medium(.gray700)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -89,6 +112,8 @@ struct FamilySharingSettingsView: View {
     }
 
     private func load() async {
+        isLoading = true
+        errorText = nil
         defer { isLoading = false }
         if environment.settings.isGuestMode {
             agreedItems = [
@@ -104,7 +129,26 @@ struct FamilySharingSettingsView: View {
         do {
             let consent = try await environment.api.myConsent()
             agreedItems = consent.agreedItems
-            isGranted = consent.isGranted && consent.agreedItems.contains("REPORT_SHARING_WITH_CHILD")
+            isGranted = consent.isCurrent && consent.isGranted
+        } catch {
+            errorText = error.localizedDescription
+        }
+    }
+
+    private func revoke() async {
+        guard !isSubmitting else { return }
+        isSubmitting = true
+        errorText = nil
+        defer { isSubmitting = false }
+        do {
+            let document = try await environment.api.consentDocument()
+            _ = try await environment.api.submitConsent(
+                documentVersion: document.version,
+                agreedItems: [],
+                decision: "DENY",
+                scrolledToEnd: false
+            )
+            await load()
         } catch {
             errorText = error.localizedDescription
         }

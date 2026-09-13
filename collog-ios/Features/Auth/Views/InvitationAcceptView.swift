@@ -44,13 +44,8 @@ struct InvitationAcceptView: View {
                 .buttonStyle(.plain)
                 .disabled(code.count != 6 || !code.allSatisfy(\.isNumber) || isSubmitting)
 
-                Button {
-                    Task { await environment.signOut() }
-                } label: {
-                    Text("다른 계정으로 로그인")
-                        .body_02_semibold(.gray800)
-                }
-                .disabled(isSubmitting)
+                OnboardingAccountActions()
+                    .disabled(isSubmitting)
             }
             .padding(.horizontal, Spacing.x5)
             .padding(.vertical, Spacing.x8)

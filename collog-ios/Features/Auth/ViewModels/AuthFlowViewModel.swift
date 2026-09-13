@@ -38,11 +38,7 @@ final class AuthFlowViewModel {
             step = .login
             return
         }
-        guard user.role == UserRoleOption.parent.rawValue else {
-            step = .ready
-            return
-        }
-        guard user.familyId != nil else {
+        if user.role == UserRoleOption.parent.rawValue, user.familyId == nil {
             step = .invitation
             return
         }
@@ -50,17 +46,17 @@ final class AuthFlowViewModel {
         do {
             let consent = try await environment.api.myConsent()
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
-            guard consent.isGranted else {
+            guard consent.isCurrent else {
                 step = .consent
                 return
             }
-        } catch let error as APIError {
-            guard environment.session.user == user, !environment.settings.isGuestMode else { return }
-            step = isMissingRecord(error) ? .consent : .ready
-            return
+            guard consent.isGranted, user.role == UserRoleOption.parent.rawValue else {
+                step = .ready
+                return
+            }
         } catch {
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
-            step = .ready
+            step = .consent
             return
         }
 
@@ -72,10 +68,5 @@ final class AuthFlowViewModel {
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
             step = .ready
         }
-    }
-
-    private func isMissingRecord(_ error: APIError) -> Bool {
-        if case let .server(status, _, _) = error { return status == 404 }
-        return false
     }
 }
