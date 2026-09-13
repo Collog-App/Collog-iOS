@@ -42,6 +42,16 @@ flowchart LR
     style IOS fill:transparent,stroke:#cbd5e1,stroke-dasharray:5 5
 ```
 
+### Signing & Provisioning
+
+개발용 인증서와 프로비저닝 프로파일은 [Fastlane Match 저장소](https://github.com/Collog-App/Collog-Certificate)에서 공유함.
+저장소 접근 권한과 Match 암호가 필요함.
+
+```bash
+bundle install
+bundle exec fastlane ios certificates
+```
+
 <br />
 <sub>
 © 2026 Team Raichu of LIKELION SeoulTech. All rights reserved.
