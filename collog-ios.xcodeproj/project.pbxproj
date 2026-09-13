@@ -151,7 +151,7 @@
 			mainGroup = 9CDE8F51303481C20025DDCD;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+				9CDE9001303481C20025DDCD /* XCLocalSwiftPackageReference "LiveKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9CDE8F5B303481C20025DDCD /* Products */;
@@ -471,21 +471,17 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCRemoteSwiftPackageReference section */
-		9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/livekit/client-sdk-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.16.0;
-			};
+/* Begin XCLocalSwiftPackageReference section */
+		9CDE9001303481C20025DDCD /* XCLocalSwiftPackageReference "LiveKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/LiveKit;
 		};
-/* End XCRemoteSwiftPackageReference section */
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		9CDE9002303481C20025DDCD /* LiveKit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 9CDE9001303481C20025DDCD /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			package = 9CDE9001303481C20025DDCD /* XCLocalSwiftPackageReference "LiveKit" */;
 			productName = LiveKit;
 		};
 /* End XCSwiftPackageProductDependency section */
