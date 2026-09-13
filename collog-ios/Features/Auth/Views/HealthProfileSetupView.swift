@@ -13,6 +13,7 @@ struct HealthProfileSetupView: View {
     var onCompleted: () -> Void
 
     @State private var selected: Set<HealthCondition> = []
+    @State private var hasNoConditions = false
     @State private var isSubmitting = false
     @State private var errorMessage: String?
 
@@ -30,6 +31,7 @@ struct HealthProfileSetupView: View {
                 ForEach(HealthCondition.allCases) { condition in
                     row(for: condition)
                 }
+                row(for: nil)
             }
 
             if let errorMessage {
@@ -46,12 +48,12 @@ struct HealthProfileSetupView: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(
-                        selected.isEmpty || isSubmitting ? Color.gray500 : Color.greenNormal,
+                        !canSubmit ? Color.gray500 : Color.greenNormal,
                         in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
                     )
             }
             .buttonStyle(.plain)
-            .disabled(selected.isEmpty || isSubmitting)
+            .disabled(!canSubmit)
 
             OnboardingAccountActions()
                 .disabled(isSubmitting)
@@ -63,22 +65,31 @@ struct HealthProfileSetupView: View {
         .background(Color.gray50)
     }
 
-    private func row(for condition: HealthCondition) -> some View {
-        Button {
-            if selected.contains(condition) {
-                selected.remove(condition)
+    private var canSubmit: Bool { (!selected.isEmpty || hasNoConditions) && !isSubmitting }
+
+    private func row(for condition: HealthCondition?) -> some View {
+        let isSelected = condition.map { selected.contains($0) } ?? hasNoConditions
+        return Button {
+            if let condition {
+                hasNoConditions = false
+                if selected.contains(condition) {
+                    selected.remove(condition)
+                } else {
+                    selected.insert(condition)
+                }
             } else {
-                selected.insert(condition)
+                selected.removeAll()
+                hasNoConditions.toggle()
             }
         } label: {
             HStack(spacing: Spacing.x2) {
-                Text(condition.title)
-                    .body_02_medium(selected.contains(condition) ? .gray900 : .gray800)
+                Text(condition?.title ?? "해당 없음")
+                    .body_02_medium(isSelected ? .gray900 : .gray800)
 
                 Spacer(minLength: Spacing.x2)
 
                 Circle()
-                    .fill(selected.contains(condition) ? Color.greenNormal : Color.gray300)
+                    .fill(isSelected ? Color.greenNormal : Color.gray300)
                     .frame(width: 20, height: 20)
             }
             .padding(.horizontal, Spacing.x4)
@@ -86,15 +97,17 @@ struct HealthProfileSetupView: View {
             .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
-                    .stroke(selected.contains(condition) ? Color.greenNormal : Color.clear, lineWidth: 1)
+                    .stroke(isSelected ? Color.greenNormal : Color.clear, lineWidth: 1)
             )
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isSubmitting)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func submit() {
-        guard let parentId = environment.session.user?.id else { return }
+        guard canSubmit, let parentId = environment.session.user?.id else { return }
         isSubmitting = true
         errorMessage = nil
         Task {

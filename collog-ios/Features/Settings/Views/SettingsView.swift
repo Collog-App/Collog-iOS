@@ -101,7 +101,7 @@ struct SettingsView: View {
                 navigation.manager(for: .settings).push(SettingsRoute.account)
             }
             DividerLine()
-            SettingsNavigationRow(label: "나의 건강 프로필") {
+            SettingsNavigationRow(label: "건강 프로필") {
                 navigation.manager(for: .settings).push(SettingsRoute.healthProfile)
             }
             DividerLine()
