@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 struct AccountSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
@@ -121,13 +122,22 @@ struct AccountSettingsView: View {
         defer { isSubmitting = false }
         let userId = environment.session.user?.id
         do {
-            try await environment.api.deleteAccount()
+            var authorization: AppleDeletionBody?
+            if let appleUserId = environment.session.user?.appleUserId {
+                let challenge = try await environment.api.appleLoginChallenge()
+                let authorizer = AppleDeletionAuthorization()
+                authorization = try await authorizer.authorize(challenge: challenge, user: appleUserId)
+            }
+            guard environment.session.user?.id == userId else { return }
+            try await environment.api.deleteAccount(authorization: authorization)
             if environment.session.user?.id == userId {
                 environment.session.signOut()
                 environment.settings.isGuestMode = false
             }
         } catch {
-            errorMessage = error.localizedDescription
+            if (error as? ASAuthorizationError)?.code != .canceled {
+                errorMessage = error.localizedDescription
+            }
         }
     }
 

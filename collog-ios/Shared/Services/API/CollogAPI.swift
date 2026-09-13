@@ -103,7 +103,8 @@ struct CollogAPI {
     func submitConsent(
         documentVersion: String,
         agreedItems: [String],
-        decision: String = "GRANT"
+        decision: String = "GRANT",
+        scrolledToEnd: Bool = true
     ) async throws -> ConsentRecordDTO {
         try await client.send(
             APIEndpoint(
@@ -112,7 +113,7 @@ struct CollogAPI {
                 body: ConsentSubmitBody(
                     documentVersion: documentVersion,
                     decision: decision,
-                    scrolledToEnd: true,
+                    scrolledToEnd: scrolledToEnd,
                     agreedItems: agreedItems
                 )
             )
@@ -250,8 +251,8 @@ struct CollogAPI {
         )
     }
 
-    func deleteAccount() async throws {
-        try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete))
+    func deleteAccount(authorization: AppleDeletionBody? = nil) async throws {
+        try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete, body: authorization))
     }
 
     func acceptCall(callId: String) async throws -> CallAccepted {

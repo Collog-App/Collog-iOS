@@ -35,6 +35,12 @@ struct AppleLoginBody: Encodable {
     let name: String?
 }
 
+struct AppleDeletionBody: Encodable {
+    let identityToken: String
+    let challengeId: String
+    let authorizationCode: String
+}
+
 struct RefreshTokenBody: Encodable {
     let refreshToken: String
 }
@@ -52,6 +58,7 @@ struct InvitationAccepted: Decodable {
 struct CallStatus: Decodable {
     let state: String
     let endedAt: Date?
+    let recordingEnabled: Bool?
 
     var hasEnded: Bool {
         endedAt != nil || ["ENDED", "PROCESSING", "ANALYZED", "ANALYSIS_EXCLUDED", "ANALYSIS_FAILED"].contains(state)
@@ -152,6 +159,7 @@ struct CallAccepted: Decodable {
     let accessToken: String
     let rawCaptureRequired: Bool
     let audioConstraints: AudioConstraints
+    let recordingEnabled: Bool?
 }
 
 struct DeviceCreated: Decodable {
