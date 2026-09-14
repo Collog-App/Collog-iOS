@@ -51,6 +51,17 @@ struct IncomingCallTests {
         #expect(!center.canAnswerIncomingCall)
     }
 
+    @Test
+    func recordingIndicatorKeepsItsLayoutSpaceWhenHidden() {
+        let visible = UIHostingController(rootView: CallRecordingIndicator(isRecording: true))
+        let hidden = UIHostingController(rootView: CallRecordingIndicator(isRecording: false))
+        let available = CGSize(width: 320, height: 200)
+        let visibleSize = visible.sizeThatFits(in: available)
+        let hiddenSize = hidden.sizeThatFits(in: available)
+        #expect(visibleSize.height > 0)
+        #expect(hiddenSize == visibleSize)
+    }
+
     private func incomingCall(phase: CallPhase = .ringing) -> CallCenter.ActiveCall {
         CallCenter.ActiveCall(
             id: "incoming", uuid: UUID(), direction: .incoming,
