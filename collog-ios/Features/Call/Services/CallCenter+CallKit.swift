@@ -107,6 +107,8 @@ extension CallCenter: @MainActor CXProviderDelegate {
             return
         }
         answeringCallIds.insert(call.id)
+        incomingAnswerRequested = true
+        incomingAnswerError = nil
         Task {
             var actionFulfilled = false
             let requestId = UUID().uuidString
