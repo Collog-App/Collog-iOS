@@ -68,6 +68,23 @@ extension CallCenter {
         }
     }
 
+    func answerIncomingCall() {
+        guard canAnswerIncomingCall, let call = activeCall else { return }
+        incomingAnswerRequested = true
+        incomingAnswerError = nil
+        let action = CXAnswerCallAction(call: call.uuid)
+        callController.request(CXTransaction(action: action)) { [weak self] error in
+            guard let error else { return }
+            Task { @MainActor [weak self] in
+                guard let self, activeCall?.uuid == call.uuid,
+                      !answeringCallIds.contains(call.id), !answeredCallIds.contains(call.id) else { return }
+                incomingAnswerRequested = false
+                incomingAnswerError = "전화를 받지 못했어요. 다시 시도해주세요."
+                log("수신 요청 실패: \(error.localizedDescription)")
+            }
+        }
+    }
+
     func endActiveCall() {
         guard let uuid = activeCall?.uuid ?? pendingOutgoing?.uuid else { return }
         callController.request(CXTransaction(action: CXEndCallAction(call: uuid))) { [weak self] error in
@@ -109,6 +126,9 @@ extension CallCenter {
         pendingCapture = nil
         pendingOutgoing = nil
         activeCall = nil
+        incomingCallReported = false
+        incomingAnswerRequested = false
+        incomingAnswerError = nil
         let previousRoom = room
         previousRoom.remove(delegate: self)
         room = Room()

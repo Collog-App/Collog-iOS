@@ -219,7 +219,11 @@ struct RootView: View {
                 peerName: call.peerName,
                 phase: call.phase,
                 questions: call.questions,
-                notice: call.notice,
+                notice: callCenter.incomingAnswerError ?? call.notice,
+                isIncoming: call.direction == .incoming && call.phase == .ringing,
+                isAnswering: callCenter.incomingAnswerRequested,
+                canAnswer: callCenter.canAnswerIncomingCall,
+                onAnswer: { callCenter.answerIncomingCall() },
                 recordingEnabled: call.recordingEnabled,
                 isMuted: call.isMuted,
                 isSpeakerEnabled: call.isSpeakerEnabled,
@@ -227,6 +231,7 @@ struct RootView: View {
                 onSpeaker: { callCenter.toggleSpeaker() },
                 onEnd: { callCenter.endActiveCall() }
             )
+            .id(call.id)
         } else if let simulatedContact {
             CallView(
                 peerName: simulatedContact.name,

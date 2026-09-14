@@ -4,3 +4,6 @@
 [submodule "Collog-Server"]
 	path = Collog-Server
 	url = git@github.com:Collog-App/Collog-Server.git
+[submodule "Collog-Support"]
+	path = Collog-Support
+	url = git@github.com:Collog-App/Collog-Support.git

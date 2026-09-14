@@ -86,6 +86,13 @@ final class CallCenter: NSObject {
     @ObservationIgnored var microphoneReady = false
 
     var activeCall: ActiveCall?
+    var incomingCallReported = false
+    var incomingAnswerRequested = false
+    var incomingAnswerError: String?
+    var canAnswerIncomingCall: Bool {
+        activeCall?.direction == .incoming && activeCall?.phase == .ringing
+            && incomingCallReported && !incomingAnswerRequested
+    }
     var hasCallInProgress: Bool { activeCall != nil || pendingOutgoing != nil }
     var voipToken: String?
     var apnsToken: String?

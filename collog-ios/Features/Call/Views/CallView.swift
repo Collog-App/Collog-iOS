@@ -13,6 +13,10 @@ struct CallView: View {
     let phase: CallPhase
     let questions: [String]
     var notice: String?
+    var isIncoming = false
+    var isAnswering = false
+    var canAnswer = false
+    var onAnswer: (() -> Void)?
     var recordingEnabled = false
     var isMuted = false
     var isSpeakerEnabled = false
@@ -27,16 +31,7 @@ struct CallView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if recordingEnabled, phase == .active {
-                Label("통화 녹음 중", systemImage: "record.circle.fill")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, Spacing.x4)
-                    .padding(.vertical, Spacing.x2)
-                    .background(Color.red500, in: Capsule())
-                    .padding(.top, Spacing.x3)
-                    .accessibilityLabel("건강 기록을 위해 통화 음성을 녹음 중이에요")
-            }
+            CallRecordingIndicator(isRecording: recordingEnabled && phase == .active)
             if let notice {
                 noticeView(notice)
                     .padding(.top, Spacing.x3)
@@ -45,35 +40,29 @@ struct CallView: View {
             header
                 .padding(.top, notice == nil ? Spacing.x8 : Spacing.x5)
 
-            ScrollView {
-                questionList
-                    .padding(.top, Spacing.x8)
-                    .padding(.bottom, Spacing.x4)
+            if !isIncoming {
+                ScrollView {
+                    questionList
+                        .padding(.top, Spacing.x8)
+                        .padding(.bottom, Spacing.x4)
+                }
+                .scrollIndicators(.hidden)
+                .scrollBounceBehavior(.basedOnSize)
             }
-            .scrollIndicators(.hidden)
-            .scrollBounceBehavior(.basedOnSize)
 
             Spacer(minLength: Spacing.x4)
 
-            HStack(spacing: Spacing.x8) {
-                if let onMute {
-                    Button(action: onMute) {
-                        Label(isMuted ? "음소거 해제" : "음소거", systemImage: isMuted ? "mic.slash.fill" : "mic.fill")
-                    }
-                    .accessibilityValue(isMuted ? "켜짐" : "꺼짐")
-                }
-                if let onSpeaker {
-                    Button(action: onSpeaker) {
-                        Label("스피커", systemImage: isSpeakerEnabled ? "speaker.wave.3.fill" : "speaker.fill")
-                    }
-                    .accessibilityValue(isSpeakerEnabled ? "켜짐" : "꺼짐")
-                }
-            }
-            .foregroundStyle(Color.gray00)
-            .padding(.bottom, Spacing.x5)
-
-            endButton
+            if isIncoming, let onAnswer {
+                IncomingCallActionsView(
+                    canAnswer: canAnswer, isAnswering: isAnswering,
+                    onAnswer: onAnswer, onDecline: onEnd
+                )
                 .padding(.bottom, Spacing.x8)
+            } else {
+                audioControls
+                endButton
+                    .padding(.bottom, Spacing.x8)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(callBackground)
@@ -87,6 +76,25 @@ struct CallView: View {
             guard let connectedAt else { return }
             elapsed = Date().timeIntervalSince(connectedAt)
         }
+    }
+
+    private var audioControls: some View {
+        HStack(spacing: Spacing.x8) {
+            if let onMute {
+                Button(action: onMute) {
+                    Label(isMuted ? "음소거 해제" : "음소거", systemImage: isMuted ? "mic.slash.fill" : "mic.fill")
+                }
+                .accessibilityValue(isMuted ? "켜짐" : "꺼짐")
+            }
+            if let onSpeaker {
+                Button(action: onSpeaker) {
+                    Label("스피커", systemImage: isSpeakerEnabled ? "speaker.wave.3.fill" : "speaker.fill")
+                }
+                .accessibilityValue(isSpeakerEnabled ? "켜짐" : "꺼짐")
+            }
+        }
+        .foregroundStyle(Color.gray00)
+        .padding(.bottom, Spacing.x5)
     }
 
     private var header: some View {
@@ -103,7 +111,10 @@ struct CallView: View {
                 Text(peerName)
                     .headline_02(.gray00)
 
-                if phase.showsTimer {
+                if isIncoming {
+                    Text(isAnswering ? "전화를 받고 있어요" : "전화가 왔어요")
+                        .pretendard(.medium, 16, .gray400)
+                } else if phase.showsTimer {
                     Text(CallDurationFormatter.text(for: elapsed))
                         .pretendard(.medium, 16, .gray400)
                         .monospacedDigit()
