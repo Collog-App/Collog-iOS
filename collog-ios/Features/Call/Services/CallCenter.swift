@@ -15,7 +15,7 @@ import UserNotifications
 
 @MainActor
 @Observable
-final class CallCenter: NSObject {
+final class CallCenter: NSObject, Sendable {
     struct ActiveCall: Identifiable {
         enum Direction {
             case incoming

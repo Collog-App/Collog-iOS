@@ -230,7 +230,7 @@ struct CallLauncherOverlay: View {
     }
 }
 
-private struct FanSector: Shape {
+nonisolated private struct FanSector: Shape {
     let innerRadius: CGFloat
     let outerRadius: CGFloat
     let startAngle: Double

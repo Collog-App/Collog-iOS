@@ -59,10 +59,10 @@ nonisolated struct PCMWriterState {
         }
 
         let snapshot = try InputSnapshot(buffer)
-        let input = Mutex((consumed: false, failed: false))
+        let input = InputState()
         var conversionError: NSError?
         converter.convert(to: output, error: &conversionError) { _, status in
-            let shouldSupply = input.withLock { state in
+            let shouldSupply = input.flags.withLock { state in
                 guard !state.consumed else { return false }
                 state.consumed = true
                 return true
@@ -76,14 +76,18 @@ nonisolated struct PCMWriterState {
                 status.pointee = .haveData
                 return buffer
             } catch {
-                input.withLock { $0.failed = true }
+                input.flags.withLock { $0.failed = true }
                 status.pointee = .noDataNow
                 return nil
             }
         }
         if let conversionError { throw conversionError }
-        if input.withLock({ $0.failed }) { throw ConversionError.allocationFailed }
+        if input.flags.withLock({ $0.failed }) { throw ConversionError.allocationFailed }
         return output
+    }
+
+    nonisolated private final class InputState: Sendable {
+        let flags = Mutex((consumed: false, failed: false))
     }
 
     private struct InputSnapshot: Sendable {
