@@ -260,13 +260,7 @@ private struct ManagedFamilyMember: Identifiable {
     }
 
     var relationTitle: String {
-        switch relation {
-        case "MOTHER": "어머니"
-        case "FATHER": "아버지"
-        case "CHILD": "자녀"
-        case "PARENT": "부모"
-        default: "가족"
-        }
+        FamilyRelation.title(relation) ?? "가족"
     }
 }
 
