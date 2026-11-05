@@ -5,6 +5,7 @@
 //  Created by dohyeoplim on 9/13/26.
 //
 
+import Foundation
 import Testing
 @testable import collog_ios
 
@@ -102,6 +103,59 @@ struct FamilySelectionTests {
         #expect(!fixture.paths.contains { $0.hasPrefix("/v1/parents/me/") })
     }
 
+    @Test func reportSubjectsAppendMeAfterFamilyButContactsStayFamilyOnly() async throws {
+        let fixture = try TestEnvironment(role: "PARENT")
+        defer { fixture.cleanUp() }
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true {
+                return (200, members(parents: ["parent"], children: ["sibling"]))
+            }
+            return (200, #"{"source":"fixture","questions":[]}"#)
+        }
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let subjects = TimelineViewModel().subjects(using: fixture.environment)
+        #expect(subjects.map(\.id) == ["parent", "sibling", TimelineViewModel.selfSubjectId])
+        #expect(subjects.last?.name == "나")
+        #expect(subjects.last?.userId == "me")
+        #expect(fixture.environment.family.contacts.map(\.id) == ["parent", "sibling"])
+        #expect(!fixture.environment.family.callableContacts.contains { $0.userId == "me" })
+    }
+
+    @Test func choosingMeLoadsOwnReportWithoutCallOffer() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        fixture.respond = timelineResponses(contacts: ["kid"])
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let model = TimelineViewModel()
+        await model.loadPage(0, using: fixture.environment)
+        #expect(model.selectedMember == "kid")
+        #expect(!model.isSelfSelected)
+        model.selectMember(try #require(model.subjects(using: fixture.environment).last))
+        await model.loadPage(0, using: fixture.environment)
+        #expect(model.selectedMember == "나")
+        #expect(model.isSelfSelected)
+        #expect(fixture.paths.contains("/v1/parents/me/reports"))
+        #expect(fixture.paths.contains("/v1/parents/me/calls"))
+    }
+
+    @Test func meIsOnlySubjectUntilFamilyLoadsThenFirstContactIsDefault() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        fixture.respond = timelineResponses(contacts: [])
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let model = TimelineViewModel()
+        #expect(model.subjects(using: fixture.environment).map(\.id) == [TimelineViewModel.selfSubjectId])
+        await model.loadPage(0, using: fixture.environment)
+        #expect(model.selectedMember == "나")
+        #expect(fixture.paths.contains("/v1/parents/me/reports"))
+
+        fixture.respond = timelineResponses(contacts: ["kid"])
+        await fixture.environment.family.refresh(using: fixture.environment)
+        await model.loadPage(0, using: fixture.environment)
+        #expect(model.selectedMember == "kid")
+        #expect(fixture.paths.contains("/v1/parents/kid/reports"))
+    }
+
     @Test func switchingFamilyUpdatesRequestsWithoutLosingAuthentication() async throws {
         let fixture = try TestEnvironment(role: "CHILD")
         defer { fixture.cleanUp() }
@@ -136,6 +190,18 @@ struct FamilySelectionTests {
         )
         #expect(restored.familyId == "chosen-family")
         #expect(restored.accessToken == "new-token")
+    }
+
+    private func timelineResponses(contacts: [String]) -> (URLRequest) throws -> (Int, String) {
+        let membersBody = members(parents: [], children: contacts)
+        return { request in
+            let path = request.url?.path ?? ""
+            if path.hasSuffix("/members") { return (200, membersBody) }
+            if path.hasSuffix("/calls") { return (200, #"{"calls":[]}"#) }
+            if path.hasSuffix("/baseline") { return (200, #"{"baselines":[]}"#) }
+            if path.hasSuffix("/daily-questions") { return (200, #"{"source":"fixture","questions":[]}"#) }
+            return (503, "{}")
+        }
     }
 
     private func members(parents: [String], children: [String] = []) -> String {

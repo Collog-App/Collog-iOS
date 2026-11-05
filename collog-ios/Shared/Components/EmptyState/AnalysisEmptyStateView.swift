@@ -11,13 +11,14 @@ enum AnalysisEmptyAction: Equatable {
     case processing, family, call, currentWeek, none
 
     static func resolve(
-        calls: [CallSummaryDTO], canCall: Bool, isCurrentWeek: Bool, isGuest: Bool
+        calls: [CallSummaryDTO], canCall: Bool, isCurrentWeek: Bool, isGuest: Bool, isSelf: Bool = false
     ) -> Self {
         if calls.contains(where: { $0.recorded && ["ENDED", "PROCESSING"].contains($0.state) }) {
             return .processing
         }
         if !isCurrentWeek { return .currentWeek }
-        if isGuest { return .none }
+        // 「나」의 리포트에서는 나에게 전화하거나 초대하라고 권하지 않는다
+        if isGuest || isSelf { return .none }
         return canCall ? .call : .family
     }
 }
@@ -39,6 +40,7 @@ struct AnalysisEmptyStateView: View {
     @State private var showsCalls = false
 
     var contact: FamilyContact?
+    var isSelf = false
     var calls: [CallSummaryDTO] = []
     var isCurrentWeek = true
     var onCurrentWeek: (() -> Void)?
@@ -47,7 +49,7 @@ struct AnalysisEmptyStateView: View {
     private var action: AnalysisEmptyAction {
         .resolve(
             calls: calls, canCall: contact?.isCallable == true,
-            isCurrentWeek: isCurrentWeek, isGuest: environment.settings.isGuestMode
+            isCurrentWeek: isCurrentWeek, isGuest: environment.settings.isGuestMode, isSelf: isSelf
         )
     }
 

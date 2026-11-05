@@ -59,11 +59,19 @@ struct AnalysisEmptyActionTests {
         #expect(states["call"] == "UNAVAILABLE")
     }
 
+    @Test
+    func ownReportNeverOffersCallOrInvitation() {
+        #expect(resolve(canCall: true, isSelf: true) == .none)
+        #expect(resolve(canCall: false, isSelf: true) == .none)
+        #expect(resolve(calls: [call(state: "PROCESSING", recorded: true)], isSelf: true) == .processing)
+        #expect(resolve(isCurrentWeek: false, isSelf: true) == .currentWeek)
+    }
+
     private func resolve(
         calls: [CallSummaryDTO] = [], canCall: Bool = true,
-        isCurrentWeek: Bool = true, isGuest: Bool = false
+        isCurrentWeek: Bool = true, isGuest: Bool = false, isSelf: Bool = false
     ) -> AnalysisEmptyAction {
-        .resolve(calls: calls, canCall: canCall, isCurrentWeek: isCurrentWeek, isGuest: isGuest)
+        .resolve(calls: calls, canCall: canCall, isCurrentWeek: isCurrentWeek, isGuest: isGuest, isSelf: isSelf)
     }
 
     private func call(state: String, recorded: Bool) -> CallSummaryDTO {
