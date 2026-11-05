@@ -130,10 +130,8 @@ struct RootView: View {
             }
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
         case .invitation:
-            InvitationAcceptView {
-                Task { await authFlow.resolve(using: environment) }
-            }
-            .transition(.opacity.combined(with: .scale(scale: 0.99)))
+            InvitationAcceptView(onAccepted: completeInvitation, onSkip: completeInvitation)
+                .transition(.opacity.combined(with: .scale(scale: 0.99)))
         case .profile:
             HealthProfileSetupView {
                 Task { await authFlow.resolve(using: environment) }
@@ -263,6 +261,11 @@ struct RootView: View {
             targets: isGuest || callable.isEmpty ? environment.family.contacts : callable,
             questions: environment.family.selectedQuestionTexts
         )
+    }
+
+    private func completeInvitation() {
+        authFlow.completeInvitation()
+        Task { await authFlow.resolve(using: environment) }
     }
 
     private func reselect(_ tab: MainTab) {

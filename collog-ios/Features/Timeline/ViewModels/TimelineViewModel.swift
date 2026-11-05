@@ -134,13 +134,7 @@ final class TimelineViewModel {
     private func loadContext(
         using environment: AppEnvironment
     ) async -> (parentId: String, api: CollogAPI, baselines: [String: BaselineDTO])? {
-        let contact = selectedContact(using: environment)
-        let resolvedId = if environment.session.user?.role == "PARENT" {
-            environment.session.user?.id
-        } else {
-            contact?.userId
-        }
-        guard let parentId = resolvedId else { return nil }
+        guard let parentId = selectedContact(using: environment)?.userId else { return nil }
         let api = environment.api
 
         let baselines: [String: BaselineDTO]
@@ -175,8 +169,7 @@ final class TimelineViewModel {
             contentGeneration += 1
         }
         selectedContactId = contact.id
-        selectedMember = environment.session.user?.role == "PARENT"
-            ? environment.session.user?.name ?? "나" : contact.name
+        selectedMember = contact.name
         selectedRelation = contact.relation
     }
 

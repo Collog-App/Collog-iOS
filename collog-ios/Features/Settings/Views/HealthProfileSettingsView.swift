@@ -170,23 +170,17 @@ struct HealthProfileSettingsView: View {
             errorText = "로그인이 필요해요."
             return
         }
-        if user.role == "PARENT" {
-            let ownProfile = ProfileTarget(id: user.id, name: user.name)
-            targets = [ownProfile]
-            await loadProfile(for: ownProfile)
-            return
-        }
-        guard let familyId = environment.session.familyId else {
-            errorText = "가족을 먼저 초대해주세요."
-            return
-        }
+        // 역할 구분 없이 누구나 자기 프로필을 갖고, 연결된 가족의 프로필도 고칠 수 있다
+        let ownProfile = ProfileTarget(id: user.id, name: user.name)
+        targets = [ownProfile]
+        await loadProfile(for: ownProfile)
+        guard let familyId = environment.session.familyId else { return }
         do {
             let members = try await environment.api.members(familyId: familyId)
-            targets = members.compactMap { member in
-                guard member.role == "PARENT", let id = member.userId else { return nil }
+            targets += members.compactMap { member in
+                guard let id = member.userId, id != user.id else { return nil }
                 return ProfileTarget(id: id, name: member.name)
             }
-            if targets.isEmpty { errorText = "등록된 부모님이 없어요. 가족 초대를 먼저 완료해주세요." }
         } catch {
             errorText = error.localizedDescription
         }

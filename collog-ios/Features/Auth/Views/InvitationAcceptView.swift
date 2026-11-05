@@ -15,6 +15,7 @@ struct InvitationAcceptView: View {
 
     var onAccepted: () -> Void
     var showsAccountActions = true
+    var onSkip: (() -> Void)?
 
     var body: some View {
         ScrollView {
@@ -22,7 +23,7 @@ struct InvitationAcceptView: View {
                 VStack(alignment: .leading, spacing: Spacing.x2) {
                     Text("가족 초대 코드를 입력해주세요")
                         .headline_02(.gray900)
-                    Text("자녀에게 받은 코드로 가족에 참여할 수 있어요")
+                    Text("가족에게 받은 코드로 가족에 참여할 수 있어요")
                         .body_02_medium(.gray800)
                 }
 
@@ -51,6 +52,22 @@ struct InvitationAcceptView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(code.count != 6 || !code.allSatisfy(\.isNumber) || isSubmitting)
+
+                if let onSkip {
+                    VStack(spacing: Spacing.x2) {
+                        Button(action: onSkip) {
+                            Text("나중에 입력하기")
+                                .body_02_semibold(.greenDark)
+                                .frame(maxWidth: .infinity, minHeight: 52)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(isSubmitting)
+
+                        Text("초대 코드가 없으면 건너뛰세요. 설정에서도 입력할 수 있어요.")
+                            .caption_01_medium(.gray700)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
 
                 if showsAccountActions {
                     OnboardingAccountActions()

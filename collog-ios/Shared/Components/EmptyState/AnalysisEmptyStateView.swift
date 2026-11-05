@@ -64,7 +64,7 @@ struct AnalysisEmptyStateView: View {
     private var actionTitle: String? {
         switch action {
         case .processing: "통화 상태 보기"
-        case .family: environment.session.user?.role == "PARENT" ? "초대 코드 입력하기" : "가족 초대하기"
+        case .family: "가족 초대하기"
         case .call: "\(contact?.name ?? "가족")에게 전화하기"
         case .currentWeek: "이번 주 보기"
         case .none: nil

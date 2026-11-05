@@ -49,6 +49,59 @@ struct FamilySelectionTests {
         #expect(fixture.paths.last == "/v1/parents/first/daily-questions")
     }
 
+    @Test(arguments: ["PARENT", "CHILD"])
+    func contactsIncludeEveryConnectedMemberRegardlessOfRole(role: String) async throws {
+        let fixture = try TestEnvironment(role: role)
+        defer { fixture.cleanUp() }
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true {
+                return (200, members(parents: ["parent"], children: ["sibling"]))
+            }
+            return (200, #"{"source":"fixture","questions":[]}"#)
+        }
+        let store = fixture.environment.family
+        await store.refresh(using: fixture.environment)
+        #expect(store.contacts.map(\.id) == ["parent", "sibling"])
+    }
+
+    @Test func questionsFollowSelectedContactEvenForParentAccount() async throws {
+        let fixture = try TestEnvironment(role: "PARENT")
+        defer { fixture.cleanUp() }
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true {
+                return (200, members(parents: ["parent"], children: ["sibling"]))
+            }
+            return (200, #"{"source":"fixture","questions":[]}"#)
+        }
+        let store = fixture.environment.family
+        await store.refresh(using: fixture.environment)
+        #expect(fixture.paths.last == "/v1/parents/parent/daily-questions")
+        store.selectContact(try #require(store.contacts.last))
+        await store.refresh(using: fixture.environment)
+        #expect(fixture.paths.last == "/v1/parents/sibling/daily-questions")
+        #expect(!fixture.paths.contains("/v1/parents/me/daily-questions"))
+    }
+
+    @Test func timelineFollowsSelectedContactEvenForParentAccount() async throws {
+        let fixture = try TestEnvironment(role: "PARENT")
+        defer { fixture.cleanUp() }
+        fixture.respond = { request in
+            let path = request.url?.path ?? ""
+            if path.hasSuffix("/members") { return (200, members(parents: [], children: ["kid"])) }
+            if path.hasSuffix("/calls") { return (200, #"{"calls":[]}"#) }
+            if path.hasSuffix("/baseline") { return (200, #"{"baselines":[]}"#) }
+            if path.hasSuffix("/daily-questions") { return (200, #"{"source":"fixture","questions":[]}"#) }
+            return (503, "{}")
+        }
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let model = TimelineViewModel()
+        await model.loadPage(0, using: fixture.environment)
+        #expect(model.selectedMember == "kid")
+        #expect(fixture.paths.contains("/v1/parents/kid/reports"))
+        #expect(fixture.paths.contains("/v1/parents/kid/calls"))
+        #expect(!fixture.paths.contains { $0.hasPrefix("/v1/parents/me/") })
+    }
+
     @Test func switchingFamilyUpdatesRequestsWithoutLosingAuthentication() async throws {
         let fixture = try TestEnvironment(role: "CHILD")
         defer { fixture.cleanUp() }
@@ -85,11 +138,12 @@ struct FamilySelectionTests {
         #expect(restored.accessToken == "new-token")
     }
 
-    private func members(parents: [String]) -> String {
-        let parents = parents.map {
+    private func members(parents: [String], children: [String] = []) -> String {
+        let connected = parents.map { ($0, "PARENT") } + children.map { ($0, "CHILD") }
+        let others = connected.map { id, role in
             """
-            {"memberId":"\($0)","userId":"\($0)","name":"Parent","relation":"PARENT",
-            "status":"ACTIVE","role":"PARENT"}
+            {"memberId":"\(id)","userId":"\(id)","name":"\(id)","relation":"\(role)",
+            "status":"ACTIVE","role":"\(role)"}
             """
         }
         let excluded = [
@@ -98,14 +152,10 @@ struct FamilySelectionTests {
             "status":"ACTIVE","role":"CHILD"}
             """,
             """
-            {"memberId":"sibling","userId":"sibling","name":"Sibling","relation":"CHILD",
-            "status":"ACTIVE","role":"CHILD"}
-            """,
-            """
             {"memberId":"invited","userId":null,"name":"Invited","relation":"PARENT",
             "status":"INVITED","role":"PARENT"}
             """
         ]
-        return "{\"members\":[\((parents + excluded).joined(separator: ","))]}"
+        return "{\"members\":[\((others + excluded).joined(separator: ","))]}"
     }
 }

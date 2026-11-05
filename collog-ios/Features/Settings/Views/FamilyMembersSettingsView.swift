@@ -7,6 +7,18 @@
 
 import SwiftUI
 
+enum FamilyInvitationAccess {
+    /// 누구나 초대할 수 있다. 가족이 없으면 첫 초대 때 만든다.
+    static func canInvite(isGuest: Bool, hasFamily: Bool, serverAllowsInvitations: Bool) -> Bool {
+        !isGuest && (!hasFamily || serverAllowsInvitations)
+    }
+
+    /// 서버는 다른 사람이 있는 가족에 이미 속해 있으면 초대 수락을 거절(409)하므로, 혼자일 때만 코드 입력을 보인다.
+    static func canEnterCode(isGuest: Bool, memberUserIds: [String?], userId: String?) -> Bool {
+        !isGuest && !memberUserIds.contains { $0 != nil && $0 != userId }
+    }
+}
+
 struct FamilyMembersSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
 
@@ -20,8 +32,19 @@ struct FamilyMembersSettingsView: View {
     @State private var families: [FamilySummary] = []
 
     private var canInvite: Bool {
-        !environment.settings.isGuestMode && environment.session.user?.role == "CHILD"
-            && serverAllowsInvitations
+        FamilyInvitationAccess.canInvite(
+            isGuest: environment.settings.isGuestMode,
+            hasFamily: environment.session.familyId != nil,
+            serverAllowsInvitations: serverAllowsInvitations
+        )
+    }
+
+    private var canEnterCode: Bool {
+        !isLoading && FamilyInvitationAccess.canEnterCode(
+            isGuest: environment.settings.isGuestMode,
+            memberUserIds: members.map(\.userId),
+            userId: environment.session.user?.id
+        )
     }
 
     var body: some View {
@@ -82,7 +105,7 @@ struct FamilyMembersSettingsView: View {
                     }
                     .buttonStyle(.plain)
                 }
-                if !environment.settings.isGuestMode, environment.session.user?.role == "PARENT" {
+                if canEnterCode {
                     Button { showsInvitationCode = true } label: {
                         Text("초대 코드 입력")
                             .body_02_semibold(.greenDark)
@@ -188,7 +211,7 @@ struct FamilyMembersSettingsView: View {
             let remote = try await environment.api.familyMembers(familyId: familyId)
             guard environment.session.user?.id == userId, environment.session.familyId == familyId else { return }
             members = remote.members.map(ManagedFamilyMember.init(member:))
-            serverAllowsInvitations = remote.canInvite ?? (environment.session.user?.role == "CHILD")
+            serverAllowsInvitations = remote.canInvite ?? true
         } catch {
             guard environment.session.user?.id == userId else { return }
             errorText = error.localizedDescription
@@ -212,6 +235,7 @@ struct FamilyMembersSettingsView: View {
 
 private struct ManagedFamilyMember: Identifiable {
     let id: String
+    let userId: String?
     let name: String
     let relation: String
     let isConnected: Bool
@@ -219,6 +243,7 @@ private struct ManagedFamilyMember: Identifiable {
 
     init(contact: FamilyContact) {
         id = contact.id
+        userId = contact.userId
         name = contact.name
         relation = contact.relation
         isConnected = true
@@ -227,6 +252,7 @@ private struct ManagedFamilyMember: Identifiable {
 
     init(member: FamilyMember) {
         id = member.id
+        userId = member.userId
         name = member.name
         relation = member.relation
         isConnected = member.userId != nil

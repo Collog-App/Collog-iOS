@@ -36,14 +36,6 @@ final class AppEnvironment {
         if !session.isAuthenticated { family.reset() }
     }
 
-    func subjectParentId() async -> String? {
-        guard let user = session.user else { return nil }
-        if user.role == UserRoleOption.parent.rawValue { return user.id }
-        guard let familyId = user.familyId else { return nil }
-        let members = try? await api.members(familyId: familyId)
-        return members?.first { $0.userId != nil && $0.role != "CHILD" && $0.userId != user.id }?.userId
-    }
-
     var api: CollogAPI {
         CollogAPI(
             client: CollogAPIClient(

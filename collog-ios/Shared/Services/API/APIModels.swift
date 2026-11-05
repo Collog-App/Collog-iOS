@@ -116,6 +116,10 @@ struct FamiliesResponse: Decodable {
     let families: [FamilySummary]
 }
 
+struct FamilyCreated: Decodable {
+    let familyId: String
+}
+
 struct APIQuestion: Decodable, Identifiable, Hashable {
     let questionId: String
     let text: String

@@ -74,8 +74,9 @@ final class FamilyStore {
         }
         let userId = environment.session.user?.id
         do {
+            // 역할 구분 없이 나를 뺀 연결된 가족 모두가 연락처다
             let members = try await environment.api.members(familyId: familyId).filter {
-                $0.isCallable && $0.userId != userId && $0.role != environment.session.user?.role
+                $0.isCallable && $0.userId != userId
             }
             guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
             contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
@@ -90,14 +91,8 @@ final class FamilyStore {
         }
 
         let contactId = selectedContactId
-        let parentId = if environment.session.user?.role == "PARENT" {
-            userId
-        } else if let userId = selectedContact?.userId {
-            userId
-        } else {
-            await environment.subjectParentId()
-        }
-        guard let parentId else { return }
+        // 오늘의 질문은 고른 가족(통화 상대)의 프로필로 만든다
+        guard let parentId = selectedContact?.userId else { return }
         do {
             let remote = try await environment.api.dailyQuestions(parentId: parentId)
             guard environment.session.user?.id == userId, refreshGeneration == generation,

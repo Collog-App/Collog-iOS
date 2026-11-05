@@ -17,6 +17,7 @@ struct FamilyInvitationSheet: View {
     @State private var shareText: String?
     @State private var isSubmitting = false
     @State private var errorText: String?
+    @State private var createdFamilyId: String?
 
     let onCreated: () -> Void
 
@@ -43,6 +44,7 @@ struct FamilyInvitationSheet: View {
             }
             .scrollDismissesKeyboard(.interactively)
             .background(Color.gray50)
+            .onDisappear(perform: joinCreatedFamily)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { dismiss() } label: {
@@ -110,10 +112,15 @@ struct FamilyInvitationSheet: View {
         errorText = nil
         defer { isSubmitting = false }
 
-        guard !environment.settings.isGuestMode, environment.session.user?.role == "CHILD" else { return }
+        guard !environment.settings.isGuestMode else { return }
 
-        guard let familyId = environment.session.familyId else { return }
         do {
+            let hadFamily = environment.session.familyId != nil
+            let familyId = if let familyId = environment.session.familyId {
+                familyId
+            } else {
+                try await environment.api.createFamily()
+            }
             let invitation = try await environment.api.createInvitation(
                 familyId: familyId,
                 name: name,
@@ -121,10 +128,17 @@ struct FamilyInvitationSheet: View {
             )
             invitationCode = invitation.code
             shareText = invitation.shareText
-            onCreated()
+            if hadFamily { onCreated() } else { createdFamilyId = familyId }
             Haptics.commit()
         } catch {
             errorText = error.localizedDescription
         }
+    }
+
+    // 새로 만든 가족은 시트가 닫힐 때 세션에 넣는다. 넣는 순간 앱이 홈으로 돌아가 코드를 보여 줄 수 없다.
+    private func joinCreatedFamily() {
+        guard let createdFamilyId, environment.session.familyId == nil else { return }
+        try? environment.session.joinFamily(createdFamilyId)
+        onCreated()
     }
 }
