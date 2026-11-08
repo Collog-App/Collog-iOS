@@ -64,6 +64,9 @@ struct ReportTimelineView: View {
                 .padding(.bottom, Spacing.x8)
             }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: CallAnalysisRoute.self) { route in
+                CallAnalysisView(callId: route.callId)
+            }
             .task { await viewModel.refresh(using: environment) }
             .onChange(of: tabManager.reselectionCount) {
                 guard tabManager.reselectedTab == tab else { return }
@@ -266,21 +269,46 @@ struct ReportTimelineView: View {
         }
     }
 
-    @ViewBuilder
     private func reportContent(_ page: TimelineWeekPage) -> some View {
-        if let error = page.reportError {
-            errorContent(error, offset: page.offset)
-        } else if page.report.state == .empty {
-            if let error = page.timelineError {
-                errorContent(error, offset: page.offset)
-            } else {
-                emptyAnalysisContent(page)
+        VStack(spacing: Spacing.x3) {
+            // 응급 안내(11-08 가드레일)는 리포트 맨 위. 누르면 그 통화의 분석 화면을 연다
+            if page.reportError == nil, !page.report.safetyNotices.isEmpty {
+                safetyNotices(page.report.safetyNotices)
             }
-        } else {
-            ReportContentView(report: page.report, isLoaded: true)
-                .padding(.horizontal, Spacing.x5)
-                .padding(.top, Spacing.x2)
+
+            if let error = page.reportError {
+                errorContent(error, offset: page.offset)
+            } else if page.report.state == .empty {
+                if let error = page.timelineError {
+                    errorContent(error, offset: page.offset)
+                } else {
+                    emptyAnalysisContent(page)
+                }
+            } else {
+                ReportContentView(report: page.report, isLoaded: true)
+                    .padding(.horizontal, Spacing.x5)
+                    .padding(.top, Spacing.x2)
+            }
         }
+    }
+
+    private func safetyNotices(_ notices: [SafetyNotice]) -> some View {
+        VStack(spacing: Spacing.x2) {
+            ForEach(notices) { notice in
+                if notice.callId.isEmpty {
+                    SafetyNoticeCardView(text: notice.text, caption: notice.dayText)
+                } else {
+                    Button {
+                        navigation.manager(for: tab).push(CallAnalysisRoute(callId: notice.callId))
+                    } label: {
+                        SafetyNoticeCardView(text: notice.text, caption: notice.dayText)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+        .padding(.horizontal, Spacing.x5)
+        .padding(.top, Spacing.x2)
     }
 
     @ViewBuilder
@@ -337,6 +365,9 @@ struct ReportTimelineView: View {
 
             VStack(alignment: .leading, spacing: Spacing.x3) {
                 CallTimelineDateHeader(entry: entry)
+                if let safetyNotice = entry.safetyNotice {
+                    SafetyNoticeCardView(text: safetyNotice)
+                }
                 CallTimelineCardView(entry: entry)
 
                 if !isLast {

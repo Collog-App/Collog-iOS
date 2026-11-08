@@ -230,6 +230,11 @@ struct CollogAPI {
         try await client.send(APIEndpoint(path: "/v1/calls/\(callId)"))
     }
 
+    /// 같은 `GET /v1/calls/{callId}`를 통화 요약으로 받는다. `callStatus`는 시작 시각·분석 대상을 읽지 않는다.
+    func callSummary(callId: String) async throws -> CallSummaryDTO {
+        try await client.send(APIEndpoint(path: "/v1/calls/\(callId)"))
+    }
+
     func questionTtsToken(callId: String, questionId: String) async throws -> QuestionTtsToken {
         try await client.send(
             APIEndpoint(path: "/v1/calls/\(callId)/questions/\(questionId)/tts-token", method: .post)

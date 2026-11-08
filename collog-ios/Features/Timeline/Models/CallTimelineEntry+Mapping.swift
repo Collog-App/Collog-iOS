@@ -59,7 +59,8 @@ extension CallTimelineEntry {
             story: Self.story(from: bundle.extraction),
             keywords: Self.keywords(from: bundle.transcript, durationSec: durationSec),
             gauges: Self.gauges(features: features, baselines: baselines),
-            counts: counts
+            counts: counts,
+            safetyNotice: SafetyNotice.text(bundle.extraction?.safetyNotice)
         )
     }
 
