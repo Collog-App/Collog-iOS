@@ -227,6 +227,7 @@ struct RootView: View {
                 isSpeakerEnabled: call.isSpeakerEnabled,
                 onMute: { callCenter.toggleMute() },
                 onSpeaker: { callCenter.toggleSpeaker() },
+                audioDiagnostics: callCenter.audioDiagnostics,
                 onEnd: { callCenter.endActiveCall() }
             )
             .id(call.id)

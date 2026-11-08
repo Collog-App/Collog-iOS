@@ -22,6 +22,7 @@ struct CallView: View {
     var isSpeakerEnabled = false
     var onMute: (() -> Void)?
     var onSpeaker: (() -> Void)?
+    var audioDiagnostics: String?
     var onEnd: () -> Void
 
     @State private var connectedAt: Date?
@@ -59,6 +60,14 @@ struct CallView: View {
                 )
                 .padding(.bottom, Spacing.x8)
             } else {
+                if let audioDiagnostics {
+                    Text(audioDiagnostics)
+                        .caption_02_regular(.gray600)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, Spacing.x4)
+                        .padding(.bottom, Spacing.x3)
+                }
                 audioControls
                 endButton
                     .padding(.bottom, Spacing.x8)
