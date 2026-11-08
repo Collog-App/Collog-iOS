@@ -199,8 +199,7 @@ struct HomeView: View {
         if !environment.settings.isGuestMode {
             Task {
                 do {
-                    let parentId = environment.session.user?.role == "PARENT" ? userId : selectedContact.userId
-                    guard let parentId else { throw APIError.unauthenticated }
+                    guard let parentId = selectedContact.userId else { throw APIError.unauthenticated }
                     let questions = try await environment.api.dailyQuestions(parentId: parentId)
                     guard environment.session.user?.id == userId else { return }
                     completeQuestionGeneration(

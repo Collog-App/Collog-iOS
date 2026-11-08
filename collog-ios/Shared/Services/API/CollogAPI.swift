@@ -143,6 +143,14 @@ struct CollogAPI {
         )
     }
 
+    /// 가족이 없는 사람의 첫 초대 전에 가족을 만든다. 이미 있으면 그 가족을 준다.
+    func createFamily() async throws -> String {
+        let response: FamilyCreated = try await client.send(
+            APIEndpoint(path: "/v1/families", method: .post)
+        )
+        return response.familyId
+    }
+
     func createInvitation(familyId: String, name: String, relation: String) async throws -> InvitationDTO {
         try await client.send(
             APIEndpoint(

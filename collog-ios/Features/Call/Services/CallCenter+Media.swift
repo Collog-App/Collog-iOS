@@ -5,7 +5,6 @@
 //  Created by dohyeoplim on 9/13/26.
 //
 
-import AVFAudio
 import CallKit
 import LiveKit
 
@@ -39,11 +38,11 @@ extension CallCenter {
     }
 
     func toggleSpeaker() {
-        guard let call = activeCall, isAudioSessionActive else { return }
+        guard activeCall != nil, isAudioSessionActive else { return }
         do {
-            try AVAudioSession.sharedInstance().overrideOutputAudioPort(call.isSpeakerEnabled ? .none : .speaker)
-            activeCall?.isSpeakerEnabled = !call.isSpeakerEnabled
+            try audioRouter.toggleSpeaker()
         } catch { callError = "통화 음성 출력을 바꾸지 못했어요." }
+        refreshAudioRoute(event: "speaker-button")
     }
 
     func connectMedia(
@@ -89,6 +88,7 @@ extension CallCenter {
                 guard self.room === room, activeCall?.uuid == call.uuid else { return }
                 microphoneReady = true
                 log("마이크 publish 완료")
+                syncAudioRouteAfterCapture(event: "microphone-published")
                 markCallActive()
                 attachAnalysisWriter(to: publication)
             } catch {
@@ -102,9 +102,7 @@ extension CallCenter {
     }
 
     func prepareCallAudio() throws {
-        try AVAudioSession.sharedInstance().setCategory(
-            .playAndRecord, mode: .voiceChat, options: [.mixWithOthers]
-        )
+        try audioRouter.prepare(platformVoiceProcessing: platformVoiceProcessingExpected)
         let configuration = provider.configuration
         provider.configuration = configuration
         log("CallKit 오디오 준비 완료")

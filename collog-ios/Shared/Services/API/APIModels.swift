@@ -79,13 +79,7 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
     var isCallable: Bool { userId != nil }
 
     var relationTitle: String {
-        switch relation {
-        case "MOTHER": "어머니"
-        case "FATHER": "아버지"
-        case "CHILD": "자녀"
-        case "PARENT": "부모"
-        default: name
-        }
+        FamilyRelation.title(relation) ?? name
     }
 }
 
@@ -114,6 +108,10 @@ struct FamilySummary: Decodable, Identifiable, Hashable {
 
 struct FamiliesResponse: Decodable {
     let families: [FamilySummary]
+}
+
+struct FamilyCreated: Decodable {
+    let familyId: String
 }
 
 struct APIQuestion: Decodable, Identifiable, Hashable {

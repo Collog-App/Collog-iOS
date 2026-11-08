@@ -43,14 +43,8 @@ final class HomeViewModel {
         }
 
         guard environment.session.isAuthenticated else { return }
-        let resolvedId = if environment.session.user?.role == "PARENT" {
-            environment.session.user?.id
-        } else if let userId = contact?.userId {
-            userId
-        } else {
-            await environment.subjectParentId()
-        }
-        guard let parentId = resolvedId else { return }
+        // 리포트 대상은 고른 가족이다
+        guard let parentId = contact?.userId else { return }
 
         let api = environment.api
         let calls: [CallSummaryDTO]
@@ -80,8 +74,7 @@ final class HomeViewModel {
         guard self.generation == generation else { return }
         healthSummary = FamilyHealthSummary(
             dto: dto,
-            memberName: environment.session.user?.role == "PARENT"
-                ? environment.session.user?.name ?? "나" : contact?.name ?? "가족",
+            memberName: contact?.name ?? "가족",
             baseline: baselines["SPEECH_RATE"]
         )
         healthFeedback = HealthFeedback(dto: dto)

@@ -23,7 +23,7 @@ struct ReportTimelineView: View {
     private let pageOffsets = Array(-25...0)
     private let verticalPageOffsets = Array((-25...0).reversed())
 
-    private var contacts: [FamilyContact] { environment.family.contacts }
+    private var subjects: [FamilyContact] { viewModel.subjects(using: environment) }
 
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
@@ -74,9 +74,9 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private var memberSelector: some View {
-        if contacts.count > 1 {
+        if subjects.count > 1 {
             Menu {
-                ForEach(contacts) { contact in
+                ForEach(subjects) { contact in
                     Button {
                         select(contact)
                     } label: {
@@ -308,7 +308,8 @@ struct ReportTimelineView: View {
 
     private func emptyAnalysisContent(_ page: TimelineWeekPage) -> some View {
         AnalysisEmptyStateView(
-            contact: contacts.first { $0.id == viewModel.selectedContactId },
+            contact: environment.family.contacts.first { $0.id == viewModel.selectedContactId },
+            isSelf: viewModel.isSelfSelected,
             calls: page.calls,
             isCurrentWeek: page.offset == 0,
             onCurrentWeek: moveToCurrentWeek,

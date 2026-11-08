@@ -20,6 +20,9 @@ final class TimelineViewModel {
     @ObservationIgnored private var baselineCache: [String: [String: BaselineDTO]] = [:]
     @ObservationIgnored private var loading: Set<Int> = []
     @ObservationIgnored private var contentGeneration = 0
+    @ObservationIgnored private var choseSelf = false
+
+    static let selfSubjectId = "self"
 
     var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
@@ -27,8 +30,19 @@ final class TimelineViewModel {
 
     var week: TimelineWeekPage { page(for: weekOffset) }
 
+    var isSelfSelected: Bool { selectedContactId == Self.selfSubjectId }
+
     init(selectedTabIndex: Int = 1) {
         self.selectedTabIndex = selectedTabIndex
+    }
+
+    /// 리포트·타임라인 대상: 가족(지금 순서) 뒤에 「나」. 「나」는 통화 상대·오늘의 질문에는 넣지 않는다.
+    func subjects(using environment: AppEnvironment) -> [FamilyContact] {
+        let contacts = environment.family.contacts
+        guard !environment.settings.isGuestMode, let user = environment.session.user else { return contacts }
+        return contacts + [
+            FamilyContact(id: Self.selfSubjectId, userId: user.id, name: "나", relation: "", lastCallText: "")
+        ]
     }
 
     func page(for offset: Int) -> TimelineWeekPage {
@@ -42,6 +56,7 @@ final class TimelineViewModel {
 
     func selectMember(_ contact: FamilyContact) {
         guard selectedContactId != contact.id else { return }
+        choseSelf = contact.id == Self.selfSubjectId
         selectedContactId = contact.id
         selectedMember = contact.name
         selectedRelation = contact.relation
@@ -134,13 +149,7 @@ final class TimelineViewModel {
     private func loadContext(
         using environment: AppEnvironment
     ) async -> (parentId: String, api: CollogAPI, baselines: [String: BaselineDTO])? {
-        let contact = selectedContact(using: environment)
-        let resolvedId = if environment.session.user?.role == "PARENT" {
-            environment.session.user?.id
-        } else {
-            contact?.userId
-        }
-        guard let parentId = resolvedId else { return nil }
+        guard let parentId = selectedContact(using: environment)?.userId else { return nil }
         let api = environment.api
 
         let baselines: [String: BaselineDTO]
@@ -175,14 +184,15 @@ final class TimelineViewModel {
             contentGeneration += 1
         }
         selectedContactId = contact.id
-        selectedMember = environment.session.user?.role == "PARENT"
-            ? environment.session.user?.name ?? "나" : contact.name
+        selectedMember = contact.name
         selectedRelation = contact.relation
     }
 
     private func selectedContact(using environment: AppEnvironment) -> FamilyContact? {
-        let contacts = environment.family.contacts
-        return contacts.first { $0.id == selectedContactId } ?? contacts.first
+        let subjects = subjects(using: environment)
+        // 가족이 없어서 「나」로 정해졌으면, 가족이 생긴 뒤에는 첫 가족으로 돌아간다
+        let selectedId = isSelfSelected && !choseSelf ? nil : selectedContactId
+        return subjects.first { $0.id == selectedId } ?? subjects.first
     }
 
     private func load(

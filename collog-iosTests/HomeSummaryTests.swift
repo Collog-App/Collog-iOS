@@ -49,16 +49,16 @@ struct HomeSummaryTests {
         #expect(try #require(TrendSeries(trend: data, baseline: baseline())).hasPersonalBaseline)
     }
 
-    @Test
-    func homeLoadsFirstSummaryAndQuestionsWithoutTrend() async throws {
-        let fixture = try TestEnvironment()
+    @Test(arguments: ["PARENT", "CHILD"])
+    func homeLoadsSelectedContactSummaryWithoutTrend(role: String) async throws {
+        let fixture = try TestEnvironment(role: role)
         defer { fixture.cleanUp() }
         fixture.respond = { request in
             switch request.url?.path {
-            case "/v1/parents/me/calls": (200, #"{"calls":[]}"#)
-            case "/v1/parents/me/baseline": (200, #"{"baselines":[]}"#)
-            case "/v1/parents/me/reports": (200, """
-                {"parentId":"me","period":"WEEKLY","from":"2026-09-07","to":"2026-09-13",
+            case "/v1/parents/kid/calls": (200, #"{"calls":[]}"#)
+            case "/v1/parents/kid/baseline": (200, #"{"baselines":[]}"#)
+            case "/v1/parents/kid/reports": (200, """
+                {"parentId":"kid","period":"WEEKLY","from":"2026-09-07","to":"2026-09-13",
                 "state":"BASELINE_COLLECTING","disclaimer":"","promotedSignals":[],"acuteSignals":[],
                 "conversationItems":{"activity":["산책했다고 이야기했어요."]},
                 "repeatObservation":{"count":0,"callsWithRepeat":0,"label":""},
@@ -70,10 +70,23 @@ struct HomeSummaryTests {
             }
         }
         let model = HomeViewModel()
-        await model.refresh(using: fixture.environment, contact: nil)
+        let contact = FamilyContact(id: "member", userId: "kid", name: "민지", relation: "CHILD", lastCallText: "")
+        await model.refresh(using: fixture.environment, contact: contact)
+        #expect(model.healthSummary?.memberName == "민지")
         #expect(model.healthSummary?.conversationGroups.count == 1)
         #expect(model.healthFeedback?.followUps.count == 1)
         #expect(model.loadError == nil)
+        #expect(model.isLoaded)
+    }
+
+    @Test
+    func homeWithoutSelectedContactDoesNotLoadOwnReport() async throws {
+        let fixture = try TestEnvironment(role: "PARENT")
+        defer { fixture.cleanUp() }
+        let model = HomeViewModel()
+        await model.refresh(using: fixture.environment, contact: nil)
+        #expect(fixture.paths.isEmpty)
+        #expect(model.healthSummary == nil)
         #expect(model.isLoaded)
     }
 

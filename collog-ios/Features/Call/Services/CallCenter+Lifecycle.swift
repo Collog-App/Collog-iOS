@@ -119,6 +119,8 @@ extension CallCenter {
         microphoneTask = nil
         muteTask?.cancel()
         muteTask = nil
+        audioRouter.deactivate()
+        audioDiagnostics = nil
         isAudioSessionActive = false
         isMediaConnected = false
         didPublishMicrophone = false

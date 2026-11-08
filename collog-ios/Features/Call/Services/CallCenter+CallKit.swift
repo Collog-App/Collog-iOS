@@ -205,6 +205,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
                         return
                     }
                     attachAnalysisWriter(to: publication)
+                    if !isMuted, microphoneReady { syncAudioRouteAfterCapture(event: "microphone-unmuted") }
                 }
                 response.fulfill()
             } catch {
@@ -243,27 +244,30 @@ extension CallCenter: @MainActor CXProviderDelegate {
     func provider(_: CXProvider, didActivate session: AVAudioSession) {
         guard hasCallInProgress else { return }
         do {
-            try session.setCategory(.playAndRecord, mode: .voiceChat, options: [.mixWithOthers])
-            guard setEngine(.default) else {
-                if let call = activeCall {
-                    failCall(uuid: call.uuid, message: "통화 오디오를 시작할 수 없어요. 다시 시도해주세요")
-                }
-                return
-            }
-            isAudioSessionActive = true
-            analysisWriter?.setMuted(activeCall?.isMuted ?? true)
-            let outputs = session.currentRoute.outputs.map { $0.portType.rawValue }.joined(separator: ",")
-            log("CallKit 오디오 활성화, 출력=\(outputs)")
-            publishMicrophoneIfReady()
-            markCallActive()
-            speakQuestionsIfReady()
+            try audioRouter.activate(platformVoiceProcessing: platformVoiceProcessingExpected)
         } catch {
-            if let call = activeCall { failCall(uuid: call.uuid, message: error.localizedDescription) }
+            // Routing failure does not end the CallKit activation. Route changes, the
+            // speaker button and the microphone start retry the selection.
+            log("오디오 경로 초기화 실패: \(error.localizedDescription)")
         }
+        guard setEngine(.default) else {
+            if let call = activeCall {
+                failCall(uuid: call.uuid, message: "통화 오디오를 시작할 수 없어요. 다시 시도해주세요")
+            }
+            return
+        }
+        isAudioSessionActive = true
+        analysisWriter?.setMuted(activeCall?.isMuted ?? true)
+        log("CallKit 오디오 활성화")
+        refreshAudioRoute(event: "callkit-activated")
+        publishMicrophoneIfReady()
+        markCallActive()
+        speakQuestionsIfReady()
     }
 
     func provider(_: CXProvider, didDeactivate session: AVAudioSession) {
         log("CallKit 오디오 비활성화")
+        audioRouter.deactivate()
         setEngine(.none)
         questionSpeaker.stop()
         isAudioSessionActive = false

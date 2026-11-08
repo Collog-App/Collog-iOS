@@ -79,6 +79,9 @@ final class CallCenter: NSObject, Sendable {
     @ObservationIgnored var reportNotificationsAuthorized = false
     @ObservationIgnored var uploadBackgroundTask: UIBackgroundTaskIdentifier = .invalid
     @ObservationIgnored lazy var uploads: RawAudioUploadQueue? = makeUploadQueue()
+    @ObservationIgnored let audioRouter = CallAudioRouter(session: SystemCallAudioSession())
+    @ObservationIgnored var audioRouteObserver: (any NSObjectProtocol)?
+    @ObservationIgnored var audioVolumeObservation: NSKeyValueObservation?
 
     @ObservationIgnored var isAudioSessionActive = false
     @ObservationIgnored var isMediaConnected = false
@@ -101,6 +104,7 @@ final class CallCenter: NSObject, Sendable {
     var notificationPermissionError: String?
     var callError: String?
     var needsMicrophoneSettings = false
+    var audioDiagnostics: String?
 
     init(environment: AppEnvironment) {
         self.environment = environment
@@ -112,6 +116,7 @@ final class CallCenter: NSObject, Sendable {
         environment.beforeSignOut = { [weak self] in await self?.prepareSignOut() }
         AudioManager.shared.audioSession.isAutomaticConfigurationEnabled = false
         setEngine(.none)
+        observeAudioRoute()
         provider.setDelegate(self, queue: .main)
         room.add(delegate: self)
         registry.delegate = self
