@@ -147,9 +147,13 @@ final class SystemCallAudioSession: CallAudioSession {
     // The chat mode lowers playback unless Apple Voice Processing I/O is running, so
     // without it the media-tuned `.default` mode is used, as LiveKit's Media presets do.
     // `.default` does not imply Bluetooth HFP like `.voiceChat`, hence the explicit flags.
+    // `.mixWithOthers` is left out on purpose: LiveKit dropped it from its playAndRecord
+    // presets upstream (client-sdk-swift #1019, linked to #1011 "participant audio becomes
+    // inaudible") because on the in-call path it lets another app hold the audio device and
+    // races the WebRTC engine start (-66637).
     func configure(defaultToSpeaker: Bool, platformVoiceProcessing: Bool) throws {
         var options: AVAudioSession.CategoryOptions = [
-            .mixWithOthers, .allowBluetoothHFP, .allowBluetoothA2DP, .allowAirPlay
+            .allowBluetoothHFP, .allowBluetoothA2DP, .allowAirPlay
         ]
         if defaultToSpeaker { options.insert(.defaultToSpeaker) }
         let mode: AVAudioSession.Mode = platformVoiceProcessing ? .voiceChat : .default
