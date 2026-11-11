@@ -16,6 +16,8 @@ struct CallTimelineEntry: Identifiable {
     let keywords: [KeywordMark]
     let gauges: [RangeGauge]
     let counts: [CallStat]
+    /// 응급 안내(11-08 가드레일). 서버가 고정 문구로 남겼을 때만.
+    var safetyNotice: String? = nil
 }
 
 extension CallTimelineEntry {

@@ -132,12 +132,33 @@ struct ReportDTO: Decodable {
     let analyzedCallCount: Int
     let containsDemoData: Bool?
     let demoDataNotice: String?
+    /// 응급 안내(11-08 가드레일). 서버가 아직 보내지 않으면 nil.
+    var safetyNotices: [SafetyNoticeDTO]? = nil
 
     enum CodingKeys: String, CodingKey {
         case parentId, period, from, to, state, emptyMessage, disclaimer, advisory
         case promotedSignals, acuteSignals, conversationItems, repeatObservation
         case acousticTrends, recentAcousticHistory, analyzedCallCount
-        case containsDemoData, demoDataNotice
+        case containsDemoData, demoDataNotice, safetyNotices
+    }
+}
+
+/// 리포트 `safetyNotices` 한 줄: 통화 중 응급 표현이 있었을 때 서버가 고정 문구로 남긴다.
+/// 한 줄이 이상해도 리포트 전체가 깨지지 않게 칸마다 따로 읽는다.
+struct SafetyNoticeDTO: Decodable {
+    let callId: String
+    let observedAt: String?
+    let text: String
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        callId = (try? container.decodeIfPresent(String.self, forKey: .callId)) ?? ""
+        observedAt = try? container.decodeIfPresent(String.self, forKey: .observedAt)
+        text = (try? container.decodeIfPresent(String.self, forKey: .text)) ?? ""
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case callId, observedAt, text
     }
 }
 
@@ -163,6 +184,8 @@ struct ExtractionDTO: Decodable {
     let medication: String?
     let activity: String?
     let sleep: String?
+    /// 통화 중 응급 표현이 있었을 때의 고정 안내 문구. 없거나 서버가 아직 보내지 않으면 nil.
+    var safetyNotice: String? = nil
 }
 
 struct RepeatEventDTO: Decodable {

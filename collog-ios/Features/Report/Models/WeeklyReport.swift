@@ -39,6 +39,14 @@ struct RepeatObservation {
     let caption: String
 }
 
+/// 응급 안내(2026-11-08 가드레일). `dayText`는 「11월 7일 통화」, 시각을 못 읽으면 nil.
+struct SafetyNotice: Identifiable {
+    let id = UUID()
+    let callId: String
+    let dayText: String?
+    let text: String
+}
+
 struct WeeklyReport {
     let state: ReportState
     let noticeText: String?
@@ -49,6 +57,7 @@ struct WeeklyReport {
     let acousticTrend: TrendSeries?
     let metricTrends: [MetricTrend]
     let disclaimer: String
+    var safetyNotices: [SafetyNotice] = []
 }
 
 extension WeeklyReport {

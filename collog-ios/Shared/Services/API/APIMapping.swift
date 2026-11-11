@@ -83,10 +83,51 @@ extension TrendSeries {
     }
 }
 
+extension SafetyNotice {
+    /// 통화 날짜는 기기 시간대와 상관없이 Asia/Seoul 로 센다(안드로이드와 같음).
+    static let calendar: Calendar = {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Seoul") ?? .current
+        return calendar
+    }()
+
+    /// 서버 고정 문구 그대로. 빈 문구는 없는 것으로 본다.
+    static func text(_ raw: String?) -> String? {
+        guard let raw, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return raw
+    }
+
+    static func dayText(for date: Date) -> String {
+        let parts = calendar.dateComponents([.month, .day], from: date)
+        return "\(parts.month ?? 0)월 \(parts.day ?? 0)일 통화"
+    }
+
+    /// 최근 통화가 위로(서버와 같은 순서). 시각을 못 읽은 안내는 맨 아래에 받은 순서대로 둔다.
+    static func list(from dtos: [SafetyNoticeDTO]) -> [SafetyNotice] {
+        dtos
+            .compactMap { dto -> (dto: SafetyNoticeDTO, text: String, date: Date?)? in
+                guard let text = text(dto.text) else { return nil }
+                return (dto, text, dto.observedAt.flatMap(Date.fromCollogTimestamp))
+            }
+            .enumerated()
+            .sorted { lhs, rhs in
+                switch (lhs.element.date, rhs.element.date) {
+                case let (left?, right?) where left != right: left > right
+                case (_?, nil): true
+                case (nil, _?): false
+                default: lhs.offset < rhs.offset
+                }
+            }
+            .map { SafetyNotice(callId: $0.element.dto.callId, dayText: $0.element.date.map(dayText), text: $0.element.text) }
+    }
+}
+
 extension WeeklyReport {
     init(dto: ReportDTO, trend: TrendSeries?) {
+        let notices = SafetyNotice.list(from: dto.safetyNotices ?? [])
         guard dto.analyzedCallCount > 0 else {
             self = .empty
+            safetyNotices = notices
             return
         }
         let labels = ["symptom": "증상", "medication": "복약", "activity": "활동", "sleep": "수면"]
@@ -133,7 +174,8 @@ extension WeeklyReport {
             ),
             acousticTrend: trend,
             metricTrends: Self.metricTrends(from: dto),
-            disclaimer: dto.disclaimer
+            disclaimer: dto.disclaimer,
+            safetyNotices: notices
         )
     }
 
