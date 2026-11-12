@@ -12,10 +12,11 @@ struct ConsentView: View {
 
     var onAgreed: () -> Void
     var showsAccountActions = true
+    /// 둘러보기(게스트)에서 내용만 보여 준다. 로그인 전이라 동의를 보낼 수 없다.
+    var isPreview = false
 
     @State private var document: ConsentDocument?
     @State private var agreedItems: Set<String> = []
-    @State private var hasReachedEnd = false
     @State private var isSubmitting = false
     @State private var isLoading = true
     @State private var errorMessage: String?
@@ -28,11 +29,6 @@ struct ConsentView: View {
     var body: some View {
         ScrollView {
             content
-        }
-        .onScrollGeometryChange(for: Bool.self) { geometry in
-            geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 8
-        } action: { _, reachedEnd in
-            if reachedEnd, document != nil, !isLoading { hasReachedEnd = true }
         }
         .id(document?.version)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -67,23 +63,29 @@ struct ConsentView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Button { submit(granted: true) } label: {
-                    Text(hasReachedEnd ? "동의하고 시작하기" : "끝까지 읽어주세요")
-                        .body_01_semibold(.gray00)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(
-                            canSubmit ? Color.greenNormal : Color.gray500,
-                            in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
-                        )
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSubmit)
+                if isPreview {
+                    Text("둘러보기에서는 동의를 보낼 수 없어요. 로그인하면 동의 여부를 고를 수 있어요.")
+                        .body_03_medium(.gray700)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Button { submit(granted: true) } label: {
+                        Text("동의하고 시작하기")
+                            .body_01_semibold(.gray00)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 52)
+                            .background(
+                                canSubmit ? Color.greenNormal : Color.gray500,
+                                in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSubmit)
 
-                Button("동의 없이 통화 이용하기") { submit(granted: false) }
-                    .pretendardStyle(.semiBold, 14, .gray800)
-                    .disabled(document == nil || isSubmitting || isLoading)
-                    .frame(maxWidth: .infinity)
+                    Button("동의 없이 통화 이용하기") { submit(granted: false) }
+                        .pretendardStyle(.semiBold, 14, .gray800)
+                        .disabled(document == nil || isSubmitting || isLoading)
+                        .frame(maxWidth: .infinity)
+                }
 
                 if showsAccountActions {
                     OnboardingAccountActions()
@@ -95,14 +97,13 @@ struct ConsentView: View {
         }
     }
 
-    private var canSubmit: Bool { hasReachedEnd && allAgreed && !isSubmitting && !isLoading }
+    private var canSubmit: Bool { !isPreview && allAgreed && !isSubmitting && !isLoading }
 
     private var documentBody: some View {
         VStack(alignment: .leading, spacing: Spacing.x4) {
             if let document {
-                Text(document.fullText)
-                    .body_02_medium(.gray900)
-                    .fixedSize(horizontal: false, vertical: true)
+                // 전문(document.fullText)은 「자세히 보기」 페이지에 둔다. 화면에는 받는 곳과 법정 고지 네 가지만.
+                ThirdPartyAIDisclosureView()
 
                 infoRow("수집 항목", document.collectedItems.joined(separator: ", "))
                 infoRow("이용 목적", document.purpose)
@@ -154,13 +155,13 @@ struct ConsentView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(isPreview)
         .accessibilityValue(agreedItems.contains(item) ? "선택됨" : "선택 안 됨")
     }
 
     private func load() async {
         isLoading = true
         errorMessage = nil
-        hasReachedEnd = false
         agreedItems = []
         document = nil
         defer { isLoading = false }
@@ -183,7 +184,8 @@ struct ConsentView: View {
                     documentVersion: document.version,
                     agreedItems: granted ? Array(agreedItems).sorted() : [],
                     decision: granted ? "GRANT" : "DENY",
-                    scrolledToEnd: granted && hasReachedEnd
+                    // 체크 줄과 동의 버튼이 고지 아래에 있어, 동의하려면 고지를 다 지나가야 한다.
+                    scrolledToEnd: granted
                 )
                 guard environment.session.user?.id == userId else {
                     isSubmitting = false
