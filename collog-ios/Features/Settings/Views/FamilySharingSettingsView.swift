@@ -23,6 +23,9 @@ struct FamilySharingSettingsView: View {
             VStack(alignment: .leading, spacing: Spacing.x5) {
                 statusCard
 
+                ThirdPartyAIDisclosureView()
+                    .cardSurface()
+
                 SettingsSection(title: "가족에게 보이는 내용") {
                     SettingsScopeRow(
                         title: "주간 리포트",
@@ -46,13 +49,11 @@ struct FamilySharingSettingsView: View {
                     SettingsScopeRow(title: "푸시 토큰", detail: "전화와 알림 수신을 위해 서버에 등록돼요.")
                 }
 
-                if !environment.settings.isGuestMode {
-                    Button("분석 동의 내용 확인 및 변경") { showsConsent = true }
+                Button(isGuest ? "동의 내용 미리 보기" : "분석 동의 내용 확인 및 변경") { showsConsent = true }
+                    .disabled(isLoading || isSubmitting)
+                if !isGuest, isGranted {
+                    Button("분석 동의 철회", role: .destructive) { confirmsRevocation = true }
                         .disabled(isLoading || isSubmitting)
-                    if isGranted {
-                        Button("분석 동의 철회", role: .destructive) { confirmsRevocation = true }
-                            .disabled(isLoading || isSubmitting)
-                    }
                 }
 
                 if !agreedItems.isEmpty {
@@ -89,7 +90,7 @@ struct FamilySharingSettingsView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
         .sheet(isPresented: $showsConsent, onDismiss: { Task { await load() } }) {
-            ConsentView(onAgreed: { showsConsent = false }, showsAccountActions: false)
+            ConsentView(onAgreed: { showsConsent = false }, showsAccountActions: false, isPreview: isGuest)
         }
         .alert("통화 분석 동의를 철회할까요?", isPresented: $confirmsRevocation) {
             Button("취소", role: .cancel) {}
@@ -99,13 +100,18 @@ struct FamilySharingSettingsView: View {
         }
     }
 
+    private var isGuest: Bool { environment.settings.isGuestMode }
+
     private var statusCard: some View {
         VStack(alignment: .leading, spacing: Spacing.x2) {
-            Text(isLoading ? "확인 중" : isGranted ? "통화 분석에 동의함" : "통화 분석 동의 없음")
+            Text(isGuest ? "둘러보기 중이에요" : isLoading ? "확인 중" : isGranted ? "통화 분석에 동의함" : "통화 분석 동의 없음")
                 .subtitle_01(.gray900)
 
-            Text("두 사람 모두 동의해야 통화를 녹음하고 외부 AI로 분석해요.")
+            Text(isGuest
+                 ? "둘러보기에서는 통화·녹음·분석을 하지 않아 외부로 보내는 정보가 없어요."
+                 : "두 사람 모두 동의한 통화만 녹음하고 아래 외부 AI 서비스로 분석해요.")
                 .body_03_medium(.gray700)
+                .fixedSize(horizontal: false, vertical: true)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
@@ -115,14 +121,10 @@ struct FamilySharingSettingsView: View {
         isLoading = true
         errorText = nil
         defer { isLoading = false }
-        if environment.settings.isGuestMode {
-            agreedItems = [
-                "SENSITIVE_HEALTH_COLLECTION",
-                "VOICE_FEATURE_EXTRACTION",
-                "CALL_RECORDING",
-                "REPORT_SHARING_WITH_CHILD"
-            ]
-            isGranted = true
+        // 둘러보기는 동의한 적이 없다. 예시로 「동의함」을 보여 주면 받는 곳을 밝히지 않은 동의처럼 보인다(1.1 (26) 반려).
+        if isGuest {
+            agreedItems = []
+            isGranted = false
             return
         }
 
