@@ -47,6 +47,8 @@ struct ProfileDTO: Decodable {
     let conditions: [String]
     let isCompleted: Bool?
     let updatedAt: Date?
+    /// 목록에 없는 질환이나 걱정되는 부분(자유 입력, 최대 500자).
+    var concerns: String? = nil
 
     var hasCompletedSetup: Bool { isCompleted ?? (updatedAt != nil || !conditions.isEmpty) }
 }

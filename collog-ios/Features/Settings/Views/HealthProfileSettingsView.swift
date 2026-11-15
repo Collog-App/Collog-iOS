@@ -17,8 +17,10 @@ struct HealthProfileSettingsView: View {
     @Environment(\.dismiss) private var dismiss
 
     @AppStorage("settings.guestHealthConditions") private var guestConditions = "HYPERTENSION"
+    @AppStorage("settings.guestHealthConcerns") private var guestConcerns = ""
     @State private var selected: Set<HealthCondition> = []
     @State private var hasNoConditions = false
+    @State private var note = ""
     @State private var targets: [ProfileTarget] = []
     @State private var target: ProfileTarget?
     @State private var profileLoaded = false
@@ -79,6 +81,9 @@ struct HealthProfileSettingsView: View {
                 }
                 .disabled(!profileLoaded || isLoading || isSaving)
 
+                ConditionNoteField(text: $note)
+                    .disabled(!profileLoaded || isLoading || isSaving)
+
                 if let errorText {
                     Text(errorText)
                         .body_03_medium(.red500)
@@ -107,12 +112,16 @@ struct HealthProfileSettingsView: View {
         .safeAreaInset(edge: .top, spacing: 0) {
             HomeDetailHeader(title: "건강 프로필")
         }
+        .scrollDismissesKeyboard(.interactively)
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
     }
 
+    private var trimmedNote: String { note.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    // 목록에 없는 질환만 있는 사람도 있어, 칸에 적었으면 고르지 않아도 저장된다.
     private var canSave: Bool {
-        profileLoaded && (!selected.isEmpty || hasNoConditions) && !isSaving && !isLoading
+        profileLoaded && (!selected.isEmpty || hasNoConditions || !trimmedNote.isEmpty) && !isSaving && !isLoading
     }
 
     private func conditionRow(_ condition: HealthCondition?) -> some View {
@@ -162,6 +171,7 @@ struct HealthProfileSettingsView: View {
             let values = guestConditions.split(separator: ",").map(String.init)
             selected = Set(values.compactMap(HealthCondition.init(rawValue:)))
             hasNoConditions = selected.isEmpty
+            note = guestConcerns
             profileLoaded = true
             return
         }
@@ -193,11 +203,13 @@ struct HealthProfileSettingsView: View {
         target = candidate
         selected.removeAll()
         hasNoConditions = false
+        note = ""
         defer { isLoading = false }
         do {
             let profile = try await environment.api.profile(parentId: candidate.id)
             selected = Set(profile.conditions.compactMap(HealthCondition.init(rawValue:)))
             hasNoConditions = profile.hasCompletedSetup && selected.isEmpty
+            note = profile.concerns ?? ""
             profileLoaded = true
         } catch {
             errorText = error.localizedDescription
@@ -213,6 +225,7 @@ struct HealthProfileSettingsView: View {
         let values = selected.map(\.rawValue).sorted()
         if environment.settings.isGuestMode {
             guestConditions = values.joined(separator: ",")
+            guestConcerns = trimmedNote
             Haptics.commit()
             dismiss()
             return
@@ -223,7 +236,7 @@ struct HealthProfileSettingsView: View {
             return
         }
         do {
-            _ = try await environment.api.updateProfile(parentId: parentId, conditions: values)
+            _ = try await environment.api.updateProfile(parentId: parentId, conditions: values, concerns: trimmedNote)
             Haptics.commit()
             dismiss()
         } catch {

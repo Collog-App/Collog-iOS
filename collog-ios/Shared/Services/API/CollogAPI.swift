@@ -133,12 +133,12 @@ struct CollogAPI {
         try await client.send(APIEndpoint(path: "/v1/parents/\(parentId)/profile"))
     }
 
-    func updateProfile(parentId: String, conditions: [String]) async throws -> ProfileDTO {
+    func updateProfile(parentId: String, conditions: [String], concerns: String? = nil) async throws -> ProfileDTO {
         try await client.send(
             APIEndpoint(
                 path: "/v1/parents/\(parentId)/profile",
                 method: .put,
-                body: ProfilePutBody(conditions: conditions)
+                body: ProfilePutBody(conditions: conditions, concerns: concerns)
             )
         )
     }
