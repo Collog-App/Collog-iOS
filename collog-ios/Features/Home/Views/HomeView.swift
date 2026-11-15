@@ -86,6 +86,18 @@ struct HomeView: View {
                         .padding(.bottom, Spacing.x4)
 
                     if let feedback = viewModel.healthFeedback { feedbackRow(feedback) }
+
+                    // 건강 앱 연결 안내(피그마 없음): 아직 연결 안 했고 쓸 수 있는 기기일 때, 닫으면 다시 안 띄운다
+                    if environment.health.shouldShowHint(using: environment) {
+                        HealthLinkHintCardView(
+                            onConnect: { environment.health.present() },
+                            onClose: {
+                                Haptics.blur()
+                                environment.health.dismissHint(using: environment)
+                            }
+                        )
+                        .padding(.top, viewModel.healthFeedback == nil ? 0 : Spacing.x4)
+                    }
                 }
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.18), value: environment.family.selectedContactId)

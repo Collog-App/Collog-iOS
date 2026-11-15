@@ -334,4 +334,49 @@ struct CollogAPI {
     func deleteTodo(id: String) async throws {
         try await client.sendRaw(APIEndpoint(path: "/v1/todos/\(id)", method: .delete))
     }
+
+    /// 건강 앱 연결 약속(2026-11-08)의 iOS 플랫폼 값.
+    static let healthPlatform = "HEALTHKIT"
+
+    /// 내 건강 앱 연결 상태와 선택 동의 문서.
+    func healthLink() async throws -> HealthLinkStatusDTO {
+        try await client.send(APIEndpoint(path: "/v1/health/link"))
+    }
+
+    /// 동의하고 연결. 문서 판이 바뀌었으면 409 `HEALTH_CONSENT_VERSION_MISMATCH`.
+    func connectHealthLink(version: String) async throws -> HealthLinkStatusDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/health/link",
+                method: .post,
+                body: HealthLinkBody(version: version, platform: Self.healthPlatform)
+            )
+        )
+    }
+
+    /// 연결 끊기(철회). 서버가 저장된 건강 요약을 바로 지운다(204).
+    func disconnectHealthLink() async throws {
+        try await client.sendRaw(APIEndpoint(path: "/v1/health/link", method: .delete))
+    }
+
+    /// 이 기기의 하루 요약 올리기. 연결 상태가 아니면 403 `HEALTH_LINK_REQUIRED`.
+    func uploadHealthDaily(days: [HealthDayDTO]) async throws -> HealthDailyUploadResult {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/health/daily",
+                method: .put,
+                body: HealthDailyUploadBody(platform: Self.healthPlatform, days: days)
+            )
+        )
+    }
+
+    /// `from`·`to`는 "yyyy-MM-dd"(최대 62일).
+    func parentHealthDaily(parentId: String, from: String, to: String) async throws -> ParentHealthDailyDTO {
+        try await client.send(
+            APIEndpoint(
+                path: "/v1/parents/\(parentId)/health/daily",
+                query: [URLQueryItem(name: "from", value: from), URLQueryItem(name: "to", value: to)]
+            )
+        )
+    }
 }

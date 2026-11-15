@@ -12,6 +12,7 @@ final class AppEnvironment {
     let settings: AppSettings
     let session: AuthSession
     let family: FamilyStore
+    let health: HealthLink
     private let networkSession: URLSession
     @ObservationIgnored var beforeSignOut: (() async -> Void)?
     var reportNotificationRevision = 0
@@ -21,11 +22,13 @@ final class AppEnvironment {
         settings: AppSettings = AppSettings(),
         session: AuthSession = AuthSession(),
         family: FamilyStore = FamilyStore(),
+        health: HealthLink = HealthLink(),
         networkSession: URLSession = .shared
     ) {
         self.settings = settings
         self.session = session
         self.family = family
+        self.health = health
         self.networkSession = networkSession
         session.onAccountChanged = { [weak self] in
             self?.family.reset()

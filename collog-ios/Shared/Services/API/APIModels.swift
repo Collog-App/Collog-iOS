@@ -269,3 +269,64 @@ struct TodoCreateBody: Encodable {
 struct TodoDoneBody: Encodable {
     let done: Bool
 }
+
+// MARK: - 건강 앱 연결 (2026-11-08 서버·안드로이드 공통 약속)
+
+/// 서버가 내려주는 별도 선택 동의 문서. 앱은 그대로 보여 준다.
+struct HealthLinkDocument: Codable, Equatable {
+    let version: String
+    let title: String
+    let items: [String]
+}
+
+/// `GET/POST /v1/health/link`. 시각·날짜는 글자로 받는다(형식이 달라도 응답 전체가 깨지지 않게).
+struct HealthLinkStatusDTO: Codable, Equatable {
+    var connected = false
+    var consentVersion: String?
+    var connectedAt: String?
+    var document: HealthLinkDocument?
+    /// "yyyy-MM-dd"
+    var lastSyncedDay: String?
+}
+
+struct HealthLinkBody: Encodable {
+    let version: String
+    let platform: String
+}
+
+/// 하루 요약 한 줄. 그날 기록이 없는 값은 nil(보낼 때 그 칸은 빠진다).
+struct HealthDayDTO: Codable, Equatable {
+    /// Asia/Seoul 기준 "yyyy-MM-dd"
+    let date: String
+    var sleepMinutes: Int?
+    var steps: Int?
+    var restingHeartRate: Int?
+    var bloodPressureSystolic: Int?
+    var bloodPressureDiastolic: Int?
+    var bloodGlucoseMgDl: Double?
+
+    var hasAnyValue: Bool {
+        sleepMinutes != nil || steps != nil || restingHeartRate != nil
+            || bloodPressureSystolic != nil || bloodPressureDiastolic != nil || bloodGlucoseMgDl != nil
+    }
+}
+
+struct HealthDailyUploadBody: Encodable {
+    let platform: String
+    let days: [HealthDayDTO]
+}
+
+struct HealthDailyUploadResult: Decodable {
+    let saved: Int
+    let lastSyncedDay: String?
+}
+
+/// `GET /v1/parents/{parentId}/health/daily`. 연결 안 됐으면 `days`가 비어 있다.
+struct ParentHealthDailyDTO: Decodable {
+    let parentId: String
+    let connected: Bool
+    let platform: String?
+    let lastSyncedDay: String?
+    let days: [HealthDayDTO]
+    let disclaimer: String?
+}

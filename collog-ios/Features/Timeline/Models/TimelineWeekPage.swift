@@ -12,6 +12,8 @@ struct TimelineWeekPage: Identifiable {
     var entries: [CallTimelineEntry] = []
     var calls: [CallSummaryDTO] = []
     var report: WeeklyReport = .empty
+    /// 리포트 「생활 기록」(건강 앱 연결). 서버가 받지 않거나 공유가 막혔으면 nil 이라 카드를 숨긴다.
+    var lifeRecord: LifeRecord?
     var isLoaded = false
     var reportError: String?
     var timelineError: String?

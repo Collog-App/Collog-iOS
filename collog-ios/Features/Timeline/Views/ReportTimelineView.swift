@@ -68,6 +68,11 @@ struct ReportTimelineView: View {
                 CallAnalysisView(callId: route.callId)
             }
             .task { await viewModel.refresh(using: environment) }
+            // 내 건강 앱을 연결·동기화·끊으면 내 리포트의 「생활 기록」을 다시 불러온다
+            .onChange(of: environment.health.revision) {
+                guard tab == .report, viewModel.isSelfSelected else { return }
+                Task { await viewModel.refresh(using: environment, forceReload: true) }
+            }
             .onChange(of: tabManager.reselectionCount) {
                 guard tabManager.reselectedTab == tab else { return }
                 moveToCurrentWeek()
@@ -288,6 +293,15 @@ struct ReportTimelineView: View {
                 ReportContentView(report: page.report, isLoaded: true)
                     .padding(.horizontal, Spacing.x5)
                     .padding(.top, Spacing.x2)
+            }
+
+            // 생활 기록(건강 앱 연결). 내 리포트에서만 「연결하기」를 보인다
+            if let record = page.lifeRecord {
+                LifeRecordCardView(
+                    record: record,
+                    onConnect: viewModel.isSelfSelected ? { environment.health.present() } : nil
+                )
+                .padding(.horizontal, Spacing.x5)
             }
         }
     }
