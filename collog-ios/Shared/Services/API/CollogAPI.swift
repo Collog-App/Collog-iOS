@@ -318,4 +318,20 @@ struct CollogAPI {
             )
         )
     }
+
+    func todos() async throws -> TodoListResponse {
+        try await client.send(APIEndpoint(path: "/v1/todos"))
+    }
+
+    func createTodo(title: String) async throws -> TodoDTO {
+        try await client.send(APIEndpoint(path: "/v1/todos", method: .post, body: TodoCreateBody(title: title)))
+    }
+
+    func setTodoDone(id: String, done: Bool) async throws -> TodoDTO {
+        try await client.send(APIEndpoint(path: "/v1/todos/\(id)", method: .patch, body: TodoDoneBody(done: done)))
+    }
+
+    func deleteTodo(id: String) async throws {
+        try await client.sendRaw(APIEndpoint(path: "/v1/todos/\(id)", method: .delete))
+    }
 }

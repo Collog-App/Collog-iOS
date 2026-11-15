@@ -241,3 +241,31 @@ struct InvitationCreateBody: Encodable {
 struct InvitationAcceptBody: Encodable {
     let code: String
 }
+
+// 오늘 할 일 (개인용, 가족과 공유하지 않는다)
+struct TodoDTO: Decodable, Identifiable, Equatable {
+    enum Source: String, Decodable {
+        case suggested = "SUGGESTED"
+        case user = "USER"
+    }
+
+    let id: String
+    let title: String
+    let source: Source
+    var done: Bool
+    let doneAt: Date?
+    let createdAt: Date
+}
+
+struct TodoListResponse: Decodable {
+    let date: String
+    let items: [TodoDTO]
+}
+
+struct TodoCreateBody: Encodable {
+    let title: String
+}
+
+struct TodoDoneBody: Encodable {
+    let done: Bool
+}
