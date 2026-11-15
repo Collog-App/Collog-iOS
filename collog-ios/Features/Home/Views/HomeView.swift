@@ -13,6 +13,7 @@ struct HomeView: View {
     @Environment(TabManager.self) private var tabManager
 
     @State private var viewModel = HomeViewModel()
+    @State private var todoModel = TodoListModel()
     @State private var isGeneratingQuestions = false
     @State private var questionGenerationId: UUID?
     @State private var questionError: String?
@@ -80,6 +81,10 @@ struct HomeView: View {
                             .caption_01_medium(.red500)
                             .padding(.bottom, Spacing.x4)
                     }
+
+                    TodoListCardView(model: todoModel)
+                        .padding(.bottom, Spacing.x4)
+
                     if let feedback = viewModel.healthFeedback { feedbackRow(feedback) }
                 }
                 .contentTransition(.opacity)
@@ -258,6 +263,8 @@ struct HomeView: View {
     }
 
     private func initialRefresh() async {
+        // 오늘 할 일은 가족 선택과 무관하게 본인 목록이라 따로 불러온다
+        Task { await todoModel.load(using: environment) }
         await environment.family.refresh(using: environment)
         await viewModel.refresh(
             using: environment,
