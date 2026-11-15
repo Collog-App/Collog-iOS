@@ -337,6 +337,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "가족과 영상 통화를 사용할 때 내 화면을 상대방에게 전송하기 위해 카메라를 사용해요. 촬영한 영상은 저장하지 않아요.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "건강 앱의 수면·걸음·심박·혈압·혈당을 하루 단위로 요약해 가족 리포트에 보여 주려고 읽어요.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "콜록은 건강 앱에 기록을 쓰지 않아요. 수면·걸음·심박·혈압·혈당을 읽기만 해요.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "같은 Wi-Fi의 콜록 서버에서 로그인과 가족 통화를 사용해요.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "가족과 통화하고, 동의한 통화의 음성 변화를 기록하기 위해 마이크를 사용해요.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -350,7 +352,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.dohyeoplim.collog-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -388,6 +390,8 @@
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_NSCameraUsageDescription = "가족과 영상 통화를 사용할 때 내 화면을 상대방에게 전송하기 위해 카메라를 사용해요. 촬영한 영상은 저장하지 않아요.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "건강 앱의 수면·걸음·심박·혈압·혈당을 하루 단위로 요약해 가족 리포트에 보여 주려고 읽어요.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "콜록은 건강 앱에 기록을 쓰지 않아요. 수면·걸음·심박·혈압·혈당을 읽기만 해요.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "같은 Wi-Fi의 콜록 서버에서 로그인과 가족 통화를 사용해요.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "가족과 통화하고, 동의한 통화의 음성 변화를 기록하기 위해 마이크를 사용해요.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -401,7 +405,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.2;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.dohyeoplim.collog-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

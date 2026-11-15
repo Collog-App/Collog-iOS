@@ -112,6 +112,16 @@ struct SettingsView: View {
             SettingsNavigationRow(label: "가족 공유 데이터 범위") {
                 navigation.manager(for: .settings).push(SettingsRoute.familySharing)
             }
+            // 건강 연결 약속(11-08): 별도 선택 동의. 체험 모드에는 서버·건강 앱 읽기가 없어 두지 않는다
+            if !environment.settings.isGuestMode, environment.session.isAuthenticated {
+                DividerLine()
+                SettingsNavigationRow(
+                    label: "건강 앱 연결",
+                    value: environment.health.rowText(for: environment.session.user?.id)
+                ) {
+                    environment.health.present()
+                }
+            }
         }
     }
 

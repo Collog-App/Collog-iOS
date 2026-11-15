@@ -94,6 +94,8 @@ struct RootView: View {
                 callCenter.resumePendingUploads()
                 callCenter.updateNotificationAuthorization()
                 Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
+                // 건강 앱 요약은 앱이 앞으로 올 때 하루 한 번 이하로 보낸다(가입을 마친 뒤에만)
+                if authFlow.step == .ready { Task { await environment.health.syncIfDue(using: environment) } }
             }
         }
         .onChange(of: environment.reportNotificationRevision) {
@@ -188,6 +190,13 @@ struct RootView: View {
             await environment.family.refresh(using: environment)
             syncLauncher()
         }
+        .task {
+            await environment.health.ensureStatus(using: environment)
+            await environment.health.syncIfDue(using: environment)
+        }
+        .sheet(isPresented: healthLinkPresentation) {
+            HealthLinkSheet()
+        }
         .onChange(of: environment.family.contacts) { syncLauncher() }
         .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
     }
@@ -248,6 +257,14 @@ struct RootView: View {
             set: { isPresented in
                 if !isPresented { endSimulatedCall() }
             }
+        )
+    }
+
+    /// 설정·홈·리포트의 「건강 앱 연결」이 여는 시트.
+    private var healthLinkPresentation: Binding<Bool> {
+        Binding(
+            get: { environment.health.isPresented },
+            set: { environment.health.isPresented = $0 }
         )
     }
 

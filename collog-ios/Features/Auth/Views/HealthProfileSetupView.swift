@@ -14,10 +14,20 @@ struct HealthProfileSetupView: View {
 
     @State private var selected: Set<HealthCondition> = []
     @State private var hasNoConditions = false
+    @State private var note = ""
     @State private var isSubmitting = false
     @State private var errorMessage: String?
 
     var body: some View {
+        ScrollView {
+            content
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color.gray50)
+    }
+
+    private var content: some View {
         VStack(alignment: .leading, spacing: Spacing.x6) {
             VStack(alignment: .leading, spacing: Spacing.x2) {
                 Text("관리 중인 질환을 알려주세요")
@@ -34,13 +44,14 @@ struct HealthProfileSetupView: View {
                 row(for: nil)
             }
 
+            ConditionNoteField(text: $note)
+                .disabled(isSubmitting)
+
             if let errorMessage {
                 Text(errorMessage)
                     .caption_01_medium(.red500)
                     .fixedSize(horizontal: false, vertical: true)
             }
-
-            Spacer(minLength: 0)
 
             Button(action: submit) {
                 Text("완료")
@@ -61,11 +72,12 @@ struct HealthProfileSetupView: View {
         .padding(.horizontal, Spacing.x5)
         .padding(.top, Spacing.x8)
         .padding(.bottom, Spacing.x8)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .background(Color.gray50)
     }
 
-    private var canSubmit: Bool { (!selected.isEmpty || hasNoConditions) && !isSubmitting }
+    private var trimmedNote: String { note.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    // 목록에 없는 질환만 있는 사람도 있어, 칸에 적었으면 고르지 않아도 넘어간다.
+    private var canSubmit: Bool { (!selected.isEmpty || hasNoConditions || !trimmedNote.isEmpty) && !isSubmitting }
 
     private func row(for condition: HealthCondition?) -> some View {
         let isSelected = condition.map { selected.contains($0) } ?? hasNoConditions
@@ -114,7 +126,8 @@ struct HealthProfileSetupView: View {
             do {
                 _ = try await environment.api.updateProfile(
                     parentId: parentId,
-                    conditions: selected.map(\.rawValue)
+                    conditions: selected.map(\.rawValue),
+                    concerns: trimmedNote
                 )
                 onCompleted()
             } catch {

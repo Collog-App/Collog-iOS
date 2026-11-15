@@ -13,6 +13,7 @@ struct HomeView: View {
     @Environment(TabManager.self) private var tabManager
 
     @State private var viewModel = HomeViewModel()
+    @State private var todoModel = TodoListModel()
     @State private var isGeneratingQuestions = false
     @State private var questionGenerationId: UUID?
     @State private var questionError: String?
@@ -80,7 +81,23 @@ struct HomeView: View {
                             .caption_01_medium(.red500)
                             .padding(.bottom, Spacing.x4)
                     }
+
+                    TodoListCardView(model: todoModel)
+                        .padding(.bottom, Spacing.x4)
+
                     if let feedback = viewModel.healthFeedback { feedbackRow(feedback) }
+
+                    // 건강 앱 연결 안내(피그마 없음): 아직 연결 안 했고 쓸 수 있는 기기일 때, 닫으면 다시 안 띄운다
+                    if environment.health.shouldShowHint(using: environment) {
+                        HealthLinkHintCardView(
+                            onConnect: { environment.health.present() },
+                            onClose: {
+                                Haptics.blur()
+                                environment.health.dismissHint(using: environment)
+                            }
+                        )
+                        .padding(.top, viewModel.healthFeedback == nil ? 0 : Spacing.x4)
+                    }
                 }
                 .contentTransition(.opacity)
                 .animation(.easeInOut(duration: 0.18), value: environment.family.selectedContactId)
@@ -258,6 +275,8 @@ struct HomeView: View {
     }
 
     private func initialRefresh() async {
+        // 오늘 할 일은 가족 선택과 무관하게 본인 목록이라 따로 불러온다
+        Task { await todoModel.load(using: environment) }
         await environment.family.refresh(using: environment)
         await viewModel.refresh(
             using: environment,
