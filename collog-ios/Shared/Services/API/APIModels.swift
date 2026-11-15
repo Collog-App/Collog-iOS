@@ -229,6 +229,8 @@ struct ConsentSubmitBody: Encodable {
 
 struct ProfilePutBody: Encodable {
     let conditions: [String]
+    /// nil 이면 키를 보내지 않아 서버가 저장된 값을 그대로 둔다. 빈 문자열은 지운다.
+    let concerns: String?
 }
 
 struct InvitationCreateBody: Encodable {

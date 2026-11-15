@@ -61,7 +61,6 @@ struct QuestionListView: View {
                             x: horizontalOffset(for: index) + drift.width,
                             y: verticalOffset(for: index) + drift.height
                         )
-                        .rotationEffect(.degrees(rotation(for: index)))
                         .transaction { $0.animation = nil }
                 }
             }
@@ -118,14 +117,6 @@ struct QuestionListView: View {
 
     private func verticalOffset(for index: Int) -> CGFloat {
         CGFloat(index - 1) * 44
-    }
-
-    private func rotation(for index: Int) -> Double {
-        switch index {
-        case 1: 1.0
-        case 2: -0.8
-        default: -1.4
-        }
     }
 
     private var displayedQuestions: [PreviewQuestion] {
