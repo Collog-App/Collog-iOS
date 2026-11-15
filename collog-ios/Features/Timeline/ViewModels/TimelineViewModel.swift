@@ -139,6 +139,10 @@ final class TimelineViewModel {
         guard offset <= 0, pages[offset]?.isLoaded != true else { return }
         var page = TimelineWeekPage(offset: offset)
         page.report = .sample(for: selectedRelation, offset: offset)
+        if selectedTabIndex == 0 {
+            let range = Self.lifeRecordRange(offset: offset)
+            page.lifeRecord = .sample(end: range.end, today: range.today)
+        }
         if offset >= -3 {
             page.entries = [.sample(offset: offset, relation: selectedRelation)]
         }
@@ -247,9 +251,31 @@ final class TimelineViewModel {
         } catch {
             page.timelineError = error.localizedDescription
         }
+        if selectedTabIndex == 0 {
+            page.lifeRecord = await lifeRecord(parentId: parentId, api: api, offset: offset)
+        }
         guard generation == contentGeneration else { return }
         page.isLoaded = true
         pages[offset] = page
+    }
+
+    /// 리포트 「생활 기록」: 그 주 끝(이번 주는 오늘)까지 30일을 받아 7일 막대와 최근 측정값을 만든다.
+    /// 서버가 받지 않거나(404 등) 공유가 막혔으면 nil 이라 카드를 숨긴다.
+    private func lifeRecord(parentId: String, api: CollogAPI, offset: Int) async -> LifeRecord? {
+        let range = Self.lifeRecordRange(offset: offset)
+        guard let dto = try? await api.parentHealthDaily(
+            parentId: parentId,
+            from: HealthDailyCalculator.dayString(HealthDailyCalculator.adding(days: -29, to: range.end)),
+            to: HealthDailyCalculator.dayString(range.end)
+        ) else { return nil }
+        return LifeRecord(dto: dto, end: range.end, today: range.today)
+    }
+
+    /// 그 주의 마지막 날(서울 날짜, 오늘을 넘지 않음)과 오늘.
+    private static func lifeRecordRange(offset: Int) -> (end: Date, today: Date) {
+        let today = HealthDailyCalculator.dayOf(Date())
+        let weekEnd = APIFormat.isoDate.string(from: TimelineWeekPage.bounds(offset: offset).end)
+        return (min(HealthDailyCalculator.day(from: weekEnd) ?? today, today), today)
     }
 
     private func entries(
