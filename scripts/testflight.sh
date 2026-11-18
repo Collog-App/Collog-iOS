@@ -2,6 +2,8 @@
 # 콜록 iOS 아카이브 → TestFlight 업로드.
 # App Store Connect API 키(팀 키, 관리자)로 배포 인증서·프로파일을 클라우드에서 자동 생성한다.
 #
+# 프로젝트에는 개발용 수동 프로파일(fastlane match)이 고정돼 있어, 아카이브 때만 자동 서명으로 덮어쓴다.
+#
 # 필요 환경변수 (키 파일은 저장소 밖에 둘 것 — git·메신저에 올리지 말 것):
 #   ASC_KEY_PATH   AuthKey_<KeyID>.p8 경로
 #   ASC_KEY_ID     Key ID (10자리)
@@ -31,6 +33,7 @@ xcodebuild archive \
   -project collog-ios.xcodeproj -scheme collog-ios -configuration Release \
   -destination 'generic/platform=iOS' -archivePath "$ARCHIVE" \
   CODE_SIGN_STYLE=Automatic DEVELOPMENT_TEAM=3X4434LYHD \
+  CODE_SIGN_IDENTITY="Apple Development" PROVISIONING_PROFILE_SPECIFIER="" \
   "${AUTH[@]}" "${EXTRA[@]}"
 
 xcodebuild -exportArchive \
