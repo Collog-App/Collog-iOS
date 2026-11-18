@@ -16,6 +16,8 @@ final class AppEnvironment {
     private let networkSession: URLSession
     @ObservationIgnored var beforeSignOut: (() async -> Void)?
     var reportNotificationRevision = 0
+    /// 분석 완료 알림을 받을 때마다(누르지 않아도) 오른다. 리포트·홈 화면이 이미 불러 둔 데이터를 다시 읽는다.
+    private(set) var reportDataRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
 
     init(
@@ -66,6 +68,7 @@ final class AppEnvironment {
                 at: 0
             )
         }
+        reportDataRevision += 1
         if openReport { reportNotificationRevision += 1 }
     }
 }
