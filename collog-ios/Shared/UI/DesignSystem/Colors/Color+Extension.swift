@@ -48,13 +48,13 @@ extension Color {
     static let orangeLight = Color(hex: 0xFFF4E6)
     static let orange600 = Color(hex: 0xFF5900)
 
-    /// 부모(가족) 리포트를 볼 때의 액센트. 나 = 그린, 부모 = 주황.
-    /// 큰 요소(아이콘·링·전화 버튼)는 parentAccent, 흰 글자·본문 글자는 parentAccentDark를 쓴다.
-    static let parentAccent = Color(hex: 0xEF6C00)
-    static let parentAccentDark = Color(hex: 0xAD4A00)
-    static let parentAccentLight = Color(hex: 0xFFF1DC)
-    static let parentAccentBorder = Color(hex: 0xFFD9A6)
-    static let parentScreenBackground = Color(hex: 0xFFFCF7)
+    /// 내 기록(「나」)을 볼 때의 액센트. 가족 = 기존 그린, 나 = 주황.
+    /// 큰 요소(아이콘·링)는 selfAccent, 흰 글자·본문 글자는 selfAccentDark를 쓴다.
+    static let selfAccent = Color(hex: 0xEF6C00)
+    static let selfAccentDark = Color(hex: 0xAD4A00)
+    static let selfAccentLight = Color(hex: 0xFFF1DC)
+    static let selfAccentBorder = Color(hex: 0xFFD9A6)
+    static let selfScreenBackground = Color(hex: 0xFFFCF7)
 
     static let disabledForeground = gray500
 

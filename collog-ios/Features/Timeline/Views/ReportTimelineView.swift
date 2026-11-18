@@ -25,14 +25,14 @@ struct ReportTimelineView: View {
 
     private var subjects: [FamilyContact] { viewModel.subjects(using: environment) }
 
-    /// 나 = 그린, 가족 = 주황. 게스트처럼 선택된 사람이 없으면 그린
+    /// 가족 = 기존 그린, 나 = 주황. 게스트처럼 선택된 사람이 없으면 그린
     private var accent: ViewerAccent {
-        guard let id = viewModel.selectedContactId, id != TimelineViewModel.selfSubjectId else { return .me }
-        return .parent
+        viewModel.isSelfSelected ? .mine : .family
     }
 
     private var displayTitle: String {
-        guard accent == .parent else { return viewModel.title }
+        if viewModel.isSelfSelected { return "나의 \(viewModel.title)" }
+        guard viewModel.selectedContactId != nil else { return viewModel.title }
         return "\(viewModel.selectedMember)님의 \(viewModel.title)"
     }
 
@@ -107,7 +107,7 @@ struct ReportTimelineView: View {
         .environment(\.viewerAccent, accent)
         .onAppear { environment.viewerAccent = accent }
         .onChange(of: accent) { environment.viewerAccent = accent }
-        .onDisappear { environment.viewerAccent = .me }
+        .onDisappear { environment.viewerAccent = .family }
     }
 
     private var weekNavigator: some View {

@@ -6,7 +6,7 @@
 import SwiftUI
 
 /// 리포트·타임라인에서 지금 누구의 기록을 보는지에 따라 바뀌는 색 세트.
-/// 나 = 브랜드 그린, 가족(부모) = 주황. 색은 보조 신호이고 이름·태그·제목 문구가 실제 구분을 맡는다.
+/// 가족(기본 흐름) = 브랜드 그린 그대로, 「나」의 기록 = 주황. 색은 보조 신호이고 이름·태그·제목 문구가 실제 구분을 맡는다.
 struct ViewerAccent: Equatable {
     /// 아이콘·링·아바타 채움 같은 큰 요소
     let accent: Color
@@ -21,10 +21,11 @@ struct ViewerAccent: Equatable {
     let border: Color
     let background: Color
     let tabBorder: Color
-    /// 카드 테두리. 나는 없음
+    /// 카드 테두리. 가족(기본)은 없음
     let cardBorder: Color?
 
-    static let me = ViewerAccent(
+    /// 가족을 볼 때(기본). 기존 앱 색 그대로
+    static let family = ViewerAccent(
         accent: .greenNormal,
         fab: .greenNormal,
         tabLabel: .greenNormal,
@@ -36,21 +37,22 @@ struct ViewerAccent: Equatable {
         cardBorder: nil
     )
 
-    static let parent = ViewerAccent(
-        accent: .parentAccent,
-        fab: .parentAccent,
-        tabLabel: .parentAccentDark,
-        text: .parentAccentDark,
-        light: .parentAccentLight,
-        border: .parentAccentBorder,
-        background: .parentScreenBackground,
-        tabBorder: .parentAccentBorder,
-        cardBorder: .parentAccentBorder
+    /// 내 기록을 볼 때
+    static let mine = ViewerAccent(
+        accent: .selfAccent,
+        fab: .selfAccent,
+        tabLabel: .selfAccentDark,
+        text: .selfAccentDark,
+        light: .selfAccentLight,
+        border: .selfAccentBorder,
+        background: .selfScreenBackground,
+        tabBorder: .selfAccentBorder,
+        cardBorder: .selfAccentBorder
     )
 }
 
 private struct ViewerAccentKey: EnvironmentKey {
-    static let defaultValue = ViewerAccent.me
+    static let defaultValue = ViewerAccent.family
 }
 
 extension EnvironmentValues {

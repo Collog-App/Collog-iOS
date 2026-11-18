@@ -206,7 +206,7 @@ struct RootView: View {
     private var tabAccent: ViewerAccent {
         switch tabManager.selectedTab {
         case .report, .timeline: environment.viewerAccent
-        case .home, .settings: .me
+        case .home, .settings: .family
         }
     }
 
