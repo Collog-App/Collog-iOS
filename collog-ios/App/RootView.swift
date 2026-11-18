@@ -180,8 +180,7 @@ struct RootView: View {
                     selection: $tabManager.selectedTab,
                     launcher: launcher,
                     onLaunch: startCall,
-                    onReselect: reselect,
-                    accent: tabAccent
+                    onReselect: reselect
                 )
             }
         }
@@ -203,7 +202,7 @@ struct RootView: View {
         .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
     }
 
-    /// 리포트·타임라인에서는 지금 보는 사람의 색, 홈·설정에서는 항상 나(그린)
+    /// 화면 배경만 보는 사람에 따라 바뀐다. 탭바·전화 버튼은 항상 그린
     private var tabAccent: ViewerAccent {
         switch tabManager.selectedTab {
         case .report, .timeline: environment.viewerAccent
