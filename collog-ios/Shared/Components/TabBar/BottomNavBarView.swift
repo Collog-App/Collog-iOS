@@ -12,6 +12,8 @@ struct BottomNavBarView: View {
     let launcher: CallLauncherModel
     var onLaunch: (FamilyContact) -> Void
     var onReselect: (MainTab) -> Void = { _ in }
+    /// 리포트·타임라인에서 보는 사람에 따라 바뀌는 색. 홈·설정에서는 항상 .me
+    var accent: ViewerAccent = .me
 
     static let barHeight: CGFloat = 64
     static let buttonLift: CGFloat = 14
@@ -43,7 +45,7 @@ struct BottomNavBarView: View {
                     }
                     .overlay(alignment: .top) {
                         Rectangle()
-                            .fill(Color.gray200)
+                            .fill(accent.tabBorder)
                             .frame(height: 1)
                     }
             }
@@ -71,10 +73,10 @@ struct BottomNavBarView: View {
                 Icon(
                     name: tab.symbol,
                     size: IconSize.medium,
-                    color: selection == tab ? .greenNormal : .gray600
+                    color: selection == tab ? accent.accent : .gray600
                 )
                 Text(tab.title)
-                    .caption_01_medium(selection == tab ? .greenNormal : .gray600)
+                    .caption_01_medium(selection == tab ? accent.tabLabel : .gray600)
             }
             .frame(maxWidth: .infinity)
             .contentShape(Rectangle())
@@ -95,10 +97,10 @@ struct BottomNavBarView: View {
                 }
 
             Circle()
-                .fill(Color.greenNormal)
+                .fill(accent.fab)
                 .frame(width: 58, height: 58)
                 .shadow(
-                    color: Color.greenNormal.opacity(launcher.isPresented ? 0.45 : 0.28),
+                    color: accent.fab.opacity(launcher.isPresented ? 0.45 : 0.28),
                     radius: launcher.isPresented ? 22 : 12,
                     y: 6
                 )

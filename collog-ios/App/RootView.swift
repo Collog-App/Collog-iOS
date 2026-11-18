@@ -180,11 +180,13 @@ struct RootView: View {
                     selection: $tabManager.selectedTab,
                     launcher: launcher,
                     onLaunch: startCall,
-                    onReselect: reselect
+                    onReselect: reselect,
+                    accent: tabAccent
                 )
             }
         }
-        .background(Color.gray50)
+        .background(tabAccent.background)
+        .animation(.smooth(duration: 0.25), value: tabAccent)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: launcher.isPresented)
         .task {
             await environment.family.refresh(using: environment)
@@ -199,6 +201,14 @@ struct RootView: View {
         }
         .onChange(of: environment.family.contacts) { syncLauncher() }
         .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
+    }
+
+    /// 리포트·타임라인에서는 지금 보는 사람의 색, 홈·설정에서는 항상 나(그린)
+    private var tabAccent: ViewerAccent {
+        switch tabManager.selectedTab {
+        case .report, .timeline: environment.viewerAccent
+        case .home, .settings: .me
+        }
     }
 
     private var sessionIdentity: String {

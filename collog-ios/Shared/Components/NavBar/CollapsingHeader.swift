@@ -27,6 +27,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
     private let pinnedSticky: AnyView?
     private let showsScrollToTopButton: Bool
 
+    @Environment(\.viewerAccent) private var accent
     @State private var scrollOffset: CGFloat = 0
     @State private var isRefreshing = false
     @State private var pullDistance: CGFloat = 0
@@ -91,14 +92,14 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
             if let pinnedSticky, isSticky {
                 pinnedSticky
-                    .background(Color.gray50)
+                    .background(accent.background)
                     .padding(.top, barHeight)
                     .transition(.opacity)
             }
 
             compactBar
         }
-        .background(Color.gray50)
+        .background(accent.background)
         .overlay(alignment: .bottomTrailing) {
             if shouldShowScrollToTopButton {
                 scrollToTopButton
@@ -153,7 +154,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
 
                     if let sticky {
                         sticky
-                            .background(Color.gray50)
+                            .background(accent.background)
                             .onGeometryChange(for: CGFloat.self) { proxy in
                                 proxy.frame(in: .scrollView(axis: .vertical)).minY
                             } action: { minY in
@@ -242,7 +243,7 @@ struct CollapsingHeaderScrollView<Large: View, Trailing: View, Content: View>: V
         .frame(height: barHeight)
         .frame(maxWidth: .infinity)
         .background {
-            Color.gray50
+            accent.background
                 .ignoresSafeArea(edges: .top)
         }
     }

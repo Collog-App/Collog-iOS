@@ -11,3 +11,7 @@ DerivedData/
 vendor/bundle/
 fastlane/.env*
 fastlane/report.xml
+
+# App Store Connect API 키
+*.p8
+build/

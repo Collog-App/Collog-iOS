@@ -16,6 +16,8 @@ final class AppEnvironment {
     private let networkSession: URLSession
     @ObservationIgnored var beforeSignOut: (() async -> Void)?
     var reportNotificationRevision = 0
+    /// 리포트·타임라인에서 지금 보는 사람에 따른 색. 탭바·전화 버튼이 따라간다.
+    var viewerAccent: ViewerAccent = .me
     private(set) var reportNotifications: [ReceivedReportNotification] = []
 
     init(
