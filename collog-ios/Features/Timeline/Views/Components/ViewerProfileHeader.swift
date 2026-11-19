@@ -45,7 +45,7 @@ struct ViewerProfileHeader: View {
                         .pretendard(.semiBold, 14, .gray00)
                         .padding(.horizontal, 10)
                         .padding(.vertical, 3)
-                        .background(accent.text, in: Capsule())
+                        .background(accent == .family ? Color(hex: 0x26CF85) : accent.text, in: Capsule())
                 }
 
                 if subjects.count > 1 {
@@ -109,10 +109,6 @@ struct ViewerProfileHeader: View {
                 }
                 .padding(.vertical, Spacing.x2)
                 .frame(width: sideWidth)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
-                        .strokeBorder(Color.gray400, style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
-                )
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
