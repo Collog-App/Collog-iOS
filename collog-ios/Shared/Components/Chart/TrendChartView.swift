@@ -61,7 +61,7 @@ struct TrendChartView: View {
                     Text(series.isWithinNormalRange(focusedPoint) ? "평소 범위" : "평소와 다름")
                         .caption_01_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
                 } else {
-                    Text("비교할 기록 수집 중")
+                    Text(series.referenceCaption(for: focusedPoint))
                         .caption_01_medium(.gray700)
                 }
             }
@@ -75,6 +75,23 @@ struct TrendChartView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1))
                     .foregroundStyle(Color.gray300)
                     .accessibilityHidden(true)
+            }
+
+            if !series.hasPersonalBaseline, let reference = series.initialReference {
+                RuleMark(y: .value("첫 기준점", reference))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .foregroundStyle(Color.gray400)
+                    .accessibilityHidden(true)
+                if let first = series.points.first {
+                    PointMark(x: .value("주", first.date), y: .value("첫 기준점", reference))
+                        .symbol {
+                            Circle()
+                                .strokeBorder(Color.gray700, lineWidth: 2)
+                                .background(Circle().fill(Color.gray00))
+                                .frame(width: 11, height: 11)
+                        }
+                        .accessibilityLabel("첫 기준점")
+                }
             }
 
             ForEach(series.points) { point in
@@ -136,7 +153,7 @@ struct TrendChartView: View {
     }
 
     private var yDomain: ClosedRange<Double> {
-        let values = series.points.map(\.value) + [series.normalRange.lowerBound, series.normalRange.upperBound]
+        let values = series.points.map(\.value) + [series.normalRange.lowerBound, series.normalRange.upperBound] + (series.initialReference.map { [$0] } ?? [])
         guard let minimum = values.min(), let maximum = values.max() else { return 0...1 }
         let padding = max((maximum - minimum) * 0.25, 1)
         return (minimum - padding)...(maximum + padding)
