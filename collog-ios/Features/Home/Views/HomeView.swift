@@ -12,6 +12,7 @@ struct HomeView: View {
     @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(CallCenter.self) private var callCenter
 
     @State private var viewModel = HomeViewModel()
     @State private var todoModel = TodoListModel()
@@ -107,10 +108,14 @@ struct HomeView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .task { await initialRefresh() }
-            // 통화를 마치고 앱으로 돌아왔을 때, 아직 분석 결과가 없으면 상태를 다시 읽는다(결과가 있을 땐 깜빡이지 않게 건너뜀).
+            // 앱으로 돌아왔을 때·통화가 끝났을 때: 마지막 통화 시각과 분석 상태를 화면 깜빡임 없이 다시 읽는다.
             .onChange(of: scenePhase) {
-                guard scenePhase == .active, viewModel.isLoaded, viewModel.healthSummary == nil else { return }
-                Task { await refresh() }
+                guard scenePhase == .active, viewModel.isLoaded else { return }
+                Task { await viewModel.refreshCalls(using: environment, contact: selectedContact) }
+            }
+            .onChange(of: callCenter.activeCall == nil) { _, isIdle in
+                guard isIdle, viewModel.isLoaded else { return }
+                Task { await viewModel.refreshCalls(using: environment, contact: selectedContact) }
             }
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
