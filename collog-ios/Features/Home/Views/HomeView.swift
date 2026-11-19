@@ -11,6 +11,7 @@ struct HomeView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel = HomeViewModel()
     @State private var todoModel = TodoListModel()
@@ -106,6 +107,11 @@ struct HomeView: View {
             }
             .toolbar(.hidden, for: .navigationBar)
             .task { await initialRefresh() }
+            // 통화를 마치고 앱으로 돌아왔을 때, 아직 분석 결과가 없으면 상태를 다시 읽는다(결과가 있을 땐 깜빡이지 않게 건너뜀).
+            .onChange(of: scenePhase) {
+                guard scenePhase == .active, viewModel.isLoaded, viewModel.healthSummary == nil else { return }
+                Task { await refresh() }
+            }
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
                 switch route {
