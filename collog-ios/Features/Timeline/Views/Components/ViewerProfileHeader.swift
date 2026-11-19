@@ -156,11 +156,37 @@ struct ViewerAvatar: View {
         return Color.gray400
     }
 
+    /// 관계에 맞는 3D 아바타. 없는 관계(배우자·형제 등)는 이름 첫 글자 원으로 둔다.
+    private var avatarAsset: String? {
+        if isSelf { return "avatar_child" }
+        switch contact.relation {
+        case "MOTHER": return "avatar_mom"
+        case "FATHER": return "avatar_dad"
+        case "CHILD": return "avatar_child"
+        default: return nil
+        }
+    }
+
+    @ViewBuilder
+    private var content: some View {
+        if let asset = avatarAsset {
+            Image(asset)
+                .resizable()
+                .scaledToFill()
+                .background(Color.gray100)
+                .opacity(isRinged ? 1 : 0.85)
+        } else {
+            Text(String(contact.name.prefix(1)))
+                .pretendard(.bold, size * 0.42, .gray00)
+                .frame(width: size, height: size)
+                .background(fillColor)
+        }
+    }
+
     var body: some View {
-        Text(String(contact.name.prefix(1)))
-            .pretendard(.bold, size * 0.42, .gray00)
+        content
             .frame(width: size, height: size)
-            .background(fillColor, in: Circle())
+            .clipShape(Circle())
             .overlay {
                 if isRinged {
                     Circle()
