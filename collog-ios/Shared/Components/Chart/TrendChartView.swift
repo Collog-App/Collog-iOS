@@ -103,7 +103,7 @@ struct TrendChartView: View {
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.greenNormal.opacity(0.18), Color.greenNormal.opacity(0.01)],
+                        colors: [Color(hex: 0x63CF8A).opacity(0.25), Color(hex: 0x63CF8A).opacity(0)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -112,17 +112,17 @@ struct TrendChartView: View {
                 LineMark(x: .value("주", point.date), y: .value(series.unit, point.value))
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(Color.greenNormal)
+                    .foregroundStyle(Color(hex: 0x63CF8A))
                     .accessibilityLabel(point.label)
                     .accessibilityValue("\(Int(point.value)) \(series.unit)")
             }
 
             if let focusedPoint {
                 PointMark(x: .value("주", focusedPoint.date), y: .value(series.unit, focusedPoint.value))
-                    .foregroundStyle(Color.greenDark)
+                    .foregroundStyle(Color(hex: 0x63CF8A))
                     .symbol {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(Color.greenDark)
+                        Circle()
+                            .fill(Color(hex: 0x63CF8A))
                             .frame(width: 9, height: 9)
                     }
                     .accessibilityHidden(true)

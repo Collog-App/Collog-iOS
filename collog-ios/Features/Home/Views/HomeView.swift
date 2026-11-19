@@ -131,28 +131,47 @@ struct HomeView: View {
         }
     }
 
+    /// 피그마 「홈 · 메인」 헤더: 아바타 53 · 이름 Bold 22 + 관계 태그 + 화살표 · 마지막 통화 14.
     @ViewBuilder
     private var largeTitle: some View {
-        VStack(alignment: .leading, spacing: Spacing.x1) {
-            if contacts.count > 1 {
-                Menu {
-                    ForEach(contacts) { contact in
-                        Button(contact.name) { select(contact) }
-                    }
-                } label: {
-                    HStack(spacing: Spacing.x1) {
-                        Text(selectedContact?.name ?? "가족")
-                            .headline_02(.gray900)
-                        Icon(name: "chevron.down", size: 18, weight: .semibold, color: .gray700)
-                    }
-                }
-            } else {
-                Text(selectedContact?.name ?? "가족")
-                    .headline_02(.gray900)
+        HStack(alignment: .top, spacing: 10) {
+            if let contact = selectedContact {
+                ViewerAvatar(contact: contact, size: 53, fullColor: true)
             }
 
-            Text(viewModel.lastCallText)
-                .body_03_medium(.gray700)
+            VStack(alignment: .leading, spacing: 8) {
+                if contacts.count > 1 {
+                    Menu {
+                        ForEach(contacts) { contact in
+                            Button(contact.name) { select(contact) }
+                        }
+                    } label: { nameRow(showsChevron: true) }
+                } else {
+                    nameRow(showsChevron: false)
+                }
+
+                Text(viewModel.lastCallText)
+                    .pretendard(.regular, 14, Color(hex: 0x8A9099))
+            }
+        }
+    }
+
+    private func nameRow(showsChevron: Bool) -> some View {
+        HStack(spacing: 7) {
+            HStack(spacing: 8) {
+                Text(selectedContact?.name ?? "가족")
+                    .pretendard(.bold, 22, Color(hex: 0x2D3139))
+                if let contact = selectedContact {
+                    Text(ViewerProfileHeader.relationText(for: contact))
+                        .pretendard(.semiBold, 13.5, Color(hex: 0x159A5E))
+                        .padding(.horizontal, 10.35)
+                        .padding(.vertical, 4.14)
+                        .background(Color(hex: 0xE6F7EE), in: Capsule())
+                }
+            }
+            if showsChevron {
+                Icon(name: "chevron.down", size: 18, weight: .semibold, color: Color(hex: 0x4A5058))
+            }
         }
     }
 

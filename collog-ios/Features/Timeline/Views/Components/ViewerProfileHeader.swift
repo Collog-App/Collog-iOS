@@ -142,13 +142,15 @@ struct ViewerAvatar: View {
     let contact: FamilyContact
     let size: CGFloat
     var isRinged = false
+    /// 흐리게 하지 않고 원래 색 그대로(홈 헤더처럼 한 사람만 보여 줄 때)
+    var fullColor = false
 
     @Environment(\.viewerAccent) private var accent
 
     private var isSelf: Bool { contact.id == TimelineViewModel.selfSubjectId }
 
     private var fillColor: Color {
-        if isRinged { return accent.accent }
+        if isRinged || fullColor { return accent.accent }
         return Color.gray400
     }
 
@@ -170,7 +172,7 @@ struct ViewerAvatar: View {
                 .resizable()
                 .scaledToFill()
                 .background(Color.gray100)
-                .opacity(isRinged ? 1 : 0.85)
+                .opacity(isRinged || fullColor ? 1 : 0.85)
         } else {
             Text(String(contact.name.prefix(1)))
                 .pretendard(.bold, size * 0.42, .gray00)
