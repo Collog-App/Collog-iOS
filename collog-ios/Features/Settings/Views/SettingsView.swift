@@ -21,6 +21,8 @@ struct SettingsView: View {
     @Environment(TabManager.self) private var tabManager
     @Environment(\.openURL) private var openURL
 
+    @State private var showsInvitationCode = false
+
     private let privacyPolicyURL = URL(string: "https://collog-app.github.io/Collog-Privacy/")!
 
     var body: some View {
@@ -35,6 +37,11 @@ struct SettingsView: View {
                 EmptyView()
             } content: {
                 VStack(spacing: Spacing.x6) {
+                    // 역할과 상관없이 아직 아무와도 연결되지 않은 사람에게 맨 위에서 바로 보인다
+                    if environment.family.canEnterInvitationCode(using: environment) {
+                        invitationCodeEntry
+                    }
+
                     if settings.isGuestMode {
                         demoSection
                     }
@@ -89,7 +96,40 @@ struct SettingsView: View {
             .navigationDestination(for: SettingsRoute.self) { route in
                 settingsDestination(for: route)
             }
+            .sheet(isPresented: $showsInvitationCode) {
+                InvitationAcceptSheet()
+            }
         }
+    }
+
+    private var invitationCodeEntry: some View {
+        Button {
+            showsInvitationCode = true
+        } label: {
+            HStack(spacing: Spacing.x3) {
+                VStack(alignment: .leading, spacing: Spacing.x1) {
+                    Text("초대 코드 입력")
+                        .body_01_semibold(.gray900)
+
+                    Text("가족에게 받은 6자리 코드를 넣으면 바로 연결돼요")
+                        .caption_01_medium(.gray700)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .multilineTextAlignment(.leading)
+                }
+
+                Spacer(minLength: Spacing.x2)
+
+                Icon(name: "chevron.right", size: IconSize.small, weight: .semibold, color: .greenDark)
+            }
+            .cardSurface()
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .stroke(Color.green200, lineWidth: 1)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(callCenter.hasCallInProgress)
     }
 
     private var accountSection: some View {

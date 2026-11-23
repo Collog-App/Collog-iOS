@@ -43,7 +43,7 @@ struct AccountSettingsView: View {
 
                 SettingsSection(title: "가족") {
                     SettingsValueRow(label: "등록된 가족", value: "\(environment.family.contacts.count)명")
-                    if environment.session.isAuthenticated, environment.session.user?.role == "PARENT" {
+                    if environment.family.canEnterInvitationCode(using: environment) {
                         DividerLine()
                         SettingsNavigationRow(label: "초대 코드 입력") { showsInvitationCode = true }
                             .disabled(isSubmitting || callCenter.hasCallInProgress)
