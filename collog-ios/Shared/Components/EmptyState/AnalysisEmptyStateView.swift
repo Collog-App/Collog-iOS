@@ -61,7 +61,7 @@ struct AnalysisEmptyStateView: View {
     private var message: String {
         switch action {
         case .processing: "통화 분석을 준비하고 있어요. 해당 통화의 상태를 확인할 수 있어요."
-        case .excluded: "분석은 부모님과 내가 모두 최신 동의를 한 통화에서만 이뤄져요. 두 분의 동의 상태를 확인해 주세요."
+        case .excluded: "부모님이 말씀하신 시간이 짧았거나(20초 미만), 두 분의 최신 동의가 확인되지 않으면 분석에서 빠져요. 조금 더 길게 통화해 보시고, 계속되면 동의 상태를 확인해 주세요."
         case .failed: "분석 중 문제가 생겼어요. 잠시 뒤 다시 확인해 주세요."
         case .family: "가족을 초대하거나 받은 초대 코드를 입력해 첫 통화를 시작해 보세요."
         case .call: "가족과 통화하고 분석에 동의하면 대화 내용을 다시 살펴볼 수 있어요."
