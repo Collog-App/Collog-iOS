@@ -17,11 +17,17 @@ struct FamilySharingSettingsView: View {
     @State private var showsConsent = false
     @State private var confirmsRevocation = false
     @State private var isSubmitting = false
+    @State private var sharing = FamilySharingModel()
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x5) {
                 statusCard
+
+                // 둘러보기에는 가족도 서버 설정도 없어 스위치를 두지 않는다
+                if !isGuest {
+                    sharingSection
+                }
 
                 ThirdPartyAIDisclosureView()
                     .cardSurface()
@@ -89,6 +95,7 @@ struct FamilySharingSettingsView: View {
         }
         .toolbar(.hidden, for: .navigationBar)
         .task { await load() }
+        .task { await sharing.load(using: environment) }
         .sheet(isPresented: $showsConsent, onDismiss: { Task { await load() } }) {
             ConsentView(onAgreed: { showsConsent = false }, showsAccountActions: false, isPreview: isGuest)
         }
@@ -115,6 +122,85 @@ struct FamilySharingSettingsView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardSurface()
+    }
+
+    /// 가족 구성원마다 내 리포트·타임라인을 보일지 정한다. 바꿀 때마다 저장한다.
+    private var sharingSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.x2) {
+            SettingsSection(title: "가족별 공유 설정") {
+                if !sharing.hasLoaded {
+                    if sharing.errorText == nil {
+                        ProgressView()
+                            .frame(maxWidth: .infinity)
+                            .padding(Spacing.x4)
+                    }
+                } else if sharing.shares.isEmpty {
+                    Text("아직 함께하는 가족이 없어요. 가족을 초대하면 여기에서 공유 범위를 정할 수 있어요.")
+                        .body_03_medium(.gray700)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(Spacing.x4)
+                } else {
+                    ForEach(Array(sharing.shares.enumerated()), id: \.element.id) { index, share in
+                        if index > 0 { DividerLine() }
+                        shareRows(share)
+                    }
+                }
+            }
+            .disabled(sharing.isSubmitting)
+
+            if !sharing.shares.isEmpty {
+                Text("끄면 그 가족은 내 리포트나 타임라인을 볼 수 없어요.")
+                    .caption_01_medium(.gray700)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, Spacing.x1)
+            }
+
+            if let error = sharing.errorText {
+                Text(error)
+                    .body_03_medium(.red500)
+                    .fixedSize(horizontal: false, vertical: true)
+                if !sharing.hasLoaded {
+                    Button("다시 시도") { Task { await sharing.load(using: environment) } }
+                }
+            }
+        }
+    }
+
+    private func shareRows(_ share: FamilyShare) -> some View {
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: Spacing.x1) {
+                Text(share.viewerName)
+                    .body_02_semibold(.gray900)
+
+                if let relation = FamilyRelation.title(share.relation ?? "") {
+                    Text(relation)
+                        .caption_01_medium(.gray700)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, Spacing.x4)
+            .padding(.top, Spacing.x4)
+
+            SettingsToggleRow(
+                label: "리포트",
+                isOn: Binding(
+                    get: { share.report },
+                    set: { isOn in
+                        Task { await sharing.update(share.viewerUserId, report: isOn, using: environment) }
+                    }
+                )
+            )
+            SettingsToggleRow(
+                label: "타임라인",
+                isOn: Binding(
+                    get: { share.timeline },
+                    set: { isOn in
+                        Task { await sharing.update(share.viewerUserId, timeline: isOn, using: environment) }
+                    }
+                )
+            )
+        }
     }
 
     private func load() async {

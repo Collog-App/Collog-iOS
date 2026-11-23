@@ -276,6 +276,23 @@ struct CollogAPI {
         )
     }
 
+    /// 내 리포트·타임라인을 가족 구성원마다 보일지. 정한 적이 없으면 모두 보인다.
+    func sharing() async throws -> [FamilyShare] {
+        let response: SharingResponse = try await client.send(APIEndpoint(path: "/v1/account/sharing"))
+        return response.shares
+    }
+
+    /// 보낸 줄만 바꾸고 전체 목록을 돌려받는다.
+    func updateSharing(_ shares: [FamilyShare]) async throws -> [FamilyShare] {
+        let body = SharingUpdateBody(shares: shares.map {
+            SharingUpdateBody.Share(viewerUserId: $0.viewerUserId, report: $0.report, timeline: $0.timeline)
+        })
+        let response: SharingResponse = try await client.send(
+            APIEndpoint(path: "/v1/account/sharing", method: .put, body: body)
+        )
+        return response.shares
+    }
+
     func deleteAccount(authorization: AppleDeletionBody? = nil) async throws {
         try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete, body: authorization))
     }
