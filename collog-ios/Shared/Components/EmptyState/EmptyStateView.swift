@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct EmptyStateView: View {
+    @Environment(\.viewerAccent) private var accent
     let symbol: String
     let title: String
     var message: String?
@@ -34,10 +35,10 @@ struct EmptyStateView: View {
             if let actionTitle, let action {
                 Button(action: action) {
                     Text(actionTitle)
-                        .body_02_semibold(.greenDark)
+                        .body_02_semibold(accent.text)
                         .padding(.horizontal, Spacing.x4)
                         .frame(height: 40)
-                        .background(Color.greenLight, in: Capsule())
+                        .background(accent.light, in: Capsule())
                 }
                 .buttonStyle(.plain)
                 .padding(.top, Spacing.x1)

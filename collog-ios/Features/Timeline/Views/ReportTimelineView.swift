@@ -25,6 +25,17 @@ struct ReportTimelineView: View {
 
     private var subjects: [FamilyContact] { viewModel.subjects(using: environment) }
 
+    /// 가족 = 기존 그린, 나 = 주황. 게스트처럼 선택된 사람이 없으면 그린
+    private var accent: ViewerAccent {
+        viewModel.isSelfSelected ? .mine : .family
+    }
+
+    private var displayTitle: String {
+        if viewModel.isSelfSelected { return "나의 \(viewModel.title)" }
+        guard viewModel.selectedContactId != nil else { return viewModel.title }
+        return "\(viewModel.selectedMember)님의 \(viewModel.title)"
+    }
+
     init(initialTabIndex: Int = 1) {
         _viewModel = State(initialValue: TimelineViewModel(selectedTabIndex: initialTabIndex))
         tab = initialTabIndex == 0 ? .report : .timeline
@@ -35,24 +46,38 @@ struct ReportTimelineView: View {
 
         return NavigationStack(path: $navigator.path) {
             CollapsingHeaderScrollView(
-                title: viewModel.title,
+                title: displayTitle,
                 onRefresh: refresh,
                 scrollReset: tabManager.reselectionCount + memberSelectionCount,
-                showsScrollToTopButton: tab == .timeline
-            ) {
-                memberSelector
-            } sticky: {
+                showsScrollToTopButton: tab == .timeline,
+                large: {
+                    VStack(alignment: .leading, spacing: Spacing.x4) {
+                        ViewerProfileHeader(
+                            subjects: subjects,
+                            selectedId: viewModel.selectedContactId,
+                            onSelect: select
+                        )
+                        CollapsingLargeTitle(title: displayTitle)
+                    }
+                },
+                trailing: {
+                    ViewerBadgeChip(name: viewModel.selectedMember)
+                },
+                sticky: {
                 if tab == .timeline {
                     timelineSectionHeader(for: activeVerticalWeek)
                 }
-            } pinnedSticky: {
-                if tab == .timeline {
-                    stickyTimelineWeekHeader
-                }
-            } content: {
+                },
+                pinnedSticky: {
+                    if tab == .timeline {
+                        stickyTimelineWeekHeader
+                    }
+                },
+                content: {
                 VStack(spacing: Spacing.x3) {
                     if tab == .timeline {
                         verticalTimeline
+                            .simultaneousGesture(personSwipe)
                     } else {
                         VStack(spacing: 0) {
                             weekNavigator
@@ -62,7 +87,8 @@ struct ReportTimelineView: View {
                     }
                 }
                 .padding(.bottom, Spacing.x8)
-            }
+                }
+            )
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: CallAnalysisRoute.self) { route in
                 CallAnalysisView(callId: route.callId)
@@ -82,29 +108,10 @@ struct ReportTimelineView: View {
                 moveToCurrentWeek()
             }
         }
-    }
-
-    @ViewBuilder
-    private var memberSelector: some View {
-        if subjects.count > 1 {
-            Menu {
-                ForEach(subjects) { contact in
-                    Button {
-                        select(contact)
-                    } label: {
-                        if contact.id == viewModel.selectedContactId {
-                            Label(contact.name, systemImage: "checkmark")
-                        } else {
-                            Text(contact.name)
-                        }
-                    }
-                }
-            } label: {
-                FilterChipLabelView(label: viewModel.selectedMember)
-            }
-        } else {
-            FilterChipLabelView(label: viewModel.selectedMember)
-        }
+        .environment(\.viewerAccent, accent)
+        .onAppear { environment.viewerAccent = accent }
+        .onChange(of: accent) { environment.viewerAccent = accent }
+        .onDisappear { environment.viewerAccent = .family }
     }
 
     private var weekNavigator: some View {
@@ -115,7 +122,7 @@ struct ReportTimelineView: View {
             onPrevious: { move(by: -1) },
             onNext: { move(by: 1) }
         )
-        .background(Color.gray50)
+        .background(accent.background)
     }
 
     private var weekPager: some View {
@@ -231,6 +238,24 @@ struct ReportTimelineView: View {
 
     private func refresh() async {
         await viewModel.refresh(using: environment, forceReload: true)
+    }
+
+    /// 타임라인 본문에서 옆으로 밀면 이전·다음 사람으로 바뀐다. 리포트는 주차 가로 페이저가 있어 헤더에서만 바꾼다.
+    private var personSwipe: some Gesture {
+        DragGesture(minimumDistance: 30)
+            .onEnded { value in
+                let dx = value.translation.width
+                guard abs(dx) > 70, abs(dx) > abs(value.translation.height) * 2 else { return }
+                selectNeighbor(dx < 0 ? 1 : -1)
+            }
+    }
+
+    private func selectNeighbor(_ delta: Int) {
+        let list = subjects
+        guard let id = viewModel.selectedContactId,
+              let index = list.firstIndex(where: { $0.id == id }),
+              list.indices.contains(index + delta) else { return }
+        select(list[index + delta])
     }
 
     private func select(_ contact: FamilyContact) {

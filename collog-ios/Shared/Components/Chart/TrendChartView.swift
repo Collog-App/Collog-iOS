@@ -61,7 +61,7 @@ struct TrendChartView: View {
                     Text(series.isWithinNormalRange(focusedPoint) ? "평소 범위" : "평소와 다름")
                         .caption_01_medium(series.isWithinNormalRange(focusedPoint) ? .greenDark : .orange600)
                 } else {
-                    Text("비교할 기록 수집 중")
+                    Text(series.referenceCaption(for: focusedPoint))
                         .caption_01_medium(.gray700)
                 }
             }
@@ -77,6 +77,23 @@ struct TrendChartView: View {
                     .accessibilityHidden(true)
             }
 
+            if !series.hasPersonalBaseline, let reference = series.initialReference {
+                RuleMark(y: .value("첫 기준점", reference))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .foregroundStyle(Color.gray400)
+                    .accessibilityHidden(true)
+                if let first = series.points.first {
+                    PointMark(x: .value("주", first.date), y: .value("첫 기준점", reference))
+                        .symbol {
+                            Circle()
+                                .strokeBorder(Color.gray700, lineWidth: 2)
+                                .background(Circle().fill(Color.gray00))
+                                .frame(width: 11, height: 11)
+                        }
+                        .accessibilityLabel("첫 기준점")
+                }
+            }
+
             ForEach(series.points) { point in
                 AreaMark(
                     x: .value("주", point.date),
@@ -86,7 +103,7 @@ struct TrendChartView: View {
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.greenNormal.opacity(0.18), Color.greenNormal.opacity(0.01)],
+                        colors: [Color(hex: 0x63CF8A).opacity(0.25), Color(hex: 0x63CF8A).opacity(0)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -95,17 +112,17 @@ struct TrendChartView: View {
                 LineMark(x: .value("주", point.date), y: .value(series.unit, point.value))
                     .interpolationMethod(.catmullRom)
                     .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-                    .foregroundStyle(Color.greenNormal)
+                    .foregroundStyle(Color(hex: 0x63CF8A))
                     .accessibilityLabel(point.label)
                     .accessibilityValue("\(Int(point.value)) \(series.unit)")
             }
 
             if let focusedPoint {
                 PointMark(x: .value("주", focusedPoint.date), y: .value(series.unit, focusedPoint.value))
-                    .foregroundStyle(Color.greenDark)
+                    .foregroundStyle(Color(hex: 0x63CF8A))
                     .symbol {
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(Color.greenDark)
+                        Circle()
+                            .fill(Color(hex: 0x63CF8A))
                             .frame(width: 9, height: 9)
                     }
                     .accessibilityHidden(true)
@@ -136,7 +153,7 @@ struct TrendChartView: View {
     }
 
     private var yDomain: ClosedRange<Double> {
-        let values = series.points.map(\.value) + [series.normalRange.lowerBound, series.normalRange.upperBound]
+        let values = series.points.map(\.value) + [series.normalRange.lowerBound, series.normalRange.upperBound] + (series.initialReference.map { [$0] } ?? [])
         guard let minimum = values.min(), let maximum = values.max() else { return 0...1 }
         let padding = max((maximum - minimum) * 0.25, 1)
         return (minimum - padding)...(maximum + padding)

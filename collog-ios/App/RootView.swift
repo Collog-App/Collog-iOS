@@ -184,7 +184,8 @@ struct RootView: View {
                 )
             }
         }
-        .background(Color.gray50)
+        .background(tabAccent.background)
+        .animation(.smooth(duration: 0.25), value: tabAccent)
         .animation(.spring(response: 0.32, dampingFraction: 0.78), value: launcher.isPresented)
         .task {
             await environment.family.refresh(using: environment)
@@ -199,6 +200,14 @@ struct RootView: View {
         }
         .onChange(of: environment.family.contacts) { syncLauncher() }
         .onChange(of: environment.family.selectedQuestionTexts) { syncLauncher() }
+    }
+
+    /// 화면 배경만 보는 사람에 따라 바뀐다. 탭바·전화 버튼은 항상 그린
+    private var tabAccent: ViewerAccent {
+        switch tabManager.selectedTab {
+        case .report, .timeline: environment.viewerAccent
+        case .home, .settings: .family
+        }
     }
 
     private var sessionIdentity: String {

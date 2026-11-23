@@ -52,6 +52,13 @@ enum APIFormat {
 extension TrendSeries {
     private static let normalRangeFactor = 1.5 / 0.6745
 
+    private static func median(_ values: [Double]) -> Double? {
+        guard !values.isEmpty else { return nil }
+        let sorted = values.sorted()
+        let mid = sorted.count / 2
+        return sorted.count % 2 == 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid]
+    }
+
     init?(trend: AcousticTrendDTO, baseline: BaselineDTO?) {
         let points = trend.points.compactMap { point -> TrendPoint? in
             guard let value = point.value, let date = APIFormat.isoDate.date(from: point.date) else {
@@ -59,7 +66,7 @@ extension TrendSeries {
             }
             return TrendPoint(date: date, label: APIFormat.shortDate.string(from: date), value: value)
         }
-        guard points.count >= 2 else { return nil }
+        guard points.count >= 1 else { return nil }
 
         let values = points.map(\.value)
         let range: ClosedRange<Double>
@@ -73,12 +80,17 @@ extension TrendSeries {
             range = (minimum + padding)...(max(maximum - padding, minimum + padding + 0.1))
         }
 
+        let isReady = baseline?.isReady == true
+        // 기준선이 준비되기 전에는 이전 통화 값으로 첫 기준점을 잡는다(이번 값은 제외, 하나뿐이면 그 값).
+        let reference: Double? = isReady ? nil : Self.median(points.count > 1 ? Array(values.dropLast()) : values)
+
         self.init(
             metricName: MetricLabel.korean(for: trend.metric),
             unit: MetricLabel.unit(for: trend.metric),
             points: points,
             normalRange: range,
-            hasPersonalBaseline: baseline?.isReady == true
+            hasPersonalBaseline: isReady,
+            initialReference: reference
         )
     }
 }

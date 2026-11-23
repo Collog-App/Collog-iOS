@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct CardSurface: ViewModifier {
+    @Environment(\.viewerAccent) private var accent
     var padding: CGFloat = Spacing.x4
     var cornerRadius: CGFloat = Radius.card
 
@@ -16,6 +17,12 @@ struct CardSurface: ViewModifier {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.gray00, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .overlay {
+                if let border = accent.cardBorder {
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .strokeBorder(border, lineWidth: 1.5)
+                }
+            }
     }
 }
 
