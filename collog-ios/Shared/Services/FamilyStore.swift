@@ -63,6 +63,15 @@ final class FamilyStore {
         )
     }
 
+    /// 홈의 가족 연결 안내 단계. 연결된 가족이 있거나 아직 알 수 없으면 nil.
+    func connectGuide(using environment: AppEnvironment) -> FamilyConnectGuide? {
+        .resolve(
+            isGuest: environment.settings.isGuestMode,
+            memberUserIds: memberUserIds,
+            userId: environment.session.user?.id
+        )
+    }
+
     func saveQuestions(_ texts: [String], for contact: FamilyContact) {
         generatedQuestions[contact.id] = texts.map(PreviewQuestion.init(text:))
         let stored = generatedQuestions.mapValues { $0.map(\.text) }

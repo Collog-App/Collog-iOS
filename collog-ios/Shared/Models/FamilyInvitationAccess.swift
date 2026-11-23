@@ -16,3 +16,48 @@ enum FamilyInvitationAccess {
         !isGuest && !memberUserIds.contains { $0 != nil && $0 != userId }
     }
 }
+
+/// 홈의 가족 연결 안내. 아직 아무와도 연결되지 않은 사람에게만 띄운다.
+enum FamilyConnectGuide: Equatable {
+    /// 구성원도 보낸 초대도 없다: 초대하는 법을 순서대로 알려 준다.
+    case invite
+    /// 보낸 초대가 아직 수락되지 않았다(만료된 초대도 구성원 관리에서 새 코드를 만들 수 있어 여기에 든다).
+    case waiting
+
+    /// 「초대 코드 입력」과 같은 조건에서만 띄운다. 구성원 목록을 아직 읽지 못했으면(nil) 띄우지 않는다.
+    static func resolve(isGuest: Bool, memberUserIds: [String?]?, userId: String?) -> Self? {
+        guard let memberUserIds,
+              FamilyInvitationAccess.canEnterCode(isGuest: isGuest, memberUserIds: memberUserIds, userId: userId)
+        else { return nil }
+        return memberUserIds.contains { $0 == nil } ? .waiting : .invite
+    }
+
+    var title: String {
+        switch self {
+        case .invite: "가족과 연결해 보세요"
+        case .waiting: "초대 수락을 기다리고 있어요"
+        }
+    }
+
+    var lines: [String] {
+        switch self {
+        case .invite:
+            [
+                "1. 「가족 초대하기」를 눌러 초대 코드를 만들어요.",
+                "2. 코드를 가족에게 보내요. 가족은 콜록 앱 설정의 「초대 코드 입력」에 코드를 넣어요.",
+                "3. 연결되면 여기서 바로 전화할 수 있어요."
+            ]
+        case .waiting:
+            ["가족이 콜록 앱 설정의 「초대 코드 입력」에 받은 코드를 넣으면 연결돼요."]
+        }
+    }
+
+    var primaryActionTitle: String {
+        switch self {
+        case .invite: "가족 초대하기"
+        case .waiting: "초대 코드 다시 보기"
+        }
+    }
+
+    static let codeEntryTitle = "초대 코드 입력"
+}
