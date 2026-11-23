@@ -99,6 +99,10 @@ struct ReportTimelineView: View {
                 guard tab == .report, viewModel.isSelfSelected else { return }
                 Task { await viewModel.refresh(using: environment, forceReload: true) }
             }
+            // 분석 완료 알림을 받으면(누르지 않고 배너로만 봐도) 이미 불러 둔 리포트를 다시 읽는다
+            .onChange(of: environment.reportDataRevision) {
+                Task { await viewModel.refresh(using: environment, forceReload: true) }
+            }
             .onChange(of: tabManager.reselectionCount) {
                 guard tabManager.reselectedTab == tab else { return }
                 moveToCurrentWeek()

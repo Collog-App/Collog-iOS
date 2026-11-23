@@ -18,6 +18,8 @@ final class AppEnvironment {
     var reportNotificationRevision = 0
     /// 리포트·타임라인에서 지금 보는 사람에 따른 색. 탭바·전화 버튼이 따라간다.
     var viewerAccent: ViewerAccent = .family
+    /// 분석 완료 알림을 받을 때마다(누르지 않아도) 오른다. 리포트·홈 화면이 이미 불러 둔 데이터를 다시 읽는다.
+    private(set) var reportDataRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
 
     init(
@@ -68,6 +70,7 @@ final class AppEnvironment {
                 at: 0
             )
         }
+        reportDataRevision += 1
         if openReport { reportNotificationRevision += 1 }
     }
 }

@@ -117,6 +117,10 @@ struct HomeView: View {
                 guard isIdle, viewModel.isLoaded else { return }
                 Task { await viewModel.refreshCalls(using: environment, contact: selectedContact) }
             }
+            // 분석 완료 알림을 받으면(누르지 않고 배너로만 봐도) 건강 요약을 다시 읽는다
+            .onChange(of: environment.reportDataRevision) {
+                Task { await refresh() }
+            }
             .environment(\.navigationManager, navigator)
             .navigationDestination(for: Route.self) { route in
                 switch route {
