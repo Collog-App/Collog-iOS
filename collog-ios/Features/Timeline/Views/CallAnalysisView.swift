@@ -45,11 +45,16 @@ struct CallAnalysisView: View {
                 actionTitle: "새로고침",
                 action: reload
             )
-        case let .unavailable(title, message, safetyNotice):
+        case let .unavailable(title, message, safetyNotice, summary):
             ScrollView {
                 VStack(spacing: 0) {
                     if let safetyNotice {
                         SafetyNoticeCardView(text: safetyNotice)
+                            .padding(.horizontal, Spacing.x5)
+                            .padding(.top, Spacing.x4)
+                    }
+                    if let summary {
+                        CallSummaryCardView(text: summary)
                             .padding(.horizontal, Spacing.x5)
                             .padding(.top, Spacing.x4)
                     }
@@ -71,6 +76,10 @@ struct CallAnalysisView: View {
                         SafetyNoticeCardView(text: safetyNotice)
                             .padding(.bottom, Spacing.x3)
                     }
+                    if let summary = entry.summary {
+                        CallSummaryCardView(text: summary)
+                            .padding(.bottom, Spacing.x3)
+                    }
                     CallTimelineDateHeader(entry: entry)
                     CallTimelineCardView(entry: entry)
                 }
@@ -82,5 +91,28 @@ struct CallAnalysisView: View {
 
     private func reload() {
         Task { await viewModel.load(using: environment) }
+    }
+}
+
+/// 「통화 요약」: 통화에서 나눈 이야기를 한두 문장으로 보인다. 응급 안내 다음, 분석 내용보다 위에 둔다.
+private struct CallSummaryCardView: View {
+    let text: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.x2) {
+            Text("통화 요약")
+                .caption_01_medium(.gray700)
+
+            Text(text)
+                .body_02_medium(.gray900)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(Spacing.x5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                .stroke(Color.gray200, lineWidth: 1)
+        }
     }
 }

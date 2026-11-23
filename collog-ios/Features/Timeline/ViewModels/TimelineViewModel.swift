@@ -23,6 +23,8 @@ final class TimelineViewModel {
     @ObservationIgnored private var choseSelf = false
 
     static let selfSubjectId = "self"
+    /// 한 주에 불러오는 통화 카드 수.
+    static let weeklyEntryLimit = 5
 
     var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
@@ -289,11 +291,24 @@ final class TimelineViewModel {
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
-        let analyzed = calls.filter(\.isAnalyzed).prefix(5)
-        guard !analyzed.isEmpty else { return (calls, []) }
+        // 분석된 통화, 그리고 말씀이 짧아 분석에서 빠졌지만 녹음돼 요약이 있을 수 있는 통화
+        let candidates = calls.filter { $0.isAnalyzed || ($0.isAnalysisExcluded && $0.recorded) }
 
         var result: [CallTimelineEntry] = []
-        for call in analyzed {
+        var excludedLookups = 0
+        for call in candidates {
+            if result.count == Self.weeklyEntryLimit { break }
+            guard call.isAnalyzed else {
+                // 분석에서 빠진 통화는 요약이 있을 때만 보인다. 음성 수치는 없어 부르지 않고, 확인도 한 주에 다섯 번까지만 한다
+                guard excludedLookups < Self.weeklyEntryLimit else { continue }
+                excludedLookups += 1
+                if let extraction = try? await api.extraction(callId: call.callId),
+                   CallTimelineEntry.summaryText(extraction.summary) != nil {
+                    let bundle = CallAnalysisBundle(call: call, features: nil, extraction: extraction, transcript: nil)
+                    result.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
+                }
+                continue
+            }
             async let features = try? api.acousticFeatures(callId: call.callId)
             async let extraction = try? api.extraction(callId: call.callId)
             async let transcript = try? api.transcript(callId: call.callId)

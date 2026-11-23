@@ -15,7 +15,17 @@ struct CallAnalysisBundle {
 }
 
 extension CallTimelineEntry {
-    init(bundle: CallAnalysisBundle, baselines: [String: BaselineDTO]) {
+    /// 받는 분 말씀이 짧아 목소리 분석에서 빠진 통화의 카드에 붙는다.
+    static let excludedNote = "말씀이 짧아 목소리 분석은 하지 않았어요."
+
+    /// 통화 요약(extraction `summary`). 비어 있으면 없는 것으로 본다.
+    static func summaryText(_ raw: String?) -> String? {
+        guard let text = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return nil }
+        return text
+    }
+
+    /// `summaryInStory`: 타임라인 카드는 요약을 카드 글 첫머리에 넣고, 통화 분석 화면은 맨 위에 따로 보여 넣지 않는다.
+    init(bundle: CallAnalysisBundle, baselines: [String: BaselineDTO], summaryInStory: Bool = true) {
         let features = bundle.features?.features ?? []
         let durationSec = bundle.call.durationSec ?? 0
 
@@ -52,15 +62,19 @@ extension CallTimelineEntry {
             )
         }
 
+        let summary = Self.summaryText(bundle.extraction?.summary)
+
         self.init(
             dateText: APIFormat.longDate.string(from: bundle.call.startedAt),
             durationText: APIFormat.duration(seconds: durationSec),
             summaryStats: stats,
-            story: Self.story(from: bundle.extraction),
+            story: Self.story(from: bundle.extraction, summary: summaryInStory ? summary : nil),
             keywords: Self.keywords(from: bundle.transcript, durationSec: durationSec),
             gauges: Self.gauges(features: features, baselines: baselines),
             counts: counts,
-            safetyNotice: SafetyNotice.text(bundle.extraction?.safetyNotice)
+            safetyNotice: SafetyNotice.text(bundle.extraction?.safetyNotice),
+            summary: summary,
+            analysisNote: bundle.call.isAnalysisExcluded ? Self.excludedNote : nil
         )
     }
 
@@ -71,10 +85,12 @@ extension CallTimelineEntry {
         return StatNote(text: String(format: "%.1f%%", abs(delta)), trend: trend)
     }
 
-    private static func story(from extraction: ExtractionDTO?) -> String {
+    private static func story(from extraction: ExtractionDTO?, summary: String?) -> String {
         guard let extraction else { return "아직 정리된 대화 항목이 없어요." }
         let lines = [extraction.symptom, extraction.medication, extraction.activity, extraction.sleep]
             .compactMap { $0 }
+        // 통화 요약이 있으면 먼저 보이고, 그 아래 건강 이야기를 잇는다
+        if let summary { return ([summary] + lines).joined(separator: "\n") }
         return lines.isEmpty ? "이번 통화에서는 기록된 건강 이야기가 없었어요." : lines.joined(separator: "\n")
     }
 
