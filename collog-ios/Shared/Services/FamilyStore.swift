@@ -21,6 +21,8 @@ final class FamilyStore {
     /// 지금 가족 구성원의 userId(아직 수락하지 않은 초대는 nil). 가족이 없으면 빈 목록이다.
     /// 구성원 목록을 읽기 전과 둘러보기에서는 nil 이라 「초대 코드 입력」을 띄우지 않는다.
     private(set) var memberUserIds: [String?]?
+    /// 수락되지 않은 초대 가운데 만료되지 않은 것이 있는지(마지막으로 구성원 목록을 읽은 때 기준).
+    private(set) var hasUnexpiredInvitation = false
 
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private var refreshGeneration = UUID()
@@ -68,7 +70,8 @@ final class FamilyStore {
         .resolve(
             isGuest: environment.settings.isGuestMode,
             memberUserIds: memberUserIds,
-            userId: environment.session.user?.id
+            userId: environment.session.user?.id,
+            hasUnexpiredInvitation: hasUnexpiredInvitation
         )
     }
 
@@ -89,6 +92,7 @@ final class FamilyStore {
             }
             selectedContactId = selectedContact?.id
             memberUserIds = nil
+            hasUnexpiredInvitation = false
             return
         }
         guard let familyId = environment.session.familyId else {
@@ -103,6 +107,7 @@ final class FamilyStore {
             let members = allMembers.filter { $0.isCallable && $0.userId != userId }
             guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
             memberUserIds = allMembers.map(\.userId)
+            hasUnexpiredInvitation = allMembers.contains { $0.userId == nil && $0.invitation?.isExpired != true }
             contacts = members.map { FamilyContact(member: $0, lastCallText: $0.relationTitle) }
             if !contacts.contains(where: { $0.id == selectedContactId }) {
                 selectedContactId = contacts.first?.id
@@ -155,6 +160,7 @@ final class FamilyStore {
         selectedContactId = contacts.first?.id
         loadError = nil
         memberUserIds = nil
+        hasUnexpiredInvitation = false
         defaults.removeObject(forKey: Key.generatedQuestions)
     }
 }

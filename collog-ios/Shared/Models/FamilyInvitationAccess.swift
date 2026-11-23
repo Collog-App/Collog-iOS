@@ -21,21 +21,28 @@ enum FamilyInvitationAccess {
 enum FamilyConnectGuide: Equatable {
     /// 구성원도 보낸 초대도 없다: 초대하는 법을 순서대로 알려 준다.
     case invite
-    /// 보낸 초대가 아직 수락되지 않았다(만료된 초대도 구성원 관리에서 새 코드를 만들 수 있어 여기에 든다).
+    /// 보낸 초대 가운데 아직 쓸 수 있는 것이 있고 수락을 기다린다.
     case waiting
+    /// 보낸 초대가 모두 만료됐다: 구성원 관리에서 새 코드를 만들어야 한다.
+    case expired
 
     /// 「초대 코드 입력」과 같은 조건에서만 띄운다. 구성원 목록을 아직 읽지 못했으면(nil) 띄우지 않는다.
-    static func resolve(isGuest: Bool, memberUserIds: [String?]?, userId: String?) -> Self? {
+    /// `hasUnexpiredInvitation`: 수락되지 않은 초대 가운데 만료되지 않은 것이 하나라도 있는지.
+    static func resolve(
+        isGuest: Bool, memberUserIds: [String?]?, userId: String?, hasUnexpiredInvitation: Bool
+    ) -> Self? {
         guard let memberUserIds,
               FamilyInvitationAccess.canEnterCode(isGuest: isGuest, memberUserIds: memberUserIds, userId: userId)
         else { return nil }
-        return memberUserIds.contains { $0 == nil } ? .waiting : .invite
+        guard memberUserIds.contains(where: { $0 == nil }) else { return .invite }
+        return hasUnexpiredInvitation ? .waiting : .expired
     }
 
     var title: String {
         switch self {
         case .invite: "가족과 연결해 보세요"
         case .waiting: "초대 수락을 기다리고 있어요"
+        case .expired: "보낸 초대가 만료됐어요"
         }
     }
 
@@ -49,13 +56,16 @@ enum FamilyConnectGuide: Equatable {
             ]
         case .waiting:
             ["가족이 콜록 앱 설정의 「초대 코드 입력」에 받은 코드를 넣으면 연결돼요."]
+        case .expired:
+            ["「보낸 초대 보기」에서 새 초대 코드를 만들어 다시 보내주세요."]
         }
     }
 
+    /// 보낸 초대는 구성원 관리 화면에서 본다(코드 보기·새 코드 만들기).
     var primaryActionTitle: String {
         switch self {
         case .invite: "가족 초대하기"
-        case .waiting: "초대 코드 다시 보기"
+        case .waiting, .expired: "보낸 초대 보기"
         }
     }
 

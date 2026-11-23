@@ -80,7 +80,7 @@ struct FamilyConnectGuideCardView: View {
     private func performPrimaryAction() {
         switch guide {
         case .invite: showsInvitation = true
-        case .waiting: showsFamilyMembers = true
+        case .waiting, .expired: showsFamilyMembers = true
         }
     }
 }
