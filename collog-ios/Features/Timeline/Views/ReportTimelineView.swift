@@ -11,6 +11,7 @@ struct ReportTimelineView: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(NavigationStore.self) private var navigation
     @Environment(TabManager.self) private var tabManager
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel: TimelineViewModel
     @State private var pagedOffset: Int? = 0
@@ -102,6 +103,11 @@ struct ReportTimelineView: View {
             // 분석 완료 알림을 받으면(누르지 않고 배너로만 봐도) 이미 불러 둔 리포트를 다시 읽는다
             .onChange(of: environment.reportDataRevision) {
                 Task { await viewModel.refresh(using: environment, forceReload: true) }
+            }
+            // 앱으로 돌아왔을 때: 그사이 가족이 공유를 껐으면 보이던 기록을 남겨 두지 않는다
+            .onChange(of: scenePhase) {
+                guard scenePhase == .active else { return }
+                Task { await viewModel.revalidateSharing(using: environment) }
             }
             .onChange(of: tabManager.reselectionCount) {
                 guard tabManager.reselectedTab == tab else { return }

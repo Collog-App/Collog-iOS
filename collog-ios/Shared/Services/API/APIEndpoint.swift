@@ -55,6 +55,19 @@ enum APIError: LocalizedError, Equatable {
         if case let .server(status, _, _) = self { return status == 404 }
         return false
     }
+
+    /// 요청이 403 으로 막혔는지, 열렸다면 그 결과까지. 다른 실패(연결·서버 오류)로는 알 수 없어 nil.
+    static func accessCheck<Value>(
+        _ request: () async throws -> Value
+    ) async -> (denied: Bool, value: Value?)? {
+        do {
+            return (false, try await request())
+        } catch let error as APIError where error.isForbidden {
+            return (true, nil)
+        } catch {
+            return nil
+        }
+    }
 }
 
 struct APIErrorBody: Decodable {

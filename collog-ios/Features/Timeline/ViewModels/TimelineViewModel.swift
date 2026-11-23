@@ -107,6 +107,37 @@ final class TimelineViewModel {
         }
     }
 
+    /// 앱으로 돌아왔을 때: 그사이 가족이 공유를 껐거나 다시 켰으면 불러 둔 주를 모두 버리고 다시 읽는다.
+    /// 바뀌지 않았으면 화면을 건드리지 않게, 지금 주의 리포트와 통화 목록이 열리는지만 조용히 묻는다.
+    func revalidateSharing(using environment: AppEnvironment) async {
+        guard !environment.settings.isGuestMode, !isSelfSelected,
+              let parentId = selectedContact(using: environment)?.userId,
+              let page = pages[weekOffset], page.isLoaded else { return }
+        let generation = contentGeneration
+        let api = environment.api
+        let bounds = TimelineWeekPage.bounds(offset: weekOffset)
+
+        let report = await APIError.accessCheck {
+            try await api.report(parentId: parentId, date: APIFormat.isoDate.string(from: bounds.anchor))
+        }
+        let calls = await APIError.accessCheck {
+            try await api.calls(
+                parentId: parentId,
+                from: APIFormat.isoDate.string(from: bounds.start),
+                to: APIFormat.isoDate.string(from: bounds.end)
+            )
+        }
+        guard generation == contentGeneration else { return }
+        let reportChanged = report.map { $0.denied != page.reportNotShared } ?? false
+        let timelineChanged = calls.map { $0.denied != page.timelineNotShared } ?? false
+        guard reportChanged || timelineChanged else { return }
+
+        pages.removeAll()
+        loading.removeAll()
+        contentGeneration += 1
+        await refresh(using: environment)
+    }
+
     func loadPage(_ offset: Int, using environment: AppEnvironment, forceReload: Bool = false) async {
         resolveSelection(using: environment)
         let generation = contentGeneration

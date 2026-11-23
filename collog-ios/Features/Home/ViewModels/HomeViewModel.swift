@@ -18,20 +18,42 @@ final class HomeViewModel {
     private(set) var recentCallsError: String?
     /// 고른 가족이 나에게 리포트 공유를 껐다(서버 403). 오류가 아니라 볼 수 없는 항목으로 보인다.
     private(set) var isReportNotShared = false
+    /// 고른 가족이 나에게 타임라인 공유를 껐다(서버 403).
+    private(set) var isCallHistoryNotShared = false
     @ObservationIgnored private var generation = UUID()
 
     static let callsNotSharedText = "통화 기록을 공유하지 않았어요"
 
     /// 화면을 비우지 않고 통화 목록만 다시 읽는다(앱 복귀·통화 종료 때). 분석 완료 건수가 바뀌었거나 아직 결과 카드가 없으면 전체를 다시 읽는다.
+    /// 그사이 가족이 공유를 껐거나 다시 켰으면, 보이던 것을 그대로 두지 않고 전체를 다시 읽는다.
     func refreshCalls(using environment: AppEnvironment, contact: FamilyContact?) async {
         guard !environment.settings.isGuestMode, environment.session.isAuthenticated,
-              let parentId = contact?.userId,
-              let calls = try? await environment.api.calls(parentId: parentId) else { return }
-        let analyzedBefore = recentCalls.filter(\.isAnalyzed).count
-        recentCalls = calls
-        recentCallsError = nil
-        lastCallText = Self.lastCallText(calls: calls)
-        if calls.filter(\.isAnalyzed).count != analyzedBefore || healthSummary == nil {
+              let parentId = contact?.userId else { return }
+        let generation = self.generation
+        let api = environment.api
+
+        guard let callList = await APIError.accessCheck({ try await api.calls(parentId: parentId) }),
+              self.generation == generation else { return }
+        if callList.denied != isCallHistoryNotShared {
+            await refresh(using: environment, contact: contact)
+            return
+        }
+        if let calls = callList.value {
+            let analyzedBefore = recentCalls.filter(\.isAnalyzed).count
+            recentCalls = calls
+            recentCallsError = nil
+            lastCallText = Self.lastCallText(calls: calls)
+            if calls.filter(\.isAnalyzed).count != analyzedBefore || (healthSummary == nil && !isReportNotShared) {
+                await refresh(using: environment, contact: contact)
+                return
+            }
+        }
+
+        // 리포트 공유는 타임라인과 따로 켜고 끈다
+        guard healthSummary != nil || isReportNotShared,
+              let report = await APIError.accessCheck({ try await api.report(parentId: parentId) }),
+              self.generation == generation else { return }
+        if report.denied != isReportNotShared {
             await refresh(using: environment, contact: contact)
         }
     }
@@ -52,6 +74,7 @@ final class HomeViewModel {
         recentCalls = []
         recentCallsError = nil
         isReportNotShared = false
+        isCallHistoryNotShared = false
         lastCallText = "아직 통화 기록이 없어요"
         if environment.settings.isGuestMode {
             healthSummary = .sample(for: contact)
@@ -81,6 +104,7 @@ final class HomeViewModel {
         }
         guard self.generation == generation else { return }
         recentCalls = calls
+        isCallHistoryNotShared = callsNotShared
         if callsNotShared {
             lastCallText = Self.callsNotSharedText
         } else {
