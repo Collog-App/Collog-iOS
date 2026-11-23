@@ -285,7 +285,9 @@ struct ReportTimelineView: View {
                 safetyNotices(page.report.safetyNotices)
             }
 
-            if let error = page.reportError {
+            if page.reportNotShared {
+                NotSharedStateView()
+            } else if let error = page.reportError {
                 errorContent(error, offset: page.offset)
             } else if page.report.state == .empty {
                 if let error = page.timelineError {
@@ -331,7 +333,9 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private func timelineEntries(_ page: TimelineWeekPage) -> some View {
-        if let error = page.timelineError {
+        if page.timelineNotShared {
+            NotSharedStateView()
+        } else if let error = page.timelineError {
             errorContent(error, offset: page.offset)
         } else if page.entries.isEmpty {
             emptyAnalysisContent(page)

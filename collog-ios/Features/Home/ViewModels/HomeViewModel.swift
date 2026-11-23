@@ -16,7 +16,11 @@ final class HomeViewModel {
     private(set) var loadError: String?
     private(set) var recentCalls: [CallSummaryDTO] = []
     private(set) var recentCallsError: String?
+    /// 고른 가족이 나에게 리포트 공유를 껐다(서버 403). 오류가 아니라 볼 수 없는 항목으로 보인다.
+    private(set) var isReportNotShared = false
     @ObservationIgnored private var generation = UUID()
+
+    static let callsNotSharedText = "통화 기록을 공유하지 않았어요"
 
     func refresh(
         using environment: AppEnvironment,
@@ -33,6 +37,7 @@ final class HomeViewModel {
         loadError = nil
         recentCalls = []
         recentCallsError = nil
+        isReportNotShared = false
         lastCallText = "아직 통화 기록이 없어요"
         if environment.settings.isGuestMode {
             healthSummary = .sample(for: contact)
@@ -48,8 +53,13 @@ final class HomeViewModel {
 
         let api = environment.api
         let calls: [CallSummaryDTO]
+        var callsNotShared = false
         do {
             calls = try await api.calls(parentId: parentId)
+        } catch let error as APIError where error.isForbidden {
+            // 타임라인 공유를 끈 가족의 통화 기록은 오류가 아니다
+            callsNotShared = true
+            calls = []
         } catch {
             guard self.generation == generation else { return }
             recentCallsError = error.localizedDescription
@@ -57,8 +67,12 @@ final class HomeViewModel {
         }
         guard self.generation == generation else { return }
         recentCalls = calls
-        lastCallText = recentCallsError == nil
-            ? Self.lastCallText(calls: calls) : "통화 기록을 불러오지 못했어요"
+        if callsNotShared {
+            lastCallText = Self.callsNotSharedText
+        } else {
+            lastCallText = recentCallsError == nil
+                ? Self.lastCallText(calls: calls) : "통화 기록을 불러오지 못했어요"
+        }
 
         let baselines = ((try? await api.baselines(parentId: parentId)) ?? [])
             .filter { $0.kind == "ROLLING" && $0.isReady }
@@ -67,6 +81,9 @@ final class HomeViewModel {
         let dto: ReportDTO
         do {
             dto = try await api.report(parentId: parentId)
+        } catch let error as APIError where error.isForbidden {
+            if self.generation == generation { isReportNotShared = true }
+            return
         } catch {
             if self.generation == generation { loadError = error.localizedDescription }
             return

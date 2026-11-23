@@ -57,6 +57,10 @@ struct HomeView: View {
                         ProgressView("통화 기록을 불러오고 있어요")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.x8)
+                    } else if viewModel.isReportNotShared {
+                        NotSharedStateView()
+                            .cardSurface()
+                            .padding(.bottom, Spacing.x5)
                     } else if let error = viewModel.loadError ?? viewModel.recentCallsError
                         ?? environment.family.loadError {
                         EmptyStateView(

@@ -227,6 +227,8 @@ final class TimelineViewModel {
         var page = pages[offset] ?? TimelineWeekPage(offset: offset)
         page.reportError = nil
         page.timelineError = nil
+        page.reportNotShared = false
+        page.timelineNotShared = false
         page.isLoaded = false
         pages[offset] = page
 
@@ -241,6 +243,10 @@ final class TimelineViewModel {
                 .flatMap { TrendSeries(trend: $0, baseline: baselines["SPEECH_RATE"]) }
 
             page.report = WeeklyReport(dto: dto, trend: trend)
+        } catch let error as APIError where error.isForbidden {
+            // 공유를 끈 가족의 리포트는 오류가 아니다
+            page.report = .empty
+            page.reportNotShared = true
         } catch {
             page.reportError = error.localizedDescription
         }
@@ -255,6 +261,10 @@ final class TimelineViewModel {
             )
             page.calls = content.calls
             page.entries = content.entries
+        } catch let error as APIError where error.isForbidden {
+            page.calls = []
+            page.entries = []
+            page.timelineNotShared = true
         } catch {
             page.timelineError = error.localizedDescription
         }
