@@ -142,6 +142,8 @@ final class FamilyStore {
         let userId = environment.session.user?.id
         guard let available = try? await environment.api.families(),
               environment.session.user?.id == userId else { return false }
+        // 그사이 다른 곳에서 이미 세션을 옮겼으면 그 가족으로 다시 읽기만 한다
+        if environment.session.familyId != familyId { return true }
         return (try? environment.session.dropRevokedFamily(familyId, available: available)) == true
     }
 
