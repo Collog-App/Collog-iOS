@@ -48,10 +48,13 @@ final class AuthFlowViewModel {
         if offersInvitation {
             let isAlone = await isAlone(user, using: environment)
             guard environment.session.user == user, !environment.settings.isGuestMode else { return }
-            if isAlone {
+            if isAlone == true {
                 step = .invitation
                 return
             }
+            // 이미 가족과 연결된 채 로그인했으면 더 묻지 않는다. 나중에 가족에서 나가거나 삭제돼도
+            // 전체 화면 초대 단계로 튀지 않고 홈의 연결 안내로 간다.
+            if isAlone == false { completeInvitation() }
         }
 
         do {
@@ -81,10 +84,11 @@ final class AuthFlowViewModel {
         }
     }
 
-    /// 가족이 없거나 자기 혼자뿐인 가족이면 초대 코드로 다른 가족에 들어갈 수 있다. 확인하지 못하면 묻지 않는다.
-    private func isAlone(_ user: APIUser, using environment: AppEnvironment) async -> Bool {
+    /// 가족이 없거나 자기 혼자뿐인 가족이면 초대 코드로 다른 가족에 들어갈 수 있다.
+    /// 확인하지 못하면 nil: 이번에는 묻지 않고 다음에 다시 확인한다.
+    private func isAlone(_ user: APIUser, using environment: AppEnvironment) async -> Bool? {
         guard let familyId = user.familyId else { return true }
-        guard let members = try? await environment.api.members(familyId: familyId) else { return false }
+        guard let members = try? await environment.api.members(familyId: familyId) else { return nil }
         return !members.contains { $0.userId != nil && $0.userId != user.id }
     }
 }
