@@ -32,11 +32,13 @@ extension CallTimelineEntry {
         let speechRate = features.first { $0.metric == "SPEECH_RATE" && $0.isMeasured }
         let cough = features.first { $0.metric == "COUGH_EVENTS" && $0.isMeasured }
 
+        // 1분이 안 되는 통화(말씀이 짧아 분석에서 빠진 통화에 많다)는 0분 대신 초로 보인다
+        let isUnderMinute = durationSec < 60
         var stats: [CallStat] = [
             CallStat(
                 label: "통화 길이",
-                value: "\(max(durationSec / 60, 0))",
-                unit: "분",
+                value: "\(max(isUnderMinute ? durationSec : durationSec / 60, 0))",
+                unit: isUnderMinute ? "초" : "분",
                 note: nil
             )
         ]

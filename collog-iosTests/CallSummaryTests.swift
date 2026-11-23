@@ -80,9 +80,21 @@ struct CallSummaryTests {
         #expect(card.story == summary)
         #expect(card.analysisNote == "말씀이 짧아 목소리 분석은 하지 않았어요.")
         #expect(card.summaryStats.map(\.label) == ["통화 길이"])
+        #expect(card.summaryStats.first?.value == "2")
+        #expect(card.summaryStats.first?.unit == "분")
         #expect(card.gauges.isEmpty)
         #expect(card.counts.isEmpty)
         #expect(card.keywords.isEmpty)
+    }
+
+    @Test(arguments: [(45, "45", "초"), (0, "0", "초"), (59, "59", "초"), (60, "1", "분"), (320, "5", "분")])
+    func callUnderAMinuteShowsSecondsInsteadOfZeroMinutes(durationSec: Int, value: String, unit: String) {
+        let card = entry(
+            state: "ANALYSIS_EXCLUDED", extraction: extraction(status: "EXCLUDED", summary: summary),
+            durationSec: durationSec
+        )
+        #expect(card.summaryStats.first?.value == value)
+        #expect(card.summaryStats.first?.unit == unit)
     }
 
     // MARK: - 타임라인
@@ -238,11 +250,11 @@ struct CallSummaryTests {
     }
 
     private func entry(
-        state: String = "ANALYZED", extraction: ExtractionDTO?, summaryInStory: Bool = true
+        state: String = "ANALYZED", extraction: ExtractionDTO?, summaryInStory: Bool = true, durationSec: Int = 120
     ) -> CallTimelineEntry {
         let call = CallSummaryDTO(
             callId: "c1", parentId: "mom", state: state, timeSlot: nil,
-            startedAt: Date(), endedAt: Date(), durationSec: 120, recorded: true, parentSpeechSec: nil
+            startedAt: Date(), endedAt: Date(), durationSec: durationSec, recorded: true, parentSpeechSec: nil
         )
         return CallTimelineEntry(
             bundle: CallAnalysisBundle(call: call, features: nil, extraction: extraction, transcript: nil),
