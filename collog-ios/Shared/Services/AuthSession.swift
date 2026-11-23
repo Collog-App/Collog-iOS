@@ -124,6 +124,21 @@ final class AuthSession {
         try apply(TokenResponse(accessToken: accessToken, refreshToken: refreshToken, user: user))
     }
 
+    /// 스스로 나가거나 구성원에서 삭제되어 속한 가족이 없어졌을 때 가족 없음으로 되돌린다.
+    func leaveFamily() throws {
+        guard let accessToken, let refreshToken, var user else { throw APIError.unauthenticated }
+        user.familyId = nil
+        try apply(TokenResponse(accessToken: accessToken, refreshToken: refreshToken, user: user))
+    }
+
+    /// 서버가 지금 가족을 막았을 때(403) 속한 가족 목록으로 세션을 맞춘다.
+    /// 남은 가족이 있으면 그 가족으로 옮기고, 없으면 가족 없음으로 되돌린다. 세션을 바꿨으면 true.
+    func dropRevokedFamily(_ familyId: String, available: [FamilySummary]) throws -> Bool {
+        guard self.familyId == familyId, !available.contains(where: { $0.id == familyId }) else { return false }
+        if let next = available.first { try joinFamily(next.id) } else { try leaveFamily() }
+        return true
+    }
+
     func updateUser(_ user: APIUser) throws {
         guard self.user?.id == user.id, let accessToken, let refreshToken else {
             throw APIError.unauthenticated

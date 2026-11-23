@@ -43,6 +43,12 @@ enum APIError: LocalizedError, Equatable {
         if case let .server(_, code, _) = self { return code == "CONSENT_REQUIRED" }
         return false
     }
+
+    /// 403: 그 가족이나 기록에 접근할 권한이 없다.
+    var isForbidden: Bool {
+        if case let .server(status, _, _) = self { return status == 403 }
+        return false
+    }
 }
 
 struct APIErrorBody: Decodable {

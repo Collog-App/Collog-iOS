@@ -76,6 +76,8 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
     var id: String { memberId }
     let role: String?
     let invitation: FamilyInvitation?
+    /// 내가 이 구성원(또는 대기 중 초대)을 지울 수 있는지. 서버가 보내지 않으면 nil.
+    var canRemove: Bool? = nil
     var isCallable: Bool { userId != nil }
 
     var relationTitle: String {

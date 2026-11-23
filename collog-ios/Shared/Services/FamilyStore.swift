@@ -101,6 +101,12 @@ final class FamilyStore {
             loadError = nil
         } catch {
             guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
+            // 구성원에서 삭제되어 서버가 이 가족을 막으면 남은 가족으로 옮기거나 가족 없음으로 되돌리고 다시 읽는다
+            if (error as? APIError)?.isForbidden == true, await dropRevokedFamily(familyId, using: environment) {
+                if refreshGeneration == generation { await refresh(using: environment) }
+                return
+            }
+            guard environment.session.user?.id == userId, refreshGeneration == generation else { return }
             loadError = error.localizedDescription
             return
         }
@@ -121,6 +127,13 @@ final class FamilyStore {
             if let contactId { generatedQuestions.removeValue(forKey: contactId) }
             loadError = error.localizedDescription
         }
+    }
+
+    private func dropRevokedFamily(_ familyId: String, using environment: AppEnvironment) async -> Bool {
+        let userId = environment.session.user?.id
+        guard let available = try? await environment.api.families(),
+              environment.session.user?.id == userId else { return false }
+        return (try? environment.session.dropRevokedFamily(familyId, available: available)) == true
     }
 
     func reset() {
