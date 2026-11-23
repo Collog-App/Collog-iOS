@@ -22,6 +22,20 @@ final class HomeViewModel {
 
     static let callsNotSharedText = "통화 기록을 공유하지 않았어요"
 
+    /// 화면을 비우지 않고 통화 목록만 다시 읽는다(앱 복귀·통화 종료 때). 분석 완료 건수가 바뀌었거나 아직 결과 카드가 없으면 전체를 다시 읽는다.
+    func refreshCalls(using environment: AppEnvironment, contact: FamilyContact?) async {
+        guard !environment.settings.isGuestMode, environment.session.isAuthenticated,
+              let parentId = contact?.userId,
+              let calls = try? await environment.api.calls(parentId: parentId) else { return }
+        let analyzedBefore = recentCalls.filter(\.isAnalyzed).count
+        recentCalls = calls
+        recentCallsError = nil
+        lastCallText = Self.lastCallText(calls: calls)
+        if calls.filter(\.isAnalyzed).count != analyzedBefore || healthSummary == nil {
+            await refresh(using: environment, contact: contact)
+        }
+    }
+
     func refresh(
         using environment: AppEnvironment,
         contact: FamilyContact?

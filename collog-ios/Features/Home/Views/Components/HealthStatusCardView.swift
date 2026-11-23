@@ -83,7 +83,7 @@ struct HealthStatusCardView: View {
 
                     Text(trend.hasPersonalBaseline
                          ? (trend.isWithinNormalRange(latest) ? "평소 범위" : "평소와 다름")
-                         : "비교할 기록 수집 중")
+                         : trend.referenceCaption(for: latest))
                         .caption_01_semibold(
                             trend.hasPersonalBaseline
                                 ? (trend.isWithinNormalRange(latest) ? .green700 : .orange600) : .gray700

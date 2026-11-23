@@ -28,8 +28,19 @@ struct TrendSeries {
     let points: [TrendPoint]
     let normalRange: ClosedRange<Double>
     var hasPersonalBaseline = true
+    /// 개인 기준선(4주)이 준비되기 전에 쓰는 「첫 기준점」. 통화가 하나면 그 값, 둘 이상이면 이번 값을 뺀 이전 값들의 중앙값.
+    var initialReference: Double? = nil
 
     var latest: TrendPoint? { points.last }
+
+    /// 기준선 전 단계의 비교 문구. 좋고 나쁨을 판단하지 않고 사실만 말한다.
+    func referenceCaption(for point: TrendPoint) -> String {
+        guard let reference = initialReference else { return "비교할 기록 수집 중" }
+        if points.count == 1 { return "첫 기준점" }
+        let ratio = (point.value - reference) / max(abs(reference), 1)
+        if abs(ratio) < 0.02 { return "기준점과 비슷" }
+        return ratio > 0 ? "기준점보다 큼" : "기준점보다 작음"
+    }
 
     var median: Double {
         (normalRange.lowerBound + normalRange.upperBound) / 2

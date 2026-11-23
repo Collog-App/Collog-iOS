@@ -15,8 +15,8 @@ struct ReportContentView: View {
         VStack(alignment: .leading, spacing: Spacing.x3) {
             if report.state == .baselineCollecting {
                 noticeBanner(
-                    "아직 평소 범위를 모으는 중이에요. "
-                    + "통화가 쌓이면 변화를 보여드릴게요."
+                    "첫 기준점과 비교해 보여드려요. "
+                    + "통화가 4주 쌓이면 평소 범위로 바뀌어요."
                 )
             }
 
