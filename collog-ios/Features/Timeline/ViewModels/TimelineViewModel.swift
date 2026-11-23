@@ -98,6 +98,7 @@ final class TimelineViewModel {
             await load(
                 offset,
                 parentId: context.parentId,
+                userId: context.userId,
                 api: context.api,
                 baselines: context.baselines,
                 generation: generation,
@@ -130,6 +131,7 @@ final class TimelineViewModel {
         await load(
             offset,
             parentId: context.parentId,
+            userId: context.userId,
             api: context.api,
             baselines: context.baselines,
             generation: generation,
@@ -154,8 +156,9 @@ final class TimelineViewModel {
 
     private func loadContext(
         using environment: AppEnvironment
-    ) async -> (parentId: String, api: CollogAPI, baselines: [String: BaselineDTO])? {
+    ) async -> (parentId: String, userId: String?, api: CollogAPI, baselines: [String: BaselineDTO])? {
         guard let parentId = selectedContact(using: environment)?.userId else { return nil }
+        let userId = environment.session.user?.id
         let api = environment.api
 
         let baselines: [String: BaselineDTO]
@@ -169,7 +172,7 @@ final class TimelineViewModel {
             baselines = loaded
         }
 
-        return (parentId, api, baselines)
+        return (parentId, userId, api, baselines)
     }
 
     private func resolveSelection(using environment: AppEnvironment) {
@@ -204,6 +207,7 @@ final class TimelineViewModel {
     private func load(
         _ offset: Int,
         parentId: String,
+        userId: String?,
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         generation: Int,
@@ -244,6 +248,7 @@ final class TimelineViewModel {
         do {
             let content = try await entries(
                 parentId: parentId,
+                userId: userId,
                 api: api,
                 baselines: baselines,
                 bounds: bounds
@@ -282,6 +287,7 @@ final class TimelineViewModel {
 
     private func entries(
         parentId: String,
+        userId: String?,
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
@@ -291,19 +297,19 @@ final class TimelineViewModel {
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
-        // 분석된 통화, 그리고 말씀이 짧아 분석에서 빠졌지만 녹음돼 요약이 있을 수 있는 통화
-        let candidates = calls.filter { $0.isAnalyzed || ($0.isAnalysisExcluded && $0.recorded) }
+        // 분석된 통화, 그리고 말씀이 짧아 분석에서 빠졌지만 녹음돼 요약이 있을 수 있는 통화.
+        // 요약은 통화에 참여한 사람에게만 열려, 내가 참여하지 않은 통화는 묻지 않는다.
+        let candidates = calls.filter {
+            $0.isAnalyzed || ($0.isAnalysisExcluded && $0.recorded && $0.involves(userId))
+        }
+        let summaries = await excludedSummaries(in: candidates, api: api)
 
         var result: [CallTimelineEntry] = []
-        var excludedLookups = 0
         for call in candidates {
             if result.count == Self.weeklyEntryLimit { break }
             guard call.isAnalyzed else {
-                // 분석에서 빠진 통화는 요약이 있을 때만 보인다. 음성 수치는 없어 부르지 않고, 확인도 한 주에 다섯 번까지만 한다
-                guard excludedLookups < Self.weeklyEntryLimit else { continue }
-                excludedLookups += 1
-                if let extraction = try? await api.extraction(callId: call.callId),
-                   CallTimelineEntry.summaryText(extraction.summary) != nil {
+                // 분석에서 빠진 통화는 요약이 있을 때만 보인다. 음성 수치는 없어 부르지 않는다
+                if let extraction = summaries[call.callId] {
                     let bundle = CallAnalysisBundle(call: call, features: nil, extraction: extraction, transcript: nil)
                     result.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
                 }
@@ -323,5 +329,33 @@ final class TimelineViewModel {
         }
 
         return (calls, result)
+    }
+
+    /// 분석에서 빠진 통화의 요약을 한꺼번에 묻는다. 카드가 될 수 있는 자리(앞선 분석된 통화가 다섯 건 미만)의
+    /// 통화만, 한 주에 다섯 건까지 확인한다. 요약이 있는 통화만 돌려준다.
+    private func excludedSummaries(in candidates: [CallSummaryDTO], api: CollogAPI) async -> [String: ExtractionDTO] {
+        var analyzedAhead = 0
+        var lookups: [String] = []
+        for call in candidates {
+            if call.isAnalyzed {
+                analyzedAhead += 1
+                if analyzedAhead == Self.weeklyEntryLimit { break }
+            } else if lookups.count < Self.weeklyEntryLimit {
+                lookups.append(call.callId)
+            }
+        }
+        guard !lookups.isEmpty else { return [:] }
+
+        // 요청을 모두 띄워 놓고 결과를 모은다(하나씩 기다리지 않는다)
+        let requests = lookups.map { callId in
+            Task { try? await api.extraction(callId: callId) }
+        }
+        var found: [String: ExtractionDTO] = [:]
+        for (callId, request) in zip(lookups, requests) {
+            if let extraction = await request.value, CallTimelineEntry.summaryText(extraction.summary) != nil {
+                found[callId] = extraction
+            }
+        }
+        return found
     }
 }

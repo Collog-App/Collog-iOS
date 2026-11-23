@@ -154,8 +154,66 @@ struct CallSummaryTests {
 
         #expect(TimelineViewModel.weeklyEntryLimit == 5)
         #expect(model.page(for: 0).entries.map(\.story) == Array(analyzed.prefix(5)))
-        let lookups = fixture.paths.filter { $0.hasSuffix("/extraction") }
-        #expect(lookups == (excluded.prefix(5) + analyzed.prefix(5)).map { "/v1/calls/\($0)/extraction" })
+        // 분석에서 빠진 통화는 한꺼번에 묻기 때문에 순서는 정해져 있지 않다
+        let lookups = Set(fixture.paths.filter { $0.hasSuffix("/extraction") })
+        #expect(lookups == Set((excluded.prefix(5) + analyzed.prefix(5)).map { "/v1/calls/\($0)/extraction" }))
+    }
+
+    @Test
+    func summariesAreOnlyLookedUpForCallsITookPartIn() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        // 어머니가 다른 가족과 한 통화의 분석 결과는 서버가 막는다(403). 묻지 않고, 확인 횟수도 쓰지 않는다.
+        let others = (1...6).map { "sibling\($0)" }
+        let mine = ["mine1", "mine2"]
+        serveTimeline(
+            fixture,
+            calls: others.map { call($0, state: "ANALYSIS_EXCLUDED", childId: "sibling") }
+                + mine.map { call($0, state: "ANALYSIS_EXCLUDED") }
+                + [call("unknown", state: "ANALYSIS_EXCLUDED", childId: nil)],
+            extractions: Dictionary(uniqueKeysWithValues: (others + mine + ["unknown"]).map {
+                ($0, #"{"callId":"\#($0)","parseStatus":"EXCLUDED","summary":"\#($0)"}"#)
+            })
+        )
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let model = TimelineViewModel()
+        await model.loadPage(0, using: fixture.environment)
+
+        #expect(model.page(for: 0).entries.map(\.story) == mine)
+        let lookups = Set(fixture.paths.filter { $0.hasSuffix("/extraction") })
+        #expect(lookups == Set(mine.map { "/v1/calls/\($0)/extraction" }))
+    }
+
+    @Test
+    func ownTimelineLooksUpEveryShortCallOfMine() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        serveTimeline(
+            fixture,
+            subject: "me",
+            calls: [call("received", state: "ANALYSIS_EXCLUDED", parentId: "me", childId: "mom")],
+            extractions: ["received": #"{"callId":"received","parseStatus":"EXCLUDED","summary":"내가 받은 짧은 통화"}"#]
+        )
+        await fixture.environment.family.refresh(using: fixture.environment)
+        let model = TimelineViewModel()
+        model.selectMember(try #require(model.subjects(using: fixture.environment).last))
+        await model.loadPage(0, using: fixture.environment)
+
+        #expect(model.isSelfSelected)
+        #expect(model.page(for: 0).entries.map(\.story) == ["내가 받은 짧은 통화"])
+    }
+
+    @Test
+    func callInvolvesOnlyItsTwoParticipants() {
+        let call = CallSummaryDTO(
+            callId: "c1", parentId: "mom", state: "ANALYZED", timeSlot: nil,
+            startedAt: Date(), endedAt: nil, durationSec: nil, recorded: true, parentSpeechSec: nil,
+            childId: "me"
+        )
+        #expect(call.involves("mom"))
+        #expect(call.involves("me"))
+        #expect(!call.involves("sibling"))
+        #expect(!call.involves(nil))
     }
 
     @Test
@@ -263,16 +321,22 @@ struct CallSummaryTests {
         )
     }
 
-    private func call(_ id: String, state: String, recorded: Bool = true) -> String {
+    /// 기본은 어머니(mom)와 내가(me) 한 통화.
+    private func call(
+        _ id: String, state: String, recorded: Bool = true, parentId: String = "mom", childId: String? = "me"
+    ) -> String {
         """
-        {"callId":"\(id)","parentId":"mom","state":"\(state)","timeSlot":null,
+        {"callId":"\(id)","parentId":"\(parentId)","childId":\(childId.map { "\"\($0)\"" } ?? "null"),
+         "state":"\(state)","timeSlot":null,
          "startedAt":"2026-11-05T03:00:00Z","endedAt":"2026-11-05T03:02:00Z","durationSec":120,
          "recorded":\(recorded),"parentSpeechSec":12}
         """
     }
 
-    /// 가족 한 명(mom)의 타임라인 한 주. 준비하지 않은 extraction·음성 수치는 404.
-    private func serveTimeline(_ fixture: TestEnvironment, calls: [String], extractions: [String: String]) {
+    /// 한 사람(기본은 가족 mom)의 타임라인 한 주. 준비하지 않은 extraction·음성 수치는 404.
+    private func serveTimeline(
+        _ fixture: TestEnvironment, subject: String = "mom", calls: [String], extractions: [String: String]
+    ) {
         let callsBody = "{\"calls\":[\(calls.joined(separator: ","))]}"
         fixture.respond = { request in
             let path = request.url?.path ?? ""
@@ -283,7 +347,7 @@ struct CallSummaryTests {
             }
             if path.hasSuffix("/daily-questions") { return (200, #"{"source":"fixture","questions":[]}"#) }
             if path.hasSuffix("/baseline") { return (200, #"{"baselines":[]}"#) }
-            if path == "/v1/parents/mom/calls" { return (200, callsBody) }
+            if path == "/v1/parents/\(subject)/calls" { return (200, callsBody) }
             let parts = path.split(separator: "/").map(String.init)
             if parts.count == 4, parts[1] == "calls", parts[3] == "extraction", let body = extractions[parts[2]] {
                 return (200, body)
