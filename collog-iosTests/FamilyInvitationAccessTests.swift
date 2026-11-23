@@ -158,6 +158,15 @@ struct FamilyInvitationAccessTests {
     }
 
     @Test
+    func codeEntryWarnsOnlyWhenIHaveAnUnacceptedInvitationOfMyOwn() {
+        // 받은 코드로 들어가면 내가 보낸 초대(만료 포함)는 취소된다
+        #expect(FamilyConnectGuide.waiting.hasSentInvitation)
+        #expect(FamilyConnectGuide.expired.hasSentInvitation)
+        #expect(!FamilyConnectGuide.invite.hasSentInvitation)
+        #expect(InvitationAcceptView.sentInvitationNote == "초대 코드를 입력하면 내가 보낸 초대는 취소돼요.")
+    }
+
+    @Test
     func familyStoreTellsExpiredInvitationsFromUsableOnes() async throws {
         let fixture = try TestEnvironment(role: "CHILD")
         defer { fixture.cleanUp() }
@@ -181,6 +190,7 @@ struct FamilyInvitationAccessTests {
         invitations = []
         await family.refresh(using: fixture.environment)
         #expect(family.connectGuide(using: fixture.environment) == .invite)
+        #expect(family.connectGuide(using: fixture.environment)?.hasSentInvitation == false)
     }
 
     @Test

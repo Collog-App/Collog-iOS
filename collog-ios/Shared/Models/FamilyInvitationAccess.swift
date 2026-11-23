@@ -38,6 +38,9 @@ enum FamilyConnectGuide: Equatable {
         return hasUnexpiredInvitation ? .waiting : .expired
     }
 
+    /// 수락되지 않은 내 초대가 있다(만료 포함). 받은 초대 코드를 넣으면 서버가 혼자뿐인 내 가족을 정리해 이 초대도 사라진다.
+    var hasSentInvitation: Bool { self != .invite }
+
     var title: String {
         switch self {
         case .invite: "가족과 연결해 보세요"
