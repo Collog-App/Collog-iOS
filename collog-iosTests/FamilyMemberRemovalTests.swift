@@ -61,13 +61,65 @@ struct FamilyMemberRemovalTests {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }
         var methods: [String] = []
+        var queries: [String?] = []
         fixture.respond = { request in
             methods.append(request.httpMethod ?? "")
+            queries.append(request.url?.query)
             return (204, "")
         }
         try await fixture.environment.api.removeFamilyMember(familyId: "family", memberId: "member-1")
         #expect(fixture.paths == ["/v1/families/family/members/member-1"])
         #expect(methods == ["DELETE"])
+        // 연결된 구성원 삭제·나가기는 조건 없이 보낸다
+        #expect(queries == [nil])
+    }
+
+    @Test
+    func cancellingAnInvitationOnlyRemovesItWhileItIsStillPending() async throws {
+        #expect(FamilyMemberRemoval.invitation.isPendingOnly)
+        #expect(!FamilyMemberRemoval.member.isPendingOnly)
+        #expect(!FamilyMemberRemoval.leave.isPendingOnly)
+
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        var queries: [String?] = []
+        fixture.respond = { request in
+            queries.append(request.url?.query)
+            return (204, "")
+        }
+        try await fixture.environment.api.removeFamilyMember(
+            familyId: "family", memberId: "member-1", pendingOnly: FamilyMemberRemoval.invitation.isPendingOnly
+        )
+        #expect(fixture.paths == ["/v1/families/family/members/member-1"])
+        #expect(queries == ["pendingOnly=true"])
+    }
+
+    @Test
+    func invitationAcceptedInTheMeantimeKeepsTheMemberAndShowsServerMessage() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in
+            (409, #"{"code":"CONFLICT","message":"이미 수락한 초대예요. 가족 목록을 다시 확인해주세요"}"#)
+        }
+        do {
+            try await fixture.environment.api.removeFamilyMember(
+                familyId: "family", memberId: "member-1", pendingOnly: true
+            )
+            Issue.record("expected the server to refuse")
+        } catch {
+            #expect(FamilyMemberRemoval.failureText(for: error) == "이미 수락한 초대예요. 가족 목록을 다시 확인해주세요")
+        }
+    }
+
+    @Test
+    func rowThatIsAlreadyGoneIsNotReportedAsAFailure() {
+        let gone = APIError.server(status: 404, code: "NOT_FOUND", message: "가족 구성원을 찾을 수 없습니다")
+        #expect(gone.isNotFound)
+        #expect(FamilyMemberRemoval.failureText(for: gone) == nil)
+        let refused = APIError.server(status: 403, code: "SCOPE_DENIED", message: "가족을 만든 사람이나 본인만 내보낼 수 있어요")
+        #expect(!refused.isNotFound)
+        #expect(FamilyMemberRemoval.failureText(for: refused) == "가족을 만든 사람이나 본인만 내보낼 수 있어요")
+        #expect(FamilyMemberRemoval.failureText(for: APIError.transport("연결 실패")) == "연결 실패")
     }
 
     @Test

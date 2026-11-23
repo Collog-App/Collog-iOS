@@ -95,9 +95,14 @@ struct CollogAPI {
     }
 
     /// 대기 중 초대는 구성원 누구나, 연결된 구성원은 가족을 만든 사람이나 본인(나가기)만 지울 수 있다(204).
-    func removeFamilyMember(familyId: String, memberId: String) async throws {
+    /// `pendingOnly`는 「초대 취소」: 그사이 상대가 수락했으면 서버가 연결된 가족을 내보내지 않고 409 로 알린다.
+    func removeFamilyMember(familyId: String, memberId: String, pendingOnly: Bool = false) async throws {
         try await client.sendRaw(
-            APIEndpoint(path: "/v1/families/\(familyId)/members/\(memberId)", method: .delete)
+            APIEndpoint(
+                path: "/v1/families/\(familyId)/members/\(memberId)",
+                method: .delete,
+                query: pendingOnly ? [URLQueryItem(name: "pendingOnly", value: "true")] : []
+            )
         )
     }
 

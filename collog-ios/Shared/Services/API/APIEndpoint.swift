@@ -49,6 +49,12 @@ enum APIError: LocalizedError, Equatable {
         if case let .server(status, _, _) = self { return status == 403 }
         return false
     }
+
+    /// 404: 찾는 것이 이미 없다.
+    var isNotFound: Bool {
+        if case let .server(status, _, _) = self { return status == 404 }
+        return false
+    }
 }
 
 struct APIErrorBody: Decodable {

@@ -24,6 +24,14 @@ enum FamilyMemberRemoval: Equatable {
         return hasOtherConnectedMember ? .leave : nil
     }
 
+    /// 초대 취소는 대기 중일 때만 지운다. 목록을 열어 둔 사이 수락한 가족을 내보내지 않게 한다.
+    var isPendingOnly: Bool { self == .invitation }
+
+    /// 삭제에 실패했을 때 보일 글. 이미 지워진 줄(404)은 바라던 대로라 알리지 않는다.
+    static func failureText(for error: Error) -> String? {
+        (error as? APIError)?.isNotFound == true ? nil : error.localizedDescription
+    }
+
     var actionTitle: String { self == .leave ? "가족에서 나가기" : "삭제" }
 
     var confirmTitle: String { self == .leave ? "나가기" : "삭제" }
@@ -47,6 +55,7 @@ enum FamilyMemberRemoval: Equatable {
 
 struct FamilyMembersSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(CallCenter.self) private var callCenter
 
     @State private var members: [ManagedFamilyMember] = []
     @State private var isLoading = true
@@ -180,7 +189,7 @@ struct FamilyMembersSettingsView: View {
             presenting: removalRequest
         ) { request in
             Button("취소", role: .cancel) {}
-            Button(request.kind.confirmTitle, role: .destructive) { Task { await remove(request.member) } }
+            Button(request.kind.confirmTitle, role: .destructive) { Task { await remove(request) } }
         } message: { request in
             Text(request.kind.confirmationMessage)
         }
@@ -226,7 +235,7 @@ struct FamilyMembersSettingsView: View {
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("\(member.name) 더 보기")
-                .disabled(isRemoving)
+                .disabled(isRemoving || callCenter.hasCallInProgress)
             }
         }
         .padding(.horizontal, Spacing.x4)
@@ -294,19 +303,24 @@ struct FamilyMembersSettingsView: View {
         )
     }
 
-    private func remove(_ member: ManagedFamilyMember) async {
-        guard !isRemoving, let familyId = environment.session.familyId else { return }
+    private func remove(_ request: RemovalRequest) async {
+        guard !isRemoving, !callCenter.hasCallInProgress,
+              let familyId = environment.session.familyId else { return }
         isRemoving = true
         defer { isRemoving = false }
+        var failureText: String?
         do {
-            try await environment.api.removeFamilyMember(familyId: familyId, memberId: member.id)
+            try await environment.api.removeFamilyMember(
+                familyId: familyId, memberId: request.member.id, pendingOnly: request.kind.isPendingOnly
+            )
             Haptics.commit()
-            await load()
-            await environment.family.refresh(using: environment)
         } catch {
-            // 권한이 없으면(403) 서버가 알려 준 이유를 그대로 보인다
-            errorText = error.localizedDescription
+            failureText = FamilyMemberRemoval.failureText(for: error)
         }
+        // 실패해도 목록이 달라졌을 수 있다(그사이 수락한 초대 409, 이미 지워진 줄 404). 다시 읽고 서버가 알려 준 이유를 보인다
+        await load()
+        await environment.family.refresh(using: environment)
+        if let failureText { errorText = failureText }
     }
 
     private func selectFamily(_ familyId: String) async {
@@ -366,8 +380,10 @@ private struct RemovalRequest {
 
 
 #Preview {
+    let environment = AppEnvironment()
     NavigationStack {
         FamilyMembersSettingsView()
-            .environment(AppEnvironment())
+            .environment(environment)
+            .environment(CallCenter(environment: environment))
     }
 }
