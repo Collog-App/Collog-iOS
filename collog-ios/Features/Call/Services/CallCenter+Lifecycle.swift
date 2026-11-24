@@ -11,6 +11,9 @@ import LiveKit
 
 extension CallCenter {
     func sessionDidChange() {
+        if let question = postCallQuestion, question.ownerId != environment.session.user?.id {
+            postCallQuestion = nil
+        }
         if let owner = callOwnerId, owner != environment.session.user?.id {
             if let call = activeCall {
                 provider.reportCall(with: call.uuid, endedAt: nil, reason: .failed)
@@ -43,6 +46,7 @@ extension CallCenter {
     func startOutgoingCall(calleeId: String, name: String, questions _: [String]) {
         guard activeCall == nil, pendingOutgoing == nil,
               let userId = environment.session.user?.id, environment.session.isAuthenticated else { return }
+        postCallQuestion = nil
         callOwnerId = userId
         let uuid = UUID()
         pendingOutgoing = PendingOutgoing(
@@ -94,6 +98,32 @@ extension CallCenter {
                 self?.failCall(uuid: uuid, message: error.localizedDescription, failure: nil)
             }
         }
+    }
+
+    /// 통화 뒤 한 줄 질문: 건 사람이고, 통화가 실제로 연결됐었고, 그 통화에 추천 질문이 보였을 때만
+    /// 「통화 종료」 화면에서 묻는다. 끝나는 통화를 정리(`teardown`)하기 전에 부른다.
+    func offerPostCallQuestion() {
+        guard let call = activeCall, call.direction == .outgoing, call.wasConnected, !call.questions.isEmpty,
+              let ownerId = callOwnerId, ownerId == environment.session.user?.id,
+              environment.session.isAuthenticated, !environment.settings.isGuestMode else { return }
+        postCallQuestion = PostCallQuestion(
+            callId: call.id, peerId: call.peerId, peerName: call.peerName, ownerId: ownerId
+        )
+    }
+
+    func answerPostCallQuestion(_ answer: PostCallQuestion.Answer) {
+        guard let question = postCallQuestion else { return }
+        postCallQuestion = nil
+        guard question.ownerId == environment.session.user?.id else { return }
+        environment.usage.record(
+            .postCallAnswer, code: answer.rawValue, subjectId: question.peerId, callId: question.callId,
+            using: environment
+        )
+    }
+
+    /// 답하지 않고 닫으면 아무것도 남기지 않는다.
+    func dismissPostCallQuestion() {
+        postCallQuestion = nil
     }
 
     /// 이용 기록 `call_connect_failed`: 한 번도 연결되지 못한 통화가 실패로 끝났을 때만 남긴다.
@@ -237,6 +267,7 @@ extension CallCenter {
 
     func finishRemoteCall(reason: CXCallEndedReason = .remoteEnded) {
         guard let call = activeCall else { return }
+        if reason == .remoteEnded { offerPostCallQuestion() }
         provider.reportCall(with: call.uuid, endedAt: nil, reason: reason)
         teardown()
     }

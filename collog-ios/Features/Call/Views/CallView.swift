@@ -23,6 +23,8 @@ struct CallView: View {
     var onMute: (() -> Void)?
     var onSpeaker: (() -> Void)?
     var audioDiagnostics: String?
+    /// 「통화 종료」 화면(`phase == .ended`)의 한 줄 질문에 답했을 때. 이때 `onEnd`는 답 없이 닫기다.
+    var onPostCallAnswer: ((CallCenter.PostCallQuestion.Answer) -> Void)?
     var onEnd: () -> Void
 
     @State private var connectedAt: Date?
@@ -41,7 +43,10 @@ struct CallView: View {
             header
                 .padding(.top, notice == nil ? Spacing.x8 : Spacing.x5)
 
-            if !isIncoming {
+            if phase == .ended, let onPostCallAnswer {
+                postCallQuestion(onAnswer: onPostCallAnswer)
+                    .padding(.top, Spacing.x8)
+            } else if !isIncoming {
                 ScrollView {
                     questionList
                         .padding(.top, Spacing.x8)
@@ -59,6 +64,9 @@ struct CallView: View {
                     onAnswer: onAnswer, onDecline: onEnd
                 )
                 .padding(.bottom, Spacing.x8)
+            } else if phase == .ended {
+                closeButton
+                    .padding(.bottom, Spacing.x8)
             } else {
                 if let audioDiagnostics {
                     Text(audioDiagnostics)
@@ -165,6 +173,46 @@ struct CallView: View {
                 }
             }
         }
+        .padding(.horizontal, Spacing.x5)
+    }
+
+    private func postCallQuestion(
+        onAnswer: @escaping (CallCenter.PostCallQuestion.Answer) -> Void
+    ) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.x3) {
+            Text(CallCenter.PostCallQuestion.prompt)
+                .body_01_semibold(.gray00)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, Spacing.x1)
+
+            ForEach(CallCenter.PostCallQuestion.Answer.allCases, id: \.self) { answer in
+                Button { onAnswer(answer) } label: {
+                    Text(answer.title)
+                        .body_02_semibold(.gray00)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                        .background(
+                            Color.gray00.opacity(0.08),
+                            in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
+                                .stroke(Color.gray00.opacity(0.06), lineWidth: 1)
+                        }
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Spacing.x5)
+    }
+
+    private var closeButton: some View {
+        Button(action: onEnd) {
+            Text("닫기")
+                .body_02_semibold(.gray400)
+                .frame(maxWidth: .infinity, minHeight: 52)
+        }
+        .buttonStyle(.plain)
         .padding(.horizontal, Spacing.x5)
     }
 

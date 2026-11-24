@@ -163,6 +163,7 @@ extension CallCenter: @MainActor PKPushRegistryDelegate {
         }
 
         callOwnerId = environment.session.user?.id
+        postCallQuestion = nil
         activeCall = ActiveCall(
             id: callId,
             uuid: uuid,

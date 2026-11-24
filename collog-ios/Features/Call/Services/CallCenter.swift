@@ -43,6 +43,30 @@ final class CallCenter: NSObject, Sendable {
         let name: String
     }
 
+    /// 통화 뒤 한 줄 질문(이용 기록 `post_call_answer`)을 기다리는 끝난 통화.
+    struct PostCallQuestion: Equatable {
+        enum Answer: String, CaseIterable {
+            case yes = "YES"
+            case no = "NO"
+            case notSeen = "NOT_SEEN"
+
+            var title: String {
+                switch self {
+                case .yes: "써 봤어요"
+                case .no: "안 썼어요"
+                case .notSeen: "못 봤어요"
+                }
+            }
+        }
+
+        static let prompt = "이번 통화에서 추천 질문을 써 보셨나요?"
+
+        let callId: String
+        let peerId: String?
+        let peerName: String
+        let ownerId: String
+    }
+
     @ObservationIgnored let environment: AppEnvironment
     @ObservationIgnored let registry = PKPushRegistry(queue: .main)
     @ObservationIgnored let callController = CXCallController()
@@ -91,6 +115,8 @@ final class CallCenter: NSObject, Sendable {
     @ObservationIgnored var microphoneReady = false
 
     var activeCall: ActiveCall?
+    /// 건 사람에게 「통화 종료」 화면에서 묻는 한 줄 질문. 답하거나 닫거나 새 통화가 시작되면 사라진다.
+    var postCallQuestion: PostCallQuestion?
     var incomingCallReported = false
     var incomingAnswerRequested = false
     var incomingAnswerError: String?

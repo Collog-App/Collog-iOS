@@ -256,6 +256,15 @@ struct RootView: View {
                 onEnd: { callCenter.endActiveCall() }
             )
             .id(call.id)
+        } else if let question = callCenter.postCallQuestion {
+            CallView(
+                peerName: question.peerName,
+                phase: .ended,
+                questions: [],
+                onPostCallAnswer: { callCenter.answerPostCallQuestion($0) },
+                onEnd: { callCenter.dismissPostCallQuestion() }
+            )
+            .id(question.callId)
         } else if let simulatedContact {
             CallView(
                 peerName: simulatedContact.name,
@@ -269,9 +278,12 @@ struct RootView: View {
 
     private var callPresentation: Binding<Bool> {
         Binding(
-            get: { callCenter.activeCall != nil || simulatedContact != nil },
+            get: { callCenter.activeCall != nil || callCenter.postCallQuestion != nil || simulatedContact != nil },
             set: { isPresented in
-                if !isPresented { endSimulatedCall() }
+                if !isPresented {
+                    endSimulatedCall()
+                    callCenter.dismissPostCallQuestion()
+                }
             }
         )
     }

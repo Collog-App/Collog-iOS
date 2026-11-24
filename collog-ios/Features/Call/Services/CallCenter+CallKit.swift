@@ -226,6 +226,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
         let call = activeCall
         let answered = call.map { $0.direction == .outgoing || answeredCallIds.contains($0.id) } ?? false
         response.fulfill()
+        offerPostCallQuestion()
         teardown()
         guard let call else { return }
 
