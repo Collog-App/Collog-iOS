@@ -154,9 +154,10 @@ extension CallCenter: @MainActor PKPushRegistryDelegate {
             try prepareCallAudio()
         } catch {
             log("수신 오디오 준비 실패: \(error.localizedDescription)")
-            environment.usage.record(.callConnectFailed(.other, callId: callId), using: environment)
             reportAndImmediatelyEnd(uuid: uuid, completion: response)
             declineIncomingCall(callId)
+            // CallKit 에 먼저 알린 뒤에 기록한다(기록은 디스크에 쓴다)
+            environment.usage.record(.callConnectFailed(.other, callId: callId), using: environment)
             return
         }
 
