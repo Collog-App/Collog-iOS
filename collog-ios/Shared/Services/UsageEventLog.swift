@@ -68,7 +68,8 @@ final class UsageEventLog {
     enum Key {
         static let pending = "usage.pendingEvents"
         static let onboardingSteps = "usage.onboardingSteps"
-        static func appOpenDay(_ userId: String) -> String { "usage.appOpenDay.\(userId)" }
+        /// 마지막으로 `app_open`을 남긴 「서울 날짜 사용자ID」 하나만 덮어쓴다.
+        static let appOpen = "usage.appOpen"
     }
 
     /// 기기에 쌓아 두는 최대 개수. 넘치면 오래된 것부터 버린다.
@@ -121,9 +122,9 @@ final class UsageEventLog {
     /// 앱이 앞으로 올 때: 그날(서울 날짜) 첫 번째면 `app_open`을 남기고, 쌓인 것을 보낸다.
     func appDidBecomeActive(using environment: AppEnvironment) {
         if let userId = Self.recordingUser(environment) {
-            let today = HealthDailyCalculator.dayString(HealthDailyCalculator.dayOf(now()))
-            if defaults.string(forKey: Key.appOpenDay(userId)) != today {
-                defaults.set(today, forKey: Key.appOpenDay(userId))
+            let marker = "\(HealthDailyCalculator.dayString(HealthDailyCalculator.dayOf(now()))) \(userId)"
+            if defaults.string(forKey: Key.appOpen) != marker {
+                defaults.set(marker, forKey: Key.appOpen)
                 record(.appOpen, using: environment)
                 return
             }
@@ -162,9 +163,20 @@ final class UsageEventLog {
         }
     }
 
-    /// 로그아웃·계정 삭제 때 쌓인 것을 지운다.
+    /// 로그아웃·계정 삭제 때 사용자의 쌓인 기록과 하루 표시(사용자 ID 가 든다)를 지운다.
+    /// 아직 못 보낸 로그인 전 단계는 남긴다(그 단계는 설치당 한 번이라 지우면 다시 남지 않는다).
     func clear() {
-        defaults.removeObject(forKey: Key.pending)
+        save(entries().filter { $0.userId == nil })
+        defaults.removeObject(forKey: Key.appOpen)
+    }
+
+    /// 다른 사용자가 로그인하면 그 전 사용자의 쌓인 기록을 지운다(강제 로그아웃 뒤 다른 계정 포함).
+    /// 같은 사용자가 다시 로그인하면 남겨 둔 것을 그대로 보낸다. 로그아웃 상태에서는 건드리지 않는다.
+    func forgetOtherUsers(using environment: AppEnvironment) {
+        guard environment.session.isAuthenticated, let current = environment.session.user?.id else { return }
+        let all = entries()
+        let kept = all.filter { $0.userId == nil || $0.userId == current }
+        if kept.count != all.count { save(kept) }
     }
 
     /// 쌓인 것을 묶어 보낸다. 이미 보내는 중이면 그것이 끝난 뒤 한 번 더 본다.
@@ -188,6 +200,7 @@ final class UsageEventLog {
     }
 
     private func sendPending(using environment: AppEnvironment) async {
+        forgetOtherUsers(using: environment)
         await send(for: nil, limit: Self.anonymousBatchLimit, using: environment)
         guard let userId = Self.recordingUser(environment) else { return }
         await send(for: userId, limit: Self.batchLimit, using: environment)

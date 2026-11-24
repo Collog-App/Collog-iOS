@@ -178,25 +178,55 @@ struct UsageEventLogTests {
         #expect(fixture.paths.isEmpty)
     }
 
-    @Test func sendsOnlyTheSignedInUsersEvents() async throws {
+    /// 강제 로그아웃(세션 만료) 뒤 다른 계정이 들어오면 그 전 사용자의 기록은 보내지 않고 지운다.
+    /// 로그인 전 단계(익명)는 사용자 것이 아니라 남는다.
+    @Test func anotherUsersSignInDropsThePreviousUsersEvents() async throws {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }
         let server = EventServer()
         fixture.respond = { request in try server.respond(request) }
         let usage = fixture.environment.usage
+        usage.recordOnboardingStep(from: .launching, to: .onboarding, using: fixture.environment)
         usage.record(.incomingCallShown(callId: "mine"), using: fixture.environment)
+
+        fixture.environment.session.signOut()
+        // 로그아웃 상태에서는 누가 다시 들어올지 몰라 건드리지 않는다
+        usage.forgetOtherUsers(using: fixture.environment)
+        #expect(usage.pendingEvents.map(\.name) == ["onboarding_step", "incoming_call_shown"])
 
         try fixture.signIn(as: "other")
         usage.record(.incomingCallShown(callId: "theirs"), using: fixture.environment)
         await usage.flush(using: fixture.environment)
-        #expect(server.requests.count == 1)
-        #expect(server.requests.first?.events.map { $0["callId"] as? String } == ["theirs"])
-        #expect(usage.pendingEvents.map(\.callId) == ["mine"])
-
-        try fixture.signIn(as: "me")
-        await usage.flush(using: fixture.environment)
-        #expect(server.requests.last?.events.map { $0["callId"] as? String } == ["mine"])
+        #expect(server.requests.map(\.path) == ["/v1/events/anonymous", "/v1/events"])
+        #expect(server.requests.last?.events.map { $0["callId"] as? String } == ["theirs"])
         #expect(usage.pendingEvents.isEmpty)
+        #expect(!server.requests.contains { $0.events.contains { $0["callId"] as? String == "mine" } })
+    }
+
+    @Test func signOutKeepsUnsentStepsBeforeLogin() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in (204, "") }
+        let usage = fixture.environment.usage
+        usage.recordOnboardingStep(from: .launching, to: .onboarding, using: fixture.environment)
+        usage.record(.appOpen, using: fixture.environment)
+
+        await fixture.environment.signOut()
+        // 설치당 한 번인 단계라 지우면 다시 남지 않는다
+        #expect(usage.pendingEvents.map(\.code) == ["WELCOME"])
+    }
+
+    /// 직접 로그아웃·계정 삭제 때 하루 표시(사용자 ID 가 든다)도 지워, 지난 사용자 ID 가 기기에 남지 않는다.
+    @Test func signOutForgetsTheAppOpenMarker() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in (204, "") }
+        let usage = fixture.environment.usage
+        usage.appDidBecomeActive(using: fixture.environment)
+        #expect(fixture.defaults.string(forKey: UsageEventLog.Key.appOpen) != nil)
+
+        await fixture.environment.signOut()
+        #expect(fixture.defaults.string(forKey: UsageEventLog.Key.appOpen) == nil)
     }
 
     @Test func signedOutRecordsNoLoggedInEvents() throws {
@@ -291,6 +321,22 @@ struct UsageEventLogTests {
         #expect(usage.pendingEvents.map(\.name) == ["app_open", "app_open"])
         #expect(usage.pendingEvents.last?.at == "2026-11-24T15:01:00Z")
         #expect(usage.pendingEvents.allSatisfy { $0.code == nil && $0.subjectId == nil && $0.callId == nil })
+    }
+
+    /// 사용자마다 키를 만들지 않고 키 하나에 덮어써, 계정을 지운 뒤 사용자 ID 가 기기에 쌓이지 않는다.
+    @Test func appOpenKeepsOneMarkerForTheLastUser() throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let morning = seoul(2026, 11, 24, hour: 9)
+        let usage = UsageEventLog(defaults: fixture.defaults, sendsAutomatically: false, now: { morning })
+        usage.appDidBecomeActive(using: fixture.environment)
+        try fixture.signIn(as: "other")
+        usage.appDidBecomeActive(using: fixture.environment)
+
+        #expect(usage.pendingEvents.map(\.name) == ["app_open", "app_open"])
+        let keys = fixture.defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("usage.appOpen") }
+        #expect(keys == [UsageEventLog.Key.appOpen])
+        #expect(fixture.defaults.string(forKey: UsageEventLog.Key.appOpen) == "2026-11-24 other")
     }
 
     private func seoul(_ year: Int, _ month: Int, _ day: Int, hour: Int, minute: Int = 0) -> Date {

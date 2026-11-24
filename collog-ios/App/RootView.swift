@@ -76,6 +76,7 @@ struct RootView: View {
         }
         .onChange(of: environment.session.user) { previous, current in
             callCenter.sessionDidChange()
+            environment.usage.forgetOtherUsers(using: environment)
             guard let previous, let current,
                   previous.role != current.role || previous.familyId != current.familyId else { return }
             launcher.dismiss()
