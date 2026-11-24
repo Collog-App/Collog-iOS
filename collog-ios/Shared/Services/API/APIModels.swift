@@ -300,6 +300,10 @@ struct TodoDoneBody: Encodable {
     let done: Bool
 }
 
+struct UsageEventsBody: Encodable {
+    let events: [UsageEvent]
+}
+
 // MARK: - 건강 앱 연결 (2026-11-08 서버·안드로이드 공통 약속)
 
 /// 서버가 내려주는 별도 선택 동의 문서. 앱은 그대로 보여 준다.

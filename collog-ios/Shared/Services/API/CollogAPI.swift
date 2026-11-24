@@ -364,6 +364,19 @@ struct CollogAPI {
         try await client.sendRaw(APIEndpoint(path: "/v1/todos/\(id)", method: .delete))
     }
 
+    /// 이용 기록(2026-11-24 약속). 로그인 전 단계(`onboarding_step`)는 익명 주소로, 인증 없이 보낸다.
+    func sendEvents(_ events: [UsageEvent], anonymous: Bool = false) async throws {
+        try await client.sendRaw(
+            APIEndpoint(
+                path: anonymous ? "/v1/events/anonymous" : "/v1/events",
+                method: .post,
+                body: UsageEventsBody(events: events),
+                requiresAuth: !anonymous,
+                timeoutInterval: 15
+            )
+        )
+    }
+
     /// 건강 앱 연결 약속(2026-11-08)의 iOS 플랫폼 값.
     static let healthPlatform = "HEALTHKIT"
 

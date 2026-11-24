@@ -76,7 +76,9 @@ final class TestEnvironment {
         ))
         environment = AppEnvironment(
             settings: AppSettings(defaults: defaults), session: session,
-            family: FamilyStore(defaults: defaults), networkSession: networkSession
+            family: FamilyStore(defaults: defaults),
+            usage: UsageEventLog(defaults: defaults, sendsAutomatically: false),
+            networkSession: networkSession
         )
         FixtureURLProtocol.handlers[id] = { [weak self] request in
             guard let self else { throw URLError(.cancelled) }

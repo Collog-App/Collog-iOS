@@ -50,6 +50,9 @@ struct RootView: View {
             authContent(for: authFlow.step)
         }
         .animation(.easeInOut(duration: 0.2), value: authFlow.step)
+        .onChange(of: authFlow.step) { previous, step in
+            environment.usage.recordOnboardingStep(from: previous, to: step, using: environment)
+        }
         .task {
             await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL)
             await authFlow.resolve(using: environment)
@@ -97,6 +100,10 @@ struct RootView: View {
                 // 건강 앱 요약은 앱이 앞으로 올 때 하루 한 번 이하로 보낸다(가입을 마친 뒤에만)
                 if authFlow.step == .ready { Task { await environment.health.syncIfDue(using: environment) } }
             }
+        }
+        // 이용 기록: 그날 처음 앞으로 오면 app_open 을 남기고, 쌓인 것을 묶어서 보낸다
+        .onChange(of: scenePhase, initial: true) {
+            if scenePhase == .active { environment.usage.appDidBecomeActive(using: environment) }
         }
         .onChange(of: environment.reportNotificationRevision) {
             navigation.popToRoot(.report)

@@ -140,6 +140,7 @@ struct AccountSettingsView: View {
             guard environment.session.user?.id == userId else { return }
             try await environment.api.deleteAccount(authorization: authorization)
             if environment.session.user?.id == userId {
+                environment.usage.clear()
                 environment.session.signOut()
                 environment.settings.isGuestMode = false
             }
