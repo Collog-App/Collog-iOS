@@ -230,6 +230,68 @@ struct UsageEventLogTests {
         #expect(fixture.defaults.string(forKey: UsageEventLog.Key.appOpen) == nil)
     }
 
+    /// 보내는 도중(응답이 오기 전)에 쌓인 이벤트는 그 묶음과 함께 지워지지 않는다.
+    @Test func eventsRecordedWhileSendingAreKept() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let server = EventServer()
+        let usage = fixture.environment.usage
+        fixture.respond = { [unowned fixture] request in
+            let first = server.requests.isEmpty
+            if first { usage.record(.incomingCallShown(callId: "late"), using: fixture.environment) }
+            // 두 번째 묶음은 실패시켜 남아 있는지 본다
+            server.failure = first ? nil : .status(503)
+            return try server.respond(request)
+        }
+        usage.record(.incomingCallShown(callId: "early"), using: fixture.environment)
+
+        await usage.flush(using: fixture.environment)
+        #expect(server.requests.map { $0.events.map { $0["callId"] as? String } } == [["early"], ["late"]])
+        #expect(usage.pendingEvents.map(\.callId) == ["late"])
+    }
+
+    @Test func newEventsAndForegroundSendAutomatically() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let server = EventServer()
+        fixture.respond = { request in try server.respond(request) }
+        let usage = UsageEventLog(defaults: fixture.defaults)
+
+        usage.record(.incomingCallShown(callId: "auto"), using: fixture.environment)
+        await waitUntil { usage.pendingEvents.isEmpty }
+        #expect(server.requests.map { $0.events.map { $0["callId"] as? String } } == [["auto"]])
+
+        server.failure = .offline
+        usage.appDidBecomeActive(using: fixture.environment)
+        await waitUntil { server.requests.count == 2 }
+        #expect(usage.pendingEvents.map(\.name) == ["app_open"])
+
+        // 다시 앞으로 오면(그날 app_open 은 이미 남김) 새 이벤트 없이도 쌓인 것을 보낸다
+        server.failure = nil
+        usage.appDidBecomeActive(using: fixture.environment)
+        await waitUntil { usage.pendingEvents.isEmpty }
+        #expect(server.requests.count == 3)
+        #expect(server.requests.last?.events.map { $0["name"] as? String } == ["app_open"])
+    }
+
+    @Test func anonymousStepsGoInBatchesOfTwenty() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let server = EventServer()
+        fixture.respond = { request in try server.respond(request) }
+        let usage = fixture.environment.usage
+        fixture.environment.session.signOut()
+        for _ in 0..<25 {
+            fixture.defaults.removeObject(forKey: UsageEventLog.Key.onboardingSteps)
+            usage.recordOnboardingStep(from: .launching, to: .onboarding, using: fixture.environment)
+        }
+
+        await usage.flush(using: fixture.environment)
+        #expect(server.requests.map(\.events.count) == [UsageEventLog.anonymousBatchLimit, 5])
+        #expect(server.requests.allSatisfy { $0.path == "/v1/events/anonymous" && $0.authorization == nil })
+        #expect(usage.pendingEvents.isEmpty)
+    }
+
     @Test func signedOutRecordsNoLoggedInEvents() throws {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }
@@ -354,6 +416,15 @@ struct UsageEventLogTests {
         let keys = fixture.defaults.dictionaryRepresentation().keys.filter { $0.hasPrefix("usage.appOpen") }
         #expect(keys == [UsageEventLog.Key.appOpen])
         #expect(fixture.defaults.string(forKey: UsageEventLog.Key.appOpen) == "2026-11-24 other")
+    }
+
+    private func waitUntil(_ condition: () -> Bool) async {
+        var attempts = 0
+        while !condition(), attempts < 300 {
+            attempts += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(condition())
     }
 
     private func seoul(_ year: Int, _ month: Int, _ day: Int, hour: Int, minute: Int = 0) -> Date {

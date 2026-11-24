@@ -3,6 +3,7 @@
 //  collog-ios
 //
 
+import CallKit
 import Foundation
 import Testing
 @testable import collog_ios
@@ -105,6 +106,38 @@ struct PostCallQuestionTests {
         #expect(center.postCallQuestion == nil)
     }
 
+    /// 내가 끊는 길(CallKit 의 통화 종료 요청)에서도 묻는다.
+    @Test func callerHangingUpIsAsked() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in (204, "") }
+        let center = CallCenter(environment: fixture.environment)
+        center.callOwnerId = "me"
+        let call = connectedOutgoing(id: "call", questions: ["질문"])
+        center.activeCall = call
+
+        center.provider(center.provider, perform: EndCallActionStub(call: call.uuid))
+        #expect(center.activeCall == nil)
+        #expect(center.postCallQuestion?.callId == "call")
+        await fixture.waitForRequests(["/v1/calls/call/end"])
+    }
+
+    @Test func startingANewCallRemovesTheQuestion() throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in (204, "") }
+        let center = CallCenter(environment: fixture.environment)
+        center.callOwnerId = "me"
+        center.activeCall = connectedOutgoing(id: "call", questions: ["질문"])
+        center.finishRemoteCall()
+        #expect(center.postCallQuestion != nil)
+
+        center.startOutgoingCall(calleeId: "mom", name: "엄마", questions: [])
+        #expect(center.postCallQuestion == nil)
+        // 시험에서는 실제로 걸지 않는다(마이크 권한을 받은 뒤 이 통화가 아니면 멈춘다)
+        center.pendingOutgoing = nil
+    }
+
     /// 화면을 잠근 채 통화하고 한참 뒤 앱을 열면 묻지 않는다.
     @Test func questionExpiresTwoMinutesAfterTheCall() throws {
         let fixture = try TestEnvironment(role: "CHILD")
@@ -132,4 +165,10 @@ struct PostCallQuestionTests {
     private func connectedOutgoing(id: String, questions: [String]) -> CallCenter.ActiveCall {
         .fixture(id: id, direction: .outgoing, phase: .active, questions: questions, connected: true)
     }
+}
+
+/// 시스템 CallKit 거래 없이 위임 메서드를 부를 때 쓰는 통화 종료 요청.
+private final class EndCallActionStub: CXEndCallAction {
+    override func fulfill() {}
+    override func fail() {}
 }
