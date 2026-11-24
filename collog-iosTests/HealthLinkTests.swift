@@ -196,6 +196,56 @@ struct HealthLinkTests {
         #expect(link.step == .linked(justConnected: false, lastSyncedDay: "2026-11-08", needsPermission: false))
     }
 
+    /// 실기(11-24): 권한 창을 거쳐 기록을 올린 휴대폰인데도 HealthKit 이 계속 「물어봐야 한다」고 답해
+    /// 시트를 열 때마다 「읽기를 허용하지 않아 보내지 못하고 있어요」가 떴다. 이 휴대폰이 기록을 올린 적이 있으면
+    /// 읽기가 되는 것이므로 그 안내를 띄우지 않는다.
+    @Test func phoneThatUploadedRecordsIsNotToldToAllowReadingAgain() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let source = FakeHealthSource()
+        source.authorizationNeeded = true
+        source.records = HealthRecords(stepsByDay: [day("2026-11-08"): 500])
+        let server = FakeHealthServer(version: version, connected: true)
+        fixture.respond = { request in try server.respond(request) }
+        let link = HealthLink(source: source, defaults: fixture.defaults, now: { seoulMorning })
+        await link.prepare(using: fixture.environment)
+        #expect(link.step == .linked(justConnected: false, lastSyncedDay: "2026-11-07", needsPermission: true))
+
+        await link.regrant(using: fixture.environment)
+        #expect(server.uploads.count == 1)
+
+        await link.prepare(using: fixture.environment)
+        #expect(link.step == .linked(justConnected: false, lastSyncedDay: "2026-11-08", needsPermission: false))
+
+        // 앱을 다시 켜도 같다
+        let relaunched = HealthLink(source: source, defaults: fixture.defaults, now: { seoulMorning })
+        await relaunched.prepare(using: fixture.environment)
+        #expect(relaunched.step == .linked(justConnected: false, lastSyncedDay: "2026-11-08", needsPermission: false))
+
+        // 연결을 끊으면 이 휴대폰의 흔적도 지운다(다른 휴대폰에서 다시 연결하면 여기서는 다시 묻는다)
+        await relaunched.disconnect(using: fixture.environment)
+        server.connected = true
+        server.lastSyncedDay = "2026-11-08"
+        await relaunched.prepare(using: fixture.environment)
+        #expect(relaunched.step == .linked(justConnected: false, lastSyncedDay: "2026-11-08", needsPermission: true))
+    }
+
+    /// 권한 창을 거쳤어도 올린 기록이 없으면(읽기를 허용하지 않았을 수 있다) HealthKit 의 답을 그대로 따른다.
+    @Test func phoneWithoutUploadsKeepsFollowingHealthKit() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let source = FakeHealthSource()
+        source.authorizationNeeded = true
+        let server = FakeHealthServer(version: version, connected: true)
+        fixture.respond = { request in try server.respond(request) }
+        let link = HealthLink(source: source, defaults: fixture.defaults, now: { seoulMorning })
+
+        await link.regrant(using: fixture.environment)
+        #expect(server.uploads.isEmpty)
+        await link.prepare(using: fixture.environment)
+        #expect(link.step == .linked(justConnected: false, lastSyncedDay: "2026-11-07", needsPermission: true))
+    }
+
     @Test func hintShowsOnceUntilDismissedAndOnlyWhereHealthIsAvailable() async throws {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }

@@ -51,9 +51,17 @@ struct CallTimelineCardView: View {
 
             DividerLine()
 
-            Text(entry.story)
-                .body_02_medium(.gray900)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: Spacing.x2) {
+                Text(entry.story)
+                    .body_02_medium(.gray900)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if let note = entry.analysisNote {
+                    Text(note)
+                        .caption_01_medium(.gray700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
 
             if !entry.keywords.isEmpty {
                 KeywordTimelineView(marks: entry.keywords)

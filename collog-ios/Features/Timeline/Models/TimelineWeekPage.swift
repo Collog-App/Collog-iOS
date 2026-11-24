@@ -17,6 +17,10 @@ struct TimelineWeekPage: Identifiable {
     var isLoaded = false
     var reportError: String?
     var timelineError: String?
+    /// 대상 가족이 나에게 리포트 공유를 껐다(서버 403). 오류가 아니라 볼 수 없는 항목으로 보인다.
+    var reportNotShared = false
+    /// 대상 가족이 나에게 타임라인 공유를 껐다(서버 403).
+    var timelineNotShared = false
 
     var id: Int { offset }
 

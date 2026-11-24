@@ -45,7 +45,11 @@ struct HomeView: View {
                 notificationButton
             } content: {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let summary = viewModel.healthSummary {
+                    // 아직 아무와도 연결되지 않았으면 빈 화면 대신 연결하는 법을 안내한다
+                    if let guide = environment.family.connectGuide(using: environment) {
+                        FamilyConnectGuideCardView(guide: guide, onChanged: refresh)
+                            .padding(.bottom, Spacing.x5)
+                    } else if let summary = viewModel.healthSummary {
                         HealthStatusCardView(summary: summary, isLoaded: viewModel.isLoaded) {
                             navigation.manager(for: .home).push(Route.familyHealthOverview)
                         }
@@ -55,6 +59,10 @@ struct HomeView: View {
                         ProgressView("통화 기록을 불러오고 있어요")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.x8)
+                    } else if viewModel.isReportNotShared {
+                        NotSharedStateView()
+                            .cardSurface()
+                            .padding(.bottom, Spacing.x5)
                     } else if let error = viewModel.loadError ?? viewModel.recentCallsError
                         ?? environment.family.loadError {
                         EmptyStateView(

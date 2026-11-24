@@ -48,6 +48,50 @@ struct AuthFlowTests {
         #expect(fixture.paths == ["/v1/families/family/members", "/v1/consents/me"])
     }
 
+    @Test func leavingTheFamilyAfterSigningInConnectedDoesNotReopenTheInvitationStep() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let model = AuthFlowViewModel()
+        fixture.environment.session.signOut()
+        await model.resolve(using: fixture.environment)
+        try signIn(fixture, role: "CHILD", familyId: "family")
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true { return (200, members(others: ["parent"])) }
+            return (200, fixture.consent(granted: false))
+        }
+        await model.resolve(using: fixture.environment)
+        #expect(model.step == .ready)
+        #expect(!model.offersInvitation)
+
+        // 가족에서 나가거나 삭제돼 혼자가 돼도 홈에 머문다(홈의 연결 안내가 대신한다)
+        try fixture.environment.session.leaveFamily()
+        await model.resolve(using: fixture.environment)
+        #expect(model.step == .ready)
+    }
+
+    @Test func unreadableFamilyAtSignInIsCheckedAgainLater() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let model = AuthFlowViewModel()
+        fixture.environment.session.signOut()
+        await model.resolve(using: fixture.environment)
+        try signIn(fixture, role: "CHILD", familyId: "family")
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true { return (503, "{}") }
+            return (200, fixture.consent(granted: false))
+        }
+        await model.resolve(using: fixture.environment)
+        #expect(model.step == .ready)
+        #expect(model.offersInvitation)
+
+        fixture.respond = { request in
+            if request.url?.path.hasSuffix("/members") == true { return (200, members(others: [])) }
+            return (200, fixture.consent(granted: false))
+        }
+        await model.resolve(using: fixture.environment)
+        #expect(model.step == .invitation)
+    }
+
     @Test func storedSessionWithoutFamilyIsNotForcedToEnterCode() async throws {
         let fixture = try TestEnvironment(familyId: nil)
         defer { fixture.cleanUp() }

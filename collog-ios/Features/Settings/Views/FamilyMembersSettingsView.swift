@@ -7,20 +7,55 @@
 
 import SwiftUI
 
-enum FamilyInvitationAccess {
-    /// 누구나 초대할 수 있다. 가족이 없으면 첫 초대 때 만든다.
-    static func canInvite(isGuest: Bool, hasFamily: Bool, serverAllowsInvitations: Bool) -> Bool {
-        !isGuest && (!hasFamily || serverAllowsInvitations)
+/// 구성원 줄에서 할 수 있는 삭제. 서버 규칙: 대기 중 초대는 구성원 누구나,
+/// 연결된 구성원은 가족을 만든 사람이나 본인(나가기)만 지운다.
+enum FamilyMemberRemoval: Equatable {
+    case invitation
+    case member
+    case leave
+
+    /// `canRemove`는 서버가 구성원마다 알려 준 값. 나 혼자뿐인 가족에서는 나가기를 보이지 않는다.
+    static func resolve(
+        isGuest: Bool, canRemove: Bool, memberUserId: String?, userId: String?, hasOtherConnectedMember: Bool
+    ) -> Self? {
+        guard !isGuest, canRemove else { return nil }
+        guard let memberUserId else { return .invitation }
+        guard memberUserId == userId else { return .member }
+        return hasOtherConnectedMember ? .leave : nil
     }
 
-    /// 서버는 다른 사람이 있는 가족에 이미 속해 있으면 초대 수락을 거절(409)하므로, 혼자일 때만 코드 입력을 보인다.
-    static func canEnterCode(isGuest: Bool, memberUserIds: [String?], userId: String?) -> Bool {
-        !isGuest && !memberUserIds.contains { $0 != nil && $0 != userId }
+    /// 초대 취소는 대기 중일 때만 지운다. 목록을 열어 둔 사이 수락한 가족을 내보내지 않게 한다.
+    var isPendingOnly: Bool { self == .invitation }
+
+    /// 삭제에 실패했을 때 보일 글. 이미 지워진 줄(404)은 바라던 대로라 알리지 않는다.
+    static func failureText(for error: Error) -> String? {
+        (error as? APIError)?.isNotFound == true ? nil : error.localizedDescription
+    }
+
+    var actionTitle: String { self == .leave ? "가족에서 나가기" : "삭제" }
+
+    var confirmTitle: String { self == .leave ? "나가기" : "삭제" }
+
+    func confirmationTitle(name: String) -> String {
+        switch self {
+        case .invitation: "\(name)님에게 보낸 초대를 삭제할까요?"
+        case .member: "\(name)님을 가족에서 삭제할까요?"
+        case .leave: "가족에서 나갈까요?"
+        }
+    }
+
+    var confirmationMessage: String {
+        switch self {
+        case .invitation: "보낸 초대 코드는 더 이상 쓸 수 없어요."
+        case .member: "서로 전화하거나 기록을 볼 수 없게 돼요. 다시 함께하려면 새로 초대해야 해요."
+        case .leave: "가족과 서로 전화하거나 기록을 볼 수 없게 돼요. 다시 함께하려면 새로 초대받아야 해요."
+        }
     }
 }
 
 struct FamilyMembersSettingsView: View {
     @Environment(AppEnvironment.self) private var environment
+    @Environment(CallCenter.self) private var callCenter
 
     @State private var members: [ManagedFamilyMember] = []
     @State private var isLoading = true
@@ -30,6 +65,8 @@ struct FamilyMembersSettingsView: View {
     @State private var serverAllowsInvitations = false
     @State private var showsInvitationCode = false
     @State private var families: [FamilySummary] = []
+    @State private var removalRequest: RemovalRequest?
+    @State private var isRemoving = false
 
     private var canInvite: Bool {
         FamilyInvitationAccess.canInvite(
@@ -143,6 +180,19 @@ struct FamilyMembersSettingsView: View {
             .environment(environment)
             .presentationDetents([.medium])
         }
+        .alert(
+            removalRequest.map { $0.kind.confirmationTitle(name: $0.member.name) } ?? "",
+            isPresented: Binding(
+                get: { removalRequest != nil },
+                set: { if !$0 { removalRequest = nil } }
+            ),
+            presenting: removalRequest
+        ) { request in
+            Button("취소", role: .cancel) {}
+            Button(request.kind.confirmTitle, role: .destructive) { Task { await remove(request) } }
+        } message: { request in
+            Text(request.kind.confirmationMessage)
+        }
     }
 
     private var loadingRows: some View {
@@ -173,6 +223,19 @@ struct FamilyMembersSettingsView: View {
                 Button { selectedInvitation = invitation } label: {
                     Text("초대 보기").body_03_medium(.greenDark)
                 }
+            }
+            if let removal = removal(for: member) {
+                Menu {
+                    Button(removal.actionTitle, role: .destructive) {
+                        removalRequest = RemovalRequest(member: member, kind: removal)
+                    }
+                } label: {
+                    Icon(name: "ellipsis", size: 20, color: .gray700)
+                        .frame(width: 28, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("\(member.name) 더 보기")
+                .disabled(isRemoving || callCenter.hasCallInProgress)
             }
         }
         .padding(.horizontal, Spacing.x4)
@@ -208,7 +271,18 @@ struct FamilyMembersSettingsView: View {
                 members = []
                 return
             }
-            let remote = try await environment.api.familyMembers(familyId: familyId)
+            let remote: FamilyMembersResponse
+            do {
+                remote = try await environment.api.familyMembers(familyId: familyId)
+            } catch let error as APIError where error.isForbidden {
+                // 내가 나갔거나 구성원에서 삭제되어 서버가 이 가족을 막으면 가족 없음으로 되돌린다
+                guard environment.session.user?.id == userId,
+                      try environment.session.dropRevokedFamily(familyId, available: available) else { throw error }
+                environment.family.reset()
+                await environment.family.refresh(using: environment)
+                members = []
+                return
+            }
             guard environment.session.user?.id == userId, environment.session.familyId == familyId else { return }
             members = remote.members.map(ManagedFamilyMember.init(member:))
             serverAllowsInvitations = remote.canInvite ?? true
@@ -216,6 +290,37 @@ struct FamilyMembersSettingsView: View {
             guard environment.session.user?.id == userId else { return }
             errorText = error.localizedDescription
         }
+    }
+
+    private func removal(for member: ManagedFamilyMember) -> FamilyMemberRemoval? {
+        let userId = environment.session.user?.id
+        return .resolve(
+            isGuest: environment.settings.isGuestMode,
+            canRemove: member.canRemove,
+            memberUserId: member.userId,
+            userId: userId,
+            hasOtherConnectedMember: members.contains { $0.userId != nil && $0.userId != userId }
+        )
+    }
+
+    private func remove(_ request: RemovalRequest) async {
+        guard !isRemoving, !callCenter.hasCallInProgress,
+              let familyId = environment.session.familyId else { return }
+        isRemoving = true
+        defer { isRemoving = false }
+        var failureText: String?
+        do {
+            try await environment.api.removeFamilyMember(
+                familyId: familyId, memberId: request.member.id, pendingOnly: request.kind.isPendingOnly
+            )
+            Haptics.commit()
+        } catch {
+            failureText = FamilyMemberRemoval.failureText(for: error)
+        }
+        // 실패해도 목록이 달라졌을 수 있다(그사이 수락한 초대 409, 이미 지워진 줄 404). 다시 읽고 서버가 알려 준 이유를 보인다
+        await load()
+        await environment.family.refresh(using: environment)
+        if let failureText { errorText = failureText }
     }
 
     private func selectFamily(_ familyId: String) async {
@@ -240,6 +345,7 @@ private struct ManagedFamilyMember: Identifiable {
     let relation: String
     let isConnected: Bool
     let invitation: FamilyInvitation?
+    let canRemove: Bool
 
     init(contact: FamilyContact) {
         id = contact.id
@@ -248,6 +354,7 @@ private struct ManagedFamilyMember: Identifiable {
         relation = contact.relation
         isConnected = true
         invitation = nil
+        canRemove = false
     }
 
     init(member: FamilyMember) {
@@ -257,6 +364,8 @@ private struct ManagedFamilyMember: Identifiable {
         relation = member.relation
         isConnected = member.userId != nil
         invitation = member.invitation
+        // 예전 서버처럼 알려 주지 않으면 일단 보이고, 권한이 없으면 서버가 거절한 이유를 보인다
+        canRemove = member.canRemove ?? true
     }
 
     var relationTitle: String {
@@ -264,10 +373,17 @@ private struct ManagedFamilyMember: Identifiable {
     }
 }
 
+private struct RemovalRequest {
+    let member: ManagedFamilyMember
+    let kind: FamilyMemberRemoval
+}
+
 
 #Preview {
+    let environment = AppEnvironment()
     NavigationStack {
         FamilyMembersSettingsView()
-            .environment(AppEnvironment())
+            .environment(environment)
+            .environment(CallCenter(environment: environment))
     }
 }

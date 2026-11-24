@@ -32,9 +32,16 @@ struct AnalysisEmptyActionTests {
         #expect(resolve(calls: [call(state: state, recorded: true)]) == .processing)
     }
 
-    @Test(arguments: ["ANALYZED", "ANALYSIS_EXCLUDED", "ANALYSIS_FAILED", "ACTIVE"])
+    @Test(arguments: ["ANALYZED", "ACTIVE"])
     func terminalAndActiveCallsDoNotClaimAnalysisIsPending(state: String) {
         #expect(resolve(calls: [call(state: state, recorded: true)]) == .call)
+    }
+
+    // 가장 최근에 이어진 통화가 분석에서 빠졌거나 실패했으면 「데이터 없음」 대신 그 사유를 알린다
+    @Test
+    func latestConnectedCallExplainsExclusionOrFailure() {
+        #expect(resolve(calls: [call(state: "ANALYSIS_EXCLUDED", recorded: true)]) == .excluded)
+        #expect(resolve(calls: [call(state: "ANALYSIS_FAILED", recorded: true)]) == .failed)
     }
 
     @Test

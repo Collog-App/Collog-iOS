@@ -14,7 +14,7 @@ final class CallAnalysisViewModel {
         /// 통화가 끝나지 않았거나 분석 중이다.
         case pending
         /// 분석에서 빠졌거나(ANALYSIS_EXCLUDED) 분석하지 못한(ANALYSIS_FAILED) 통화.
-        case unavailable(title: String, message: String?, safetyNotice: String?)
+        case unavailable(title: String, message: String?, safetyNotice: String?, summary: String?)
         case error(String)
         case ready(CallTimelineEntry)
     }
@@ -41,15 +41,16 @@ final class CallAnalysisViewModel {
         case "ANALYZED":
             break
         case "ANALYSIS_EXCLUDED":
-            // 짧아서 제외된 통화도 응급 표현이 있으면 서버가 안내를 남긴다. 없거나(404) 실패하면 조용히 넘긴다.
+            // 짧아서 제외된 통화도 요약이나 응급 안내는 서버가 남길 수 있다. 없거나(404) 실패하면 조용히 넘긴다.
             let extraction = try? await api.extraction(callId: callId)
             return .unavailable(
                 title: "분석 대상에서 제외된 통화예요.",
                 message: "동의가 없거나 대화가 짧은 통화는 분석하지 않아요.",
-                safetyNotice: SafetyNotice.text(extraction?.safetyNotice)
+                safetyNotice: SafetyNotice.text(extraction?.safetyNotice),
+                summary: CallTimelineEntry.summaryText(extraction?.summary)
             )
         case "ANALYSIS_FAILED":
-            return .unavailable(title: "통화를 분석하지 못했어요.", message: nil, safetyNotice: nil)
+            return .unavailable(title: "통화를 분석하지 못했어요.", message: nil, safetyNotice: nil, summary: nil)
         default:
             return .pending
         }
@@ -67,6 +68,7 @@ final class CallAnalysisViewModel {
             extraction: extraction,
             transcript: transcript
         )
-        return .ready(CallTimelineEntry(bundle: bundle, baselines: baselines))
+        // 통화 요약은 화면 맨 위에 따로 보이므로 카드 글에는 넣지 않는다
+        return .ready(CallTimelineEntry(bundle: bundle, baselines: baselines, summaryInStory: false))
     }
 }

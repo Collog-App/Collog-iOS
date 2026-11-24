@@ -18,6 +18,10 @@ struct CallTimelineEntry: Identifiable {
     let counts: [CallStat]
     /// 응급 안내(11-08 가드레일). 서버가 고정 문구로 남겼을 때만.
     var safetyNotice: String? = nil
+    /// 통화 요약. 통화 분석 화면이 맨 위에 따로 보인다(타임라인 카드는 `story` 첫머리에 넣는다).
+    var summary: String? = nil
+    /// 카드 글 아래에 흐리게 붙는 한 줄(목소리 분석에서 빠진 통화).
+    var analysisNote: String? = nil
 }
 
 extension CallTimelineEntry {

@@ -23,6 +23,8 @@ final class TimelineViewModel {
     @ObservationIgnored private var choseSelf = false
 
     static let selfSubjectId = "self"
+    /// 한 주에 불러오는 통화 카드 수.
+    static let weeklyEntryLimit = 5
 
     var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
@@ -96,12 +98,44 @@ final class TimelineViewModel {
             await load(
                 offset,
                 parentId: context.parentId,
+                userId: context.userId,
                 api: context.api,
                 baselines: context.baselines,
                 generation: generation,
                 forceReload: forceReload
             )
         }
+    }
+
+    /// 앱으로 돌아왔을 때: 그사이 가족이 공유를 껐거나 다시 켰으면 불러 둔 주를 모두 버리고 다시 읽는다.
+    /// 바뀌지 않았으면 화면을 건드리지 않게, 지금 주의 리포트와 통화 목록이 열리는지만 조용히 묻는다.
+    func revalidateSharing(using environment: AppEnvironment) async {
+        guard !environment.settings.isGuestMode, !isSelfSelected,
+              let parentId = selectedContact(using: environment)?.userId,
+              let page = pages[weekOffset], page.isLoaded else { return }
+        let generation = contentGeneration
+        let api = environment.api
+        let bounds = TimelineWeekPage.bounds(offset: weekOffset)
+
+        let report = await APIError.accessCheck {
+            try await api.report(parentId: parentId, date: APIFormat.isoDate.string(from: bounds.anchor))
+        }
+        let calls = await APIError.accessCheck {
+            try await api.calls(
+                parentId: parentId,
+                from: APIFormat.isoDate.string(from: bounds.start),
+                to: APIFormat.isoDate.string(from: bounds.end)
+            )
+        }
+        guard generation == contentGeneration else { return }
+        let reportChanged = report.map { $0.denied != page.reportNotShared } ?? false
+        let timelineChanged = calls.map { $0.denied != page.timelineNotShared } ?? false
+        guard reportChanged || timelineChanged else { return }
+
+        pages.removeAll()
+        loading.removeAll()
+        contentGeneration += 1
+        await refresh(using: environment)
     }
 
     func loadPage(_ offset: Int, using environment: AppEnvironment, forceReload: Bool = false) async {
@@ -128,6 +162,7 @@ final class TimelineViewModel {
         await load(
             offset,
             parentId: context.parentId,
+            userId: context.userId,
             api: context.api,
             baselines: context.baselines,
             generation: generation,
@@ -152,8 +187,9 @@ final class TimelineViewModel {
 
     private func loadContext(
         using environment: AppEnvironment
-    ) async -> (parentId: String, api: CollogAPI, baselines: [String: BaselineDTO])? {
+    ) async -> (parentId: String, userId: String?, api: CollogAPI, baselines: [String: BaselineDTO])? {
         guard let parentId = selectedContact(using: environment)?.userId else { return nil }
+        let userId = environment.session.user?.id
         let api = environment.api
 
         let baselines: [String: BaselineDTO]
@@ -167,7 +203,7 @@ final class TimelineViewModel {
             baselines = loaded
         }
 
-        return (parentId, api, baselines)
+        return (parentId, userId, api, baselines)
     }
 
     private func resolveSelection(using environment: AppEnvironment) {
@@ -202,6 +238,7 @@ final class TimelineViewModel {
     private func load(
         _ offset: Int,
         parentId: String,
+        userId: String?,
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         generation: Int,
@@ -221,6 +258,8 @@ final class TimelineViewModel {
         var page = pages[offset] ?? TimelineWeekPage(offset: offset)
         page.reportError = nil
         page.timelineError = nil
+        page.reportNotShared = false
+        page.timelineNotShared = false
         page.isLoaded = false
         pages[offset] = page
 
@@ -235,6 +274,10 @@ final class TimelineViewModel {
                 .flatMap { TrendSeries(trend: $0, baseline: baselines["SPEECH_RATE"]) }
 
             page.report = WeeklyReport(dto: dto, trend: trend)
+        } catch let error as APIError where error.isForbidden {
+            // 공유를 끈 가족의 리포트는 오류가 아니다
+            page.report = .empty
+            page.reportNotShared = true
         } catch {
             page.reportError = error.localizedDescription
         }
@@ -242,12 +285,17 @@ final class TimelineViewModel {
         do {
             let content = try await entries(
                 parentId: parentId,
+                userId: userId,
                 api: api,
                 baselines: baselines,
                 bounds: bounds
             )
             page.calls = content.calls
             page.entries = content.entries
+        } catch let error as APIError where error.isForbidden {
+            page.calls = []
+            page.entries = []
+            page.timelineNotShared = true
         } catch {
             page.timelineError = error.localizedDescription
         }
@@ -280,6 +328,7 @@ final class TimelineViewModel {
 
     private func entries(
         parentId: String,
+        userId: String?,
         api: CollogAPI,
         baselines: [String: BaselineDTO],
         bounds: (anchor: Date, start: Date, end: Date)
@@ -289,11 +338,24 @@ final class TimelineViewModel {
             from: APIFormat.isoDate.string(from: bounds.start),
             to: APIFormat.isoDate.string(from: bounds.end)
         )
-        let analyzed = calls.filter(\.isAnalyzed).prefix(5)
-        guard !analyzed.isEmpty else { return (calls, []) }
+        // 분석된 통화, 그리고 말씀이 짧아 분석에서 빠졌지만 녹음돼 요약이 있을 수 있는 통화.
+        // 요약은 통화에 참여한 사람에게만 열려, 내가 참여하지 않은 통화는 묻지 않는다.
+        let candidates = calls.filter {
+            $0.isAnalyzed || ($0.isAnalysisExcluded && $0.recorded && $0.involves(userId))
+        }
+        let summaries = await excludedSummaries(in: candidates, api: api)
 
         var result: [CallTimelineEntry] = []
-        for call in analyzed {
+        for call in candidates {
+            if result.count == Self.weeklyEntryLimit { break }
+            guard call.isAnalyzed else {
+                // 분석에서 빠진 통화는 요약이 있을 때만 보인다. 음성 수치는 없어 부르지 않는다
+                if let extraction = summaries[call.callId] {
+                    let bundle = CallAnalysisBundle(call: call, features: nil, extraction: extraction, transcript: nil)
+                    result.append(CallTimelineEntry(bundle: bundle, baselines: baselines))
+                }
+                continue
+            }
             async let features = try? api.acousticFeatures(callId: call.callId)
             async let extraction = try? api.extraction(callId: call.callId)
             async let transcript = try? api.transcript(callId: call.callId)
@@ -308,5 +370,33 @@ final class TimelineViewModel {
         }
 
         return (calls, result)
+    }
+
+    /// 분석에서 빠진 통화의 요약을 한꺼번에 묻는다. 카드가 될 수 있는 자리(앞선 분석된 통화가 다섯 건 미만)의
+    /// 통화만, 한 주에 다섯 건까지 확인한다. 요약이 있는 통화만 돌려준다.
+    private func excludedSummaries(in candidates: [CallSummaryDTO], api: CollogAPI) async -> [String: ExtractionDTO] {
+        var analyzedAhead = 0
+        var lookups: [String] = []
+        for call in candidates {
+            if call.isAnalyzed {
+                analyzedAhead += 1
+                if analyzedAhead == Self.weeklyEntryLimit { break }
+            } else if lookups.count < Self.weeklyEntryLimit {
+                lookups.append(call.callId)
+            }
+        }
+        guard !lookups.isEmpty else { return [:] }
+
+        // 요청을 모두 띄워 놓고 결과를 모은다(하나씩 기다리지 않는다)
+        let requests = lookups.map { callId in
+            Task { try? await api.extraction(callId: callId) }
+        }
+        var found: [String: ExtractionDTO] = [:]
+        for (callId, request) in zip(lookups, requests) {
+            if let extraction = await request.value, CallTimelineEntry.summaryText(extraction.summary) != nil {
+                found[callId] = extraction
+            }
+        }
+        return found
     }
 }

@@ -94,6 +94,18 @@ struct CollogAPI {
         )
     }
 
+    /// 대기 중 초대는 구성원 누구나, 연결된 구성원은 가족을 만든 사람이나 본인(나가기)만 지울 수 있다(204).
+    /// `pendingOnly`는 「초대 취소」: 그사이 상대가 수락했으면 서버가 연결된 가족을 내보내지 않고 409 로 알린다.
+    func removeFamilyMember(familyId: String, memberId: String, pendingOnly: Bool = false) async throws {
+        try await client.sendRaw(
+            APIEndpoint(
+                path: "/v1/families/\(familyId)/members/\(memberId)",
+                method: .delete,
+                query: pendingOnly ? [URLQueryItem(name: "pendingOnly", value: "true")] : []
+            )
+        )
+    }
+
     func dailyQuestions(parentId: String) async throws -> [APIQuestion] {
         let response: DailyQuestionsResponse = try await client.send(
             APIEndpoint(path: "/v1/parents/\(parentId)/daily-questions")
@@ -267,6 +279,23 @@ struct CollogAPI {
         try await client.send(
             APIEndpoint(path: "/v1/account/role", method: .patch, body: AccountRoleBody(role: role.rawValue))
         )
+    }
+
+    /// 내 리포트·타임라인을 가족 구성원마다 보일지. 정한 적이 없으면 모두 보인다.
+    func sharing() async throws -> [FamilyShare] {
+        let response: SharingResponse = try await client.send(APIEndpoint(path: "/v1/account/sharing"))
+        return response.shares
+    }
+
+    /// 보낸 줄만 바꾸고 전체 목록을 돌려받는다.
+    func updateSharing(_ shares: [FamilyShare]) async throws -> [FamilyShare] {
+        let body = SharingUpdateBody(shares: shares.map {
+            SharingUpdateBody.Share(viewerUserId: $0.viewerUserId, report: $0.report, timeline: $0.timeline)
+        })
+        let response: SharingResponse = try await client.send(
+            APIEndpoint(path: "/v1/account/sharing", method: .put, body: body)
+        )
+        return response.shares
     }
 
     func deleteAccount(authorization: AppleDeletionBody? = nil) async throws {

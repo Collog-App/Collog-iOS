@@ -70,9 +70,19 @@ struct CallSummaryDTO: Decodable, Identifiable {
     let durationSec: Int?
     let recorded: Bool
     let parentSpeechSec: Int?
+    /// 통화의 다른 한쪽. 서버가 보내지 않으면 nil.
+    var childId: String? = nil
 
     var id: String { callId }
     var isAnalyzed: Bool { state == "ANALYZED" }
+    /// 받는 분 말씀이 짧거나 녹음하지 않아 목소리·건강 분석에서 빠진 통화.
+    var isAnalysisExcluded: Bool { state == "ANALYSIS_EXCLUDED" }
+
+    /// 그 사람이 이 통화의 한쪽인지. 통화별 분석 결과는 참여한 두 사람에게만 열린다(다른 가족의 통화는 403).
+    func involves(_ userId: String?) -> Bool {
+        guard let userId else { return false }
+        return parentId == userId || childId == userId
+    }
 }
 
 struct CallsResponse: Decodable {
@@ -188,6 +198,8 @@ struct ExtractionDTO: Decodable {
     let sleep: String?
     /// 통화 중 응급 표현이 있었을 때의 고정 안내 문구. 없거나 서버가 아직 보내지 않으면 nil.
     var safetyNotice: String? = nil
+    /// 통화에서 나눈 이야기를 한두 문장으로 줄인 요약. 분석에서 빠진 통화(`EXCLUDED`)에도 있을 수 있다.
+    var summary: String? = nil
 }
 
 struct RepeatEventDTO: Decodable {

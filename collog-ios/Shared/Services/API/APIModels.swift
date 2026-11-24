@@ -76,6 +76,8 @@ struct FamilyMember: Decodable, Identifiable, Hashable {
     var id: String { memberId }
     let role: String?
     let invitation: FamilyInvitation?
+    /// 내가 이 구성원(또는 대기 중 초대)을 지울 수 있는지. 서버가 보내지 않으면 nil.
+    var canRemove: Bool? = nil
     var isCallable: Bool { userId != nil }
 
     var relationTitle: String {
@@ -240,6 +242,34 @@ struct InvitationCreateBody: Encodable {
 
 struct InvitationAcceptBody: Encodable {
     let code: String
+}
+
+// MARK: - 가족별 공유 범위
+
+/// `GET/PUT /v1/account/sharing` 한 줄: 내 리포트·타임라인을 이 가족 구성원에게 보일지.
+struct FamilyShare: Decodable, Identifiable, Equatable {
+    let viewerUserId: String
+    let viewerName: String
+    /// 가족을 만든 사람은 비어 있다.
+    let relation: String?
+    var report: Bool
+    var timeline: Bool
+
+    var id: String { viewerUserId }
+}
+
+struct SharingResponse: Decodable {
+    let shares: [FamilyShare]
+}
+
+struct SharingUpdateBody: Encodable {
+    struct Share: Encodable {
+        let viewerUserId: String
+        let report: Bool
+        let timeline: Bool
+    }
+
+    let shares: [Share]
 }
 
 // 오늘 할 일 (개인용, 가족과 공유하지 않는다)

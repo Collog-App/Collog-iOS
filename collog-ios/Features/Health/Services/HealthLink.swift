@@ -146,7 +146,7 @@ final class HealthLink {
                 step = .linked(
                     justConnected: false,
                     lastSyncedDay: link.lastSyncedDay,
-                    needsPermission: await source.needsAuthorization()
+                    needsPermission: await needsPermission(using: environment)
                 )
             } else if let document = link.document {
                 step = .consent(document, notice: nil)
@@ -154,6 +154,13 @@ final class HealthLink {
                 step = .failed("동의 문서를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.")
             }
         }
+    }
+
+    /// 이 휴대폰이 기록을 올린 적이 있으면 읽기가 되는 것이므로 「읽기 허용」 안내를 띄우지 않는다.
+    /// 권한 창을 거쳐 기록을 올린 뒤에도 HealthKit 이 「물어봐야 한다」고 답하는 휴대폰이 있었다(2026-11-24 실기).
+    private func needsPermission(using environment: AppEnvironment) async -> Bool {
+        if let userId = userId(environment), defaults.bool(forKey: Self.uploadedKey(userId)) { return false }
+        return await source.needsAuthorization()
     }
 
     /// 「동의하고 연결」: 권한 창이 오류 없이 닫히면 동의를 서버에 남기고 바로 동기화한다.
@@ -222,6 +229,7 @@ final class HealthLink {
             return
         }
         defaults.removeObject(forKey: Self.syncKey(userId))
+        defaults.removeObject(forKey: Self.uploadedKey(userId))
         var link = currentLink(userId) ?? HealthLinkStatusDTO()
         link.connected = false
         link.lastSyncedDay = nil
@@ -276,6 +284,7 @@ final class HealthLink {
                 setStatus(.loaded(link), for: userId)
             }
             defaults.set(today, forKey: Self.syncKey(userId))
+            defaults.set(true, forKey: Self.uploadedKey(userId))
             revision += 1
         } catch {
             guard environment.session.user?.id == userId else { return }
@@ -314,6 +323,8 @@ final class HealthLink {
 
     private static func syncKey(_ userId: String) -> String { "health.lastSyncDay.\(userId)" }
     private static func hintKey(_ userId: String) -> String { "health.hintDismissed.\(userId)" }
+    /// 이 휴대폰에서 이 계정의 기록을 올린 적이 있다(읽기가 된다는 증거).
+    private static func uploadedKey(_ userId: String) -> String { "health.uploadedHere.\(userId)" }
 
     /// 서버에 아직 이 API 가 없을 때(경로 없음·메서드 없음·미구현).
     private static func isUnsupported(_ error: Error) -> Bool {

@@ -17,6 +17,9 @@ struct InvitationAcceptView: View {
     var showsAccountActions = true
     var onSkip: (() -> Void)?
 
+    /// 받은 코드로 들어가면 서버가 혼자뿐인 내 가족을 정리해, 수락되지 않은 내 초대(만료 포함)도 함께 사라진다.
+    static let sentInvitationNote = "초대 코드를 입력하면 내가 보낸 초대는 취소돼요."
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Spacing.x6) {
@@ -35,6 +38,12 @@ struct InvitationAcceptView: View {
                     .padding(.horizontal, Spacing.x4)
                     .frame(height: 52)
                     .background(Color.gray00, in: RoundedRectangle(cornerRadius: Radius.btnSmall))
+
+                if environment.family.connectGuide(using: environment)?.hasSentInvitation == true {
+                    Text(Self.sentInvitationNote)
+                        .caption_01_medium(.gray700)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 if let errorMessage {
                     Text(errorMessage)
@@ -78,6 +87,11 @@ struct InvitationAcceptView: View {
             .padding(.vertical, Spacing.x8)
         }
         .background(Color.gray50.ignoresSafeArea())
+        // 어느 길로 열어도 내가 보낸 초대가 있는지 지금 상태로 본다(로그인 직후에는 아직 읽은 적이 없다).
+        // 화면을 닫아도 끝까지 읽는다: 도중에 취소되면 가족 목록에 취소 오류가 남는다.
+        .onAppear {
+            Task { await environment.family.refresh(using: environment) }
+        }
     }
 
     private func accept() async {

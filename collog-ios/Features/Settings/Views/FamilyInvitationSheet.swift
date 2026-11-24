@@ -7,12 +7,21 @@
 
 import SwiftUI
 
+enum FamilyInvitationForm {
+    static let relationPlaceholder = "관계를 선택해주세요"
+
+    /// 관계는 미리 골라 두지 않는다(그대로 넘어가면 모두 어머니로 초대됐다). 이름과 관계를 정해야 만들 수 있다.
+    static func canCreate(name: String, relation: String?, isSubmitting: Bool) -> Bool {
+        !name.isEmpty && relation != nil && !isSubmitting
+    }
+}
+
 struct FamilyInvitationSheet: View {
     @Environment(AppEnvironment.self) private var environment
     @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
-    @State private var relation = "MOTHER"
+    @State private var relation: String?
     @State private var invitationCode: String?
     @State private var shareText: String?
     @State private var isSubmitting = false
@@ -71,13 +80,30 @@ struct FamilyInvitationSheet: View {
 
                 Spacer(minLength: Spacing.x3)
 
-                Picker("관계", selection: $relation) {
+                Menu {
                     ForEach(FamilyRelation.invitationOptions, id: \.self) { option in
-                        Text(FamilyRelation.title(option) ?? "").tag(option)
+                        Button {
+                            relation = option
+                        } label: {
+                            if option == relation {
+                                Label(FamilyRelation.title(option) ?? "", systemImage: "checkmark")
+                            } else {
+                                Text(FamilyRelation.title(option) ?? "")
+                            }
+                        }
+                    }
+                } label: {
+                    HStack(spacing: Spacing.x1) {
+                        Text(relation.flatMap(FamilyRelation.title) ?? FamilyInvitationForm.relationPlaceholder)
+                            .body_02_medium(relation == nil ? .gray700 : .greenDark)
+
+                        Icon(
+                            name: "chevron.up.chevron.down",
+                            size: 14,
+                            color: relation == nil ? .gray700 : .greenDark
+                        )
                     }
                 }
-                .pickerStyle(.menu)
-                .tint(Color.greenDark)
             }
             .padding(.horizontal, Spacing.x4)
             .frame(height: 52)
@@ -91,12 +117,12 @@ struct FamilyInvitationSheet: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
                     .background(
-                        name.isEmpty || isSubmitting ? Color.gray500 : Color.greenNormal,
+                        canCreate ? Color.greenNormal : Color.gray500,
                         in: RoundedRectangle(cornerRadius: Radius.btnSmall)
                     )
             }
             .buttonStyle(.plain)
-            .disabled(name.isEmpty || isSubmitting)
+            .disabled(!canCreate)
         }
     }
 
@@ -120,7 +146,12 @@ struct FamilyInvitationSheet: View {
         .cardSurface()
     }
 
+    private var canCreate: Bool {
+        FamilyInvitationForm.canCreate(name: name, relation: relation, isSubmitting: isSubmitting)
+    }
+
     private func createInvitation() async {
+        guard let relation else { return }
         isSubmitting = true
         errorText = nil
         defer { isSubmitting = false }

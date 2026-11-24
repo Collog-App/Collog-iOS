@@ -92,7 +92,7 @@ struct SafetyNoticeTests {
         let model = CallAnalysisViewModel(callId: "c1")
         await model.load(using: fixture.environment)
 
-        guard case let .unavailable(title, _, safetyNotice) = model.state else {
+        guard case let .unavailable(title, _, safetyNotice, _) = model.state else {
             Issue.record("unexpected state \(model.state)")
             return
         }
@@ -109,7 +109,7 @@ struct SafetyNoticeTests {
         let model = CallAnalysisViewModel(callId: "c1")
         await model.load(using: fixture.environment)
 
-        guard case let .unavailable(title, _, safetyNotice) = model.state else {
+        guard case let .unavailable(title, _, safetyNotice, _) = model.state else {
             Issue.record("unexpected state \(model.state)")
             return
         }
@@ -126,7 +126,7 @@ struct SafetyNoticeTests {
         let model = CallAnalysisViewModel(callId: "c1")
         await model.load(using: fixture.environment)
 
-        guard case let .unavailable(title, _, safetyNotice) = model.state else {
+        guard case let .unavailable(title, _, safetyNotice, _) = model.state else {
             Issue.record("unexpected state \(model.state)")
             return
         }
