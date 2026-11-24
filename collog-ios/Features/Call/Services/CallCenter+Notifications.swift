@@ -154,9 +154,7 @@ extension CallCenter: @MainActor PKPushRegistryDelegate {
             try prepareCallAudio()
         } catch {
             log("수신 오디오 준비 실패: \(error.localizedDescription)")
-            environment.usage.record(
-                .callConnectFailed, code: CallConnectFailure.other.rawValue, callId: callId, using: environment
-            )
+            environment.usage.record(.callConnectFailed(.other, callId: callId), using: environment)
             reportAndImmediatelyEnd(uuid: uuid, completion: response)
             declineIncomingCall(callId)
             return
@@ -195,7 +193,7 @@ extension CallCenter: @MainActor PKPushRegistryDelegate {
                     self?.incomingCallReported = true
                     self?.log("수신 통화 표시: \(callerName)")
                     if let environment = self?.environment {
-                        environment.usage.record(.incomingCallShown, callId: callId, using: environment)
+                        environment.usage.record(.incomingCallShown(callId: callId), using: environment)
                     }
                     self?.monitorCall(callId)
                 }

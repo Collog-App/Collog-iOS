@@ -74,21 +74,18 @@ final class TimelineViewModel {
     func recordReportEntry(using environment: AppEnvironment) {
         guard selectedTabIndex == 0, !recordedReportEntry else { return }
         recordedReportEntry = true
-        recordReportView(fromNotification: environment.takeReportNotificationEntry(), using: environment)
+        recordReportView(environment.takeReportNotificationEntry() ? .notification : .direct, using: environment)
     }
 
     /// 이용 기록 `report_view`: 리포트에서 보는 사람을 바꿨을 때.
     func recordReportSubjectChange(using environment: AppEnvironment) {
         guard selectedTabIndex == 0 else { return }
-        recordReportView(fromNotification: false, using: environment)
+        recordReportView(.direct, using: environment)
     }
 
-    private func recordReportView(fromNotification: Bool, using environment: AppEnvironment) {
+    private func recordReportView(_ source: UsageEventLog.ReportSource, using environment: AppEnvironment) {
         environment.usage.record(
-            .reportView,
-            code: fromNotification ? "NOTIFICATION" : "DIRECT",
-            subjectId: selectedContact(using: environment)?.userId,
-            using: environment
+            .reportView(source, subjectId: selectedContact(using: environment)?.userId), using: environment
         )
     }
 

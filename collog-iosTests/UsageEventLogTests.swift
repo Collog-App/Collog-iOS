@@ -20,7 +20,7 @@ struct UsageEventLogTests {
         fixture.respond = { request in try server.respond(request) }
         let usage = fixture.environment.usage
 
-        usage.record(.reportView, code: "DIRECT", subjectId: "mom", using: fixture.environment)
+        usage.record(.reportView(.direct, subjectId: "mom"), using: fixture.environment)
         let event = try #require(usage.pendingEvents.first)
         #expect(event.name == "report_view")
         #expect(event.platform == "IOS")
@@ -54,7 +54,7 @@ struct UsageEventLogTests {
         fixture.respond = { request in try server.respond(request) }
         let usage = fixture.environment.usage
         usage.appDidBecomeActive(using: fixture.environment)
-        usage.record(.incomingCallShown, callId: "call", using: fixture.environment)
+        usage.record(.incomingCallShown(callId: "call"), using: fixture.environment)
 
         await usage.flush(using: fixture.environment)
         let events = try #require(server.requests.first?.events)
@@ -127,7 +127,7 @@ struct UsageEventLogTests {
         defer { fixture.cleanUp() }
         let usage = fixture.environment.usage
         for index in 0..<205 {
-            usage.record(.incomingCallShown, callId: "call-\(index)", using: fixture.environment)
+            usage.record(.incomingCallShown(callId: "call-\(index)"), using: fixture.environment)
         }
         #expect(usage.pendingEvents.count == UsageEventLog.capacity)
         #expect(usage.pendingEvents.first?.callId == "call-5")
@@ -141,7 +141,7 @@ struct UsageEventLogTests {
         fixture.respond = { request in try server.respond(request) }
         let usage = fixture.environment.usage
         for index in 0..<120 {
-            usage.record(.incomingCallShown, callId: "call-\(index)", using: fixture.environment)
+            usage.record(.incomingCallShown(callId: "call-\(index)"), using: fixture.environment)
         }
 
         await usage.flush(using: fixture.environment)
@@ -168,7 +168,7 @@ struct UsageEventLogTests {
         fixture.environment.settings.isGuestMode = true
         let usage = fixture.environment.usage
 
-        usage.record(.reportView, code: "DIRECT", using: fixture.environment)
+        usage.record(.reportView(.direct, subjectId: nil), using: fixture.environment)
         usage.appDidBecomeActive(using: fixture.environment)
         usage.recordOnboardingStep(from: .launching, to: .login, using: fixture.environment)
         usage.recordOnboardingStep(from: .login, to: .ready, using: fixture.environment)
@@ -184,10 +184,10 @@ struct UsageEventLogTests {
         let server = EventServer()
         fixture.respond = { request in try server.respond(request) }
         let usage = fixture.environment.usage
-        usage.record(.incomingCallShown, callId: "mine", using: fixture.environment)
+        usage.record(.incomingCallShown(callId: "mine"), using: fixture.environment)
 
         try fixture.signIn(as: "other")
-        usage.record(.incomingCallShown, callId: "theirs", using: fixture.environment)
+        usage.record(.incomingCallShown(callId: "theirs"), using: fixture.environment)
         await usage.flush(using: fixture.environment)
         #expect(server.requests.count == 1)
         #expect(server.requests.first?.events.map { $0["callId"] as? String } == ["theirs"])
@@ -204,7 +204,7 @@ struct UsageEventLogTests {
         defer { fixture.cleanUp() }
         fixture.environment.session.signOut()
         let usage = fixture.environment.usage
-        usage.record(.reportView, code: "DIRECT", using: fixture.environment)
+        usage.record(.reportView(.direct, subjectId: nil), using: fixture.environment)
         usage.appDidBecomeActive(using: fixture.environment)
         #expect(usage.pendingEvents.isEmpty)
     }
@@ -213,13 +213,13 @@ struct UsageEventLogTests {
 
     @Test func onboardingScreensMapToContractStepNames() {
         let code = UsageEventLog.onboardingCode
-        #expect(code(.launching, .onboarding) == "WELCOME")
-        #expect(code(.onboarding, .login) == "LOGIN")
-        #expect(code(.login, .invitation) == "INVITE_CODE")
-        #expect(code(.invitation, .consent) == "AI_CONSENT")
-        #expect(code(.consent, .profile) == "CONDITIONS")
-        #expect(code(.profile, .ready) == "DONE")
-        #expect(code(.login, .ready) == "DONE")
+        #expect(code(.launching, .onboarding) == .welcome)
+        #expect(code(.onboarding, .login) == .login)
+        #expect(code(.login, .invitation) == .inviteCode)
+        #expect(code(.invitation, .consent) == .aiConsent)
+        #expect(code(.consent, .profile) == .conditions)
+        #expect(code(.profile, .ready) == .done)
+        #expect(code(.login, .ready) == .done)
         // 이미 가입한 사람이 앱을 열어 바로 홈으로 가면 단계가 아니다
         #expect(code(.launching, .ready) == nil)
         #expect(code(.ready, .launching) == nil)

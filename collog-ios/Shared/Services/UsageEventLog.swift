@@ -22,7 +22,40 @@ struct UsageEvent: Codable, Equatable {
 /// 쌓을 때 로그인한 사용자를 같이 적고, 보낼 때는 지금 로그인한 사용자 것만 보낸다.
 /// 둘러보기(게스트)에서는 아무것도 남기지 않고, 로그아웃·계정 삭제 때 쌓인 것을 지운다.
 final class UsageEventLog {
-    enum Name: String {
+    /// 로그인한 사용자가 남기는 이벤트. 이벤트마다 약속이 허용한 코드·대상·통화 칸만 받는다.
+    enum Event {
+        case appOpen
+        case reportView(ReportSource, subjectId: String?)
+        case postCallAnswer(CallCenter.PostCallQuestion.Answer, subjectId: String?, callId: String)
+        case incomingCallShown(callId: String)
+        case callConnectFailed(CallConnectFailure, callId: String?)
+        case healthLinkResult(HealthLinkResult)
+    }
+
+    enum ReportSource: String {
+        case direct = "DIRECT"
+        case notification = "NOTIFICATION"
+    }
+
+    enum HealthLinkResult: String {
+        case connected = "CONNECTED"
+        case connectedNoRecords = "CONNECTED_NO_RECORDS"
+    }
+
+    /// `onboarding_step`의 단계 이름 가운데 이 앱에 있는 것(TERMS·PROFILE 화면은 없다).
+    enum OnboardingStep: String {
+        case welcome = "WELCOME"
+        case login = "LOGIN"
+        case inviteCode = "INVITE_CODE"
+        case aiConsent = "AI_CONSENT"
+        case conditions = "CONDITIONS"
+        case done = "DONE"
+
+        /// 로그인 전 단계는 익명 주소로 보낸다.
+        var isBeforeLogin: Bool { self == .welcome || self == .login }
+    }
+
+    private enum Name: String {
         case appOpen = "app_open"
         case reportView = "report_view"
         case postCallAnswer = "post_call_answer"
@@ -80,12 +113,9 @@ final class UsageEventLog {
     }
 
     /// 로그인한 사용자의 이벤트를 쌓는다. 로그인 전·둘러보기에서는 남기지 않는다.
-    func record(
-        _ name: Name, code: String? = nil, subjectId: String? = nil, callId: String? = nil,
-        using environment: AppEnvironment
-    ) {
+    func record(_ event: Event, using environment: AppEnvironment) {
         guard let userId = Self.recordingUser(environment) else { return }
-        append(Entry(userId: userId, event: event(name, code: code, subjectId: subjectId, callId: callId)), using: environment)
+        append(Entry(userId: userId, event: usageEvent(event)), using: environment)
     }
 
     /// 앱이 앞으로 올 때: 그날(서울 날짜) 첫 번째면 `app_open`을 남기고, 쌓인 것을 보낸다.
@@ -107,28 +137,28 @@ final class UsageEventLog {
     ) {
         guard !environment.settings.isGuestMode, let code = Self.onboardingCode(from: previous, to: step) else { return }
         var recorded = Set(defaults.stringArray(forKey: Key.onboardingSteps) ?? [])
-        guard !recorded.contains(code) else { return }
+        guard !recorded.contains(code.rawValue) else { return }
         var userId: String?
-        if step != .onboarding, step != .login {
+        if !code.isBeforeLogin {
             guard let current = Self.recordingUser(environment) else { return }
             userId = current
         }
-        recorded.insert(code)
+        recorded.insert(code.rawValue)
         defaults.set(recorded.sorted(), forKey: Key.onboardingSteps)
-        append(Entry(userId: userId, event: event(.onboardingStep, code: code)), using: environment)
+        append(Entry(userId: userId, event: makeEvent(.onboardingStep, code: code.rawValue)), using: environment)
     }
 
-    /// 단계 화면과 약속의 단계 이름. 이 앱에 없는 단계(TERMS·PROFILE)는 쓰지 않는다.
-    static func onboardingCode(from previous: AuthFlowViewModel.Step, to step: AuthFlowViewModel.Step) -> String? {
+    /// 단계 화면과 약속의 단계 이름.
+    static func onboardingCode(from previous: AuthFlowViewModel.Step, to step: AuthFlowViewModel.Step) -> OnboardingStep? {
         switch step {
         case .launching: nil
-        case .onboarding: "WELCOME"
-        case .login: "LOGIN"
-        case .invitation: "INVITE_CODE"
-        case .consent: "AI_CONSENT"
-        case .profile: "CONDITIONS"
+        case .onboarding: .welcome
+        case .login: .login
+        case .invitation: .inviteCode
+        case .consent: .aiConsent
+        case .profile: .conditions
         // 가입 단계를 거쳐 홈에 왔을 때만. 이미 가입한 사람이 앱을 열어 바로 홈으로 가면 남기지 않는다.
-        case .ready: previous == .launching || previous == .ready ? nil : "DONE"
+        case .ready: previous == .launching || previous == .ready ? nil : .done
         }
     }
 
@@ -190,7 +220,24 @@ final class UsageEventLog {
         sendSoon(using: environment)
     }
 
-    private func event(_ name: Name, code: String? = nil, subjectId: String? = nil, callId: String? = nil) -> UsageEvent {
+    private func usageEvent(_ event: Event) -> UsageEvent {
+        switch event {
+        case .appOpen:
+            makeEvent(.appOpen)
+        case let .reportView(source, subjectId):
+            makeEvent(.reportView, code: source.rawValue, subjectId: subjectId)
+        case let .postCallAnswer(answer, subjectId, callId):
+            makeEvent(.postCallAnswer, code: answer.rawValue, subjectId: subjectId, callId: callId)
+        case let .incomingCallShown(callId):
+            makeEvent(.incomingCallShown, callId: callId)
+        case let .callConnectFailed(failure, callId):
+            makeEvent(.callConnectFailed, code: failure.rawValue, callId: callId)
+        case let .healthLinkResult(result):
+            makeEvent(.healthLinkResult, code: result.rawValue)
+        }
+    }
+
+    private func makeEvent(_ name: Name, code: String? = nil, subjectId: String? = nil, callId: String? = nil) -> UsageEvent {
         UsageEvent(
             id: UUID().uuidString.lowercased(),
             name: name.rawValue,

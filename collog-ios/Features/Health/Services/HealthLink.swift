@@ -217,7 +217,7 @@ final class HealthLink {
     private func recordLinkResult(_ result: SyncResult?, using environment: AppEnvironment) {
         guard let result else { return }
         environment.usage.record(
-            .healthLinkResult, code: result == .uploaded ? "CONNECTED" : "CONNECTED_NO_RECORDS", using: environment
+            .healthLinkResult(result == .uploaded ? .connected : .connectedNoRecords), using: environment
         )
     }
 

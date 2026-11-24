@@ -116,8 +116,7 @@ extension CallCenter {
         postCallQuestion = nil
         guard question.ownerId == environment.session.user?.id else { return }
         environment.usage.record(
-            .postCallAnswer, code: answer.rawValue, subjectId: question.peerId, callId: question.callId,
-            using: environment
+            .postCallAnswer(answer, subjectId: question.peerId, callId: question.callId), using: environment
         )
     }
 
@@ -129,9 +128,7 @@ extension CallCenter {
     /// 이용 기록 `call_connect_failed`: 한 번도 연결되지 못한 통화가 실패로 끝났을 때만 남긴다.
     func recordConnectFailure(_ failure: CallConnectFailure) {
         guard activeCall?.wasConnected != true else { return }
-        environment.usage.record(
-            .callConnectFailed, code: failure.rawValue, callId: activeCall?.id, using: environment
-        )
+        environment.usage.record(.callConnectFailed(failure, callId: activeCall?.id), using: environment)
     }
 
     func teardown() {
