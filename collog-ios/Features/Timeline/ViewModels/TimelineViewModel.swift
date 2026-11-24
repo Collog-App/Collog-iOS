@@ -21,6 +21,7 @@ final class TimelineViewModel {
     @ObservationIgnored private var loading: Set<Int> = []
     @ObservationIgnored private var contentGeneration = 0
     @ObservationIgnored private var choseSelf = false
+    @ObservationIgnored private var recordedReportEntry = false
 
     static let selfSubjectId = "self"
     /// 한 주에 불러오는 통화 카드 수.
@@ -66,6 +67,29 @@ final class TimelineViewModel {
         pages.removeAll()
         loading.removeAll()
         contentGeneration += 1
+    }
+
+    /// 이용 기록 `report_view`: 리포트 화면에 들어왔을 때 화면마다 한 번(탭을 누름·알림을 누름).
+    /// 자동 새로 고침·주 넘기기·당겨서 새로 고침·분석 화면에서 돌아옴에서는 남기지 않는다. 타임라인은 대상이 아니다.
+    func recordReportEntry(using environment: AppEnvironment) {
+        guard selectedTabIndex == 0, !recordedReportEntry else { return }
+        recordedReportEntry = true
+        recordReportView(fromNotification: environment.takeReportNotificationEntry(), using: environment)
+    }
+
+    /// 이용 기록 `report_view`: 리포트에서 보는 사람을 바꿨을 때.
+    func recordReportSubjectChange(using environment: AppEnvironment) {
+        guard selectedTabIndex == 0 else { return }
+        recordReportView(fromNotification: false, using: environment)
+    }
+
+    private func recordReportView(fromNotification: Bool, using environment: AppEnvironment) {
+        environment.usage.record(
+            .reportView,
+            code: fromNotification ? "NOTIFICATION" : "DIRECT",
+            subjectId: selectedContact(using: environment)?.userId,
+            using: environment
+        )
     }
 
     func refresh(using environment: AppEnvironment, forceReload: Bool = false) async {

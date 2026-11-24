@@ -22,6 +22,8 @@ final class AppEnvironment {
     /// 분석 완료 알림을 받을 때마다(누르지 않아도) 오른다. 리포트·홈 화면이 이미 불러 둔 데이터를 다시 읽는다.
     private(set) var reportDataRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
+    /// 리포트 알림을 눌러 리포트로 가는 중인지. 리포트 화면이 들어올 때 한 번 읽고 지운다(이용 기록 `report_view`).
+    @ObservationIgnored private var opensReportFromNotification = false
 
     init(
         settings: AppSettings = AppSettings(),
@@ -40,6 +42,7 @@ final class AppEnvironment {
         session.onAccountChanged = { [weak self] in
             self?.family.reset()
             self?.reportNotifications = []
+            self?.opensReportFromNotification = false
         }
         if settings.requiresServerSessionReset { session.signOut() }
         if session.storageError == nil { settings.completeServerMigration() }
@@ -75,7 +78,16 @@ final class AppEnvironment {
             )
         }
         reportDataRevision += 1
-        if openReport { reportNotificationRevision += 1 }
+        if openReport {
+            opensReportFromNotification = true
+            reportNotificationRevision += 1
+        }
+    }
+
+    /// 리포트 화면이 알림을 눌러 열렸는지 한 번만 알려 준다.
+    func takeReportNotificationEntry() -> Bool {
+        defer { opensReportFromNotification = false }
+        return opensReportFromNotification
     }
 }
 

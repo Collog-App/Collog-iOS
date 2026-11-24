@@ -94,7 +94,10 @@ struct ReportTimelineView: View {
             .navigationDestination(for: CallAnalysisRoute.self) { route in
                 CallAnalysisView(callId: route.callId)
             }
-            .task { await viewModel.refresh(using: environment) }
+            .task {
+                viewModel.recordReportEntry(using: environment)
+                await viewModel.refresh(using: environment)
+            }
             // 내 건강 앱을 연결·동기화·끊으면 내 리포트의 「생활 기록」을 다시 불러온다
             .onChange(of: environment.health.revision) {
                 guard tab == .report, viewModel.isSelfSelected else { return }
@@ -268,6 +271,7 @@ struct ReportTimelineView: View {
         guard contact.id != viewModel.selectedContactId else { return }
         Haptics.focus()
         viewModel.selectMember(contact)
+        viewModel.recordReportSubjectChange(using: environment)
         pagedOffset = 0
         pageHeights.removeAll()
         activeVerticalWeek = 0
