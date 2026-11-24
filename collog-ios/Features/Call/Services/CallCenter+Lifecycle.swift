@@ -90,9 +90,18 @@ extension CallCenter {
         callController.request(CXTransaction(action: CXEndCallAction(call: uuid))) { [weak self] error in
             guard let error else { return }
             Task { @MainActor [weak self] in
-                self?.failCall(uuid: uuid, message: error.localizedDescription)
+                // 스스로 끊은 것이라 연결 실패로 남기지 않는다
+                self?.failCall(uuid: uuid, message: error.localizedDescription, failure: nil)
             }
         }
+    }
+
+    /// 이용 기록 `call_connect_failed`: 한 번도 연결되지 못한 통화가 실패로 끝났을 때만 남긴다.
+    func recordConnectFailure(_ failure: CallConnectFailure) {
+        guard activeCall?.wasConnected != true else { return }
+        environment.usage.record(
+            .callConnectFailed, code: failure.rawValue, callId: activeCall?.id, using: environment
+        )
     }
 
     func teardown() {
@@ -139,10 +148,14 @@ extension CallCenter {
         Task { await previousRoom.disconnect() }
     }
 
-    func failCall(uuid: UUID, message: String, microphone: Bool = false) {
+    /// `failure`: 연결되지 못한 채 끝났을 때 이용 기록에 남길 코드. 스스로 끊은 경우처럼 실패가 아니면 nil.
+    func failCall(
+        uuid: UUID, message: String, microphone: Bool = false, failure: CallConnectFailure? = .other
+    ) {
         guard activeCall?.uuid == uuid || pendingOutgoing?.uuid == uuid else { return }
         let call = activeCall
         let acceptedHere = call.map { answeredCallIds.contains($0.id) } ?? false
+        if let failure { recordConnectFailure(microphone ? .microphonePermission : failure) }
         callError = message
         needsMicrophoneSettings = microphone
         provider.reportCall(with: uuid, endedAt: nil, reason: .failed)
@@ -196,6 +209,7 @@ extension CallCenter {
                 } catch {
                     guard !Task.isCancelled, activeCall?.id == callId else { return }
                     if CallSafety.isPermanentStatusError(error) {
+                        recordConnectFailure(CallConnectFailure(error))
                         discardAnalysisRecording()
                         finishRemoteCall(reason: .failed)
                         return
@@ -204,7 +218,10 @@ extension CallCenter {
                     statusUnavailable = true
                     if Date().timeIntervalSince(lastSuccess) >= 30 {
                         if let call = activeCall {
-                            failCall(uuid: call.uuid, message: "통화 상태를 확인할 수 없어 통화를 종료했어요.")
+                            failCall(
+                                uuid: call.uuid, message: "통화 상태를 확인할 수 없어 통화를 종료했어요.",
+                                failure: .network
+                            )
                         }
                         return
                     }
@@ -230,7 +247,7 @@ extension CallCenter {
             log("서버 통화 종료")
             finishRemoteCall()
         } else {
-            failCall(uuid: uuid, message: error.localizedDescription)
+            failCall(uuid: uuid, message: error.localizedDescription, failure: CallConnectFailure(error))
         }
     }
 }

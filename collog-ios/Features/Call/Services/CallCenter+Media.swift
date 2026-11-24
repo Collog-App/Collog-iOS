@@ -96,7 +96,10 @@ extension CallCenter {
                     handleMediaError(error, uuid: call.uuid)
                     return
                 }
-                failCall(uuid: call.uuid, message: "마이크를 사용할 수 없어요. \(error.localizedDescription)")
+                failCall(
+                    uuid: call.uuid, message: "마이크를 사용할 수 없어요. \(error.localizedDescription)",
+                    failure: CallConnectFailure(error)
+                )
             }
         }
     }
@@ -113,6 +116,7 @@ extension CallCenter {
               isAudioSessionActive, microphoneReady else { return }
         questionSpeaker.stop()
         activeCall?.phase = .active
+        activeCall?.wasConnected = true
         if didPublishMicrophone { attachAnalysisWriter(to: nil) }
         if call.direction == .outgoing, call.phase != .active {
             provider.reportOutgoingCall(with: call.uuid, connectedAt: nil)

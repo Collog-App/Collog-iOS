@@ -90,7 +90,9 @@ extension CallCenter: @MainActor CXProviderDelegate {
                 if activeCall?.uuid == pending.uuid {
                     handleMediaError(error, uuid: pending.uuid)
                 } else {
-                    failCall(uuid: pending.uuid, message: error.localizedDescription)
+                    failCall(
+                        uuid: pending.uuid, message: error.localizedDescription, failure: CallConnectFailure(error)
+                    )
                 }
             }
         }

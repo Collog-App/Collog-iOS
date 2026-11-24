@@ -33,6 +33,8 @@ final class CallCenter: NSObject, Sendable {
         var recordingEnabled = false
         var isMuted = false
         var isSpeakerEnabled = false
+        /// 한 번이라도 연결(통화 중)까지 갔는지.
+        var wasConnected = false
     }
 
     struct PendingOutgoing {
