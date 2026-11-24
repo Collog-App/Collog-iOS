@@ -60,11 +60,14 @@ final class CallCenter: NSObject, Sendable {
         }
 
         static let prompt = "이번 통화에서 추천 질문을 써 보셨나요?"
+        /// 통화가 끝나고 이만큼 지나면 묻지 않는다.
+        static let lifetime: TimeInterval = 120
 
         let callId: String
         let peerId: String?
         let peerName: String
         let ownerId: String
+        let endedAt: Date
     }
 
     @ObservationIgnored let environment: AppEnvironment

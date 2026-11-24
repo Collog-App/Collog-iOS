@@ -20,9 +20,11 @@ struct PostCallQuestionTests {
 
         center.finishRemoteCall()
         #expect(center.activeCall == nil)
-        #expect(center.postCallQuestion == CallCenter.PostCallQuestion(
-            callId: "call", peerId: "mom", peerName: "엄마", ownerId: "me"
-        ))
+        let question = try #require(center.postCallQuestion)
+        #expect(question.callId == "call")
+        #expect(question.peerId == "mom")
+        #expect(question.peerName == "엄마")
+        #expect(question.ownerId == "me")
 
         center.answerPostCallQuestion(.notSeen)
         center.answerPostCallQuestion(.yes)
@@ -101,6 +103,30 @@ struct PostCallQuestionTests {
         try fixture.signIn(as: "other")
         center.sessionDidChange()
         #expect(center.postCallQuestion == nil)
+    }
+
+    /// 화면을 잠근 채 통화하고 한참 뒤 앱을 열면 묻지 않는다.
+    @Test func questionExpiresTwoMinutesAfterTheCall() throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let center = CallCenter(environment: fixture.environment)
+        center.callOwnerId = "me"
+        center.activeCall = connectedOutgoing(id: "call", questions: ["질문"])
+        center.offerPostCallQuestion()
+        let endedAt = try #require(center.postCallQuestion?.endedAt)
+
+        let later = endedAt.addingTimeInterval(CallCenter.PostCallQuestion.lifetime + 1)
+
+        // 화면은 그리기 전에 만료를 본다(앱이 앞으로 와 만료를 지우기 전의 첫 화면에도 뜨지 않게)
+        #expect(center.visiblePostCallQuestion(now: endedAt.addingTimeInterval(60))?.callId == "call")
+        #expect(center.visiblePostCallQuestion(now: later) == nil)
+
+        // 앱이 앞으로 올 때 지운다
+        center.expirePostCallQuestion(now: endedAt.addingTimeInterval(60))
+        #expect(center.postCallQuestion != nil)
+        center.expirePostCallQuestion(now: later)
+        #expect(center.postCallQuestion == nil)
+        #expect(fixture.environment.usage.pendingEvents.isEmpty)
     }
 
     private func connectedOutgoing(id: String, questions: [String]) -> CallCenter.ActiveCall {

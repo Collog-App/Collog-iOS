@@ -110,7 +110,7 @@ extension CallCenter {
               let ownerId = callOwnerId, ownerId == environment.session.user?.id,
               environment.session.isAuthenticated, !environment.settings.isGuestMode else { return }
         postCallQuestion = PostCallQuestion(
-            callId: call.id, peerId: call.peerId, peerName: call.peerName, ownerId: ownerId
+            callId: call.id, peerId: call.peerId, peerName: call.peerName, ownerId: ownerId, endedAt: Date()
         )
     }
 
@@ -125,6 +125,20 @@ extension CallCenter {
 
     /// 답하지 않고 닫으면 아무것도 남기지 않는다.
     func dismissPostCallQuestion() {
+        postCallQuestion = nil
+    }
+
+    /// 「통화 종료」 화면에 그릴 질문. 통화가 끝나고 2분이 지났으면 그리지 않는다
+    /// (화면을 잠근 채 통화하고 한참 뒤 앱을 열었을 때, 앞으로 온 순간의 첫 화면부터 뜨지 않게).
+    func visiblePostCallQuestion(now: Date = Date()) -> PostCallQuestion? {
+        guard let question = postCallQuestion,
+              now.timeIntervalSince(question.endedAt) <= PostCallQuestion.lifetime else { return nil }
+        return question
+    }
+
+    /// 앱이 앞으로 올 때: 통화가 끝나고 2분이 지난 질문은 버린다.
+    func expirePostCallQuestion(now: Date = Date()) {
+        guard postCallQuestion != nil, visiblePostCallQuestion(now: now) == nil else { return }
         postCallQuestion = nil
     }
 

@@ -97,6 +97,7 @@ struct RootView: View {
             if scenePhase == .active, environment.session.isAuthenticated {
                 callCenter.resumePendingUploads()
                 callCenter.updateNotificationAuthorization()
+                callCenter.expirePostCallQuestion()
                 Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
                 // 건강 앱 요약은 앱이 앞으로 올 때 하루 한 번 이하로 보낸다(가입을 마친 뒤에만)
                 if authFlow.step == .ready { Task { await environment.health.syncIfDue(using: environment) } }
@@ -257,7 +258,7 @@ struct RootView: View {
                 onEnd: { callCenter.endActiveCall() }
             )
             .id(call.id)
-        } else if let question = callCenter.postCallQuestion {
+        } else if let question = callCenter.visiblePostCallQuestion() {
             CallView(
                 peerName: question.peerName,
                 phase: .ended,
@@ -279,7 +280,9 @@ struct RootView: View {
 
     private var callPresentation: Binding<Bool> {
         Binding(
-            get: { callCenter.activeCall != nil || callCenter.postCallQuestion != nil || simulatedContact != nil },
+            get: {
+                callCenter.activeCall != nil || callCenter.visiblePostCallQuestion() != nil || simulatedContact != nil
+            },
             set: { isPresented in
                 if !isPresented {
                     endSimulatedCall()
