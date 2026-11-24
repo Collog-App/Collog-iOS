@@ -44,8 +44,14 @@ struct CallView: View {
                 .padding(.top, notice == nil ? Spacing.x8 : Spacing.x5)
 
             if phase == .ended, let onPostCallAnswer {
-                postCallQuestion(onAnswer: onPostCallAnswer)
-                    .padding(.top, Spacing.x8)
+                // 작은 화면·큰 글자에서도 답 버튼이 잘리지 않게 스크롤된다. 넘칠 때는 막대를 잠깐 보여 아래에 더 있음을 알린다
+                ScrollView {
+                    postCallQuestion(onAnswer: onPostCallAnswer)
+                        .padding(.top, Spacing.x8)
+                        .padding(.bottom, Spacing.x4)
+                }
+                .scrollIndicatorsFlash(onAppear: true)
+                .scrollBounceBehavior(.basedOnSize)
             } else if !isIncoming {
                 ScrollView {
                     questionList
@@ -189,8 +195,7 @@ struct CallView: View {
                 Button { onAnswer(answer) } label: {
                     Text(answer.title)
                         .body_02_semibold(.gray00)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
+                        .frame(maxWidth: .infinity, minHeight: 52)
                         .background(
                             Color.gray00.opacity(0.08),
                             in: RoundedRectangle(cornerRadius: Radius.btnSmall, style: .continuous)
