@@ -22,8 +22,10 @@ final class AppEnvironment {
     /// 분석 완료 알림을 받을 때마다(누르지 않아도) 오른다. 리포트·홈 화면이 이미 불러 둔 데이터를 다시 읽는다.
     private(set) var reportDataRevision = 0
     private(set) var reportNotifications: [ReceivedReportNotification] = []
-    /// 리포트 알림을 눌러 리포트로 가는 중인지. 리포트 화면이 들어올 때 한 번 읽고 지운다(이용 기록 `report_view`).
-    @ObservationIgnored private var opensReportFromNotification = false
+    /// 리포트 알림을 눌러 리포트로 가는 중이면 누른 시각. 리포트 화면이 들어올 때 한 번 읽고 지운다(이용 기록 `report_view`).
+    @ObservationIgnored private var reportNotificationOpenedAt: Date?
+    /// 알림을 누른 뒤 이 안에 리포트 화면이 들어오지 않으면 그 표시는 나중의 일반 열람에 붙이지 않는다.
+    static let reportNotificationEntryWindow: TimeInterval = 10
 
     init(
         settings: AppSettings = AppSettings(),
@@ -42,7 +44,7 @@ final class AppEnvironment {
         session.onAccountChanged = { [weak self] in
             self?.family.reset()
             self?.reportNotifications = []
-            self?.opensReportFromNotification = false
+            self?.reportNotificationOpenedAt = nil
         }
         if settings.requiresServerSessionReset { session.signOut() }
         if session.storageError == nil { settings.completeServerMigration() }
@@ -79,15 +81,16 @@ final class AppEnvironment {
         }
         reportDataRevision += 1
         if openReport {
-            opensReportFromNotification = true
+            reportNotificationOpenedAt = Date()
             reportNotificationRevision += 1
         }
     }
 
-    /// 리포트 화면이 알림을 눌러 열렸는지 한 번만 알려 준다.
-    func takeReportNotificationEntry() -> Bool {
-        defer { opensReportFromNotification = false }
-        return opensReportFromNotification
+    /// 리포트 화면이 알림을 눌러 열렸는지 한 번만 알려 준다. 누른 지 10초가 지난 표시는 버린다.
+    func takeReportNotificationEntry(now: Date = Date()) -> Bool {
+        defer { reportNotificationOpenedAt = nil }
+        guard let openedAt = reportNotificationOpenedAt else { return false }
+        return now.timeIntervalSince(openedAt) <= Self.reportNotificationEntryWindow
     }
 }
 

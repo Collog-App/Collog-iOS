@@ -90,6 +90,20 @@ struct ReportViewEventTests {
         #expect(usage.pendingEvents.map(\.code) == ["NOTIFICATION"])
     }
 
+    /// 알림을 누르고 10초 안에 리포트가 열리지 않았으면 그 표시는 나중의 일반 열람에 붙지 않는다.
+    @Test func staleNotificationMarkIsDropped() throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+
+        environment.receiveReportNotification(callId: "call", title: "리포트", message: "", openReport: true)
+        #expect(environment.takeReportNotificationEntry(now: Date().addingTimeInterval(5)))
+        environment.receiveReportNotification(callId: "call-2", title: "리포트", message: "", openReport: true)
+        #expect(!environment.takeReportNotificationEntry(now: Date().addingTimeInterval(11)))
+        // 한 번 읽으면(쓰였든 버렸든) 지워진다
+        #expect(!environment.takeReportNotificationEntry())
+    }
+
     private func reportResponses(contacts: [String]) -> (URLRequest) throws -> (Int, String) {
         let members = contacts.map { id in
             """
