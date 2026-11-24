@@ -44,7 +44,7 @@ final class HealthLink {
     private var hintRevision = 0
 
     @ObservationIgnored private var statusCheckedAt: Date?
-    @ObservationIgnored private var syncTask: Task<Void, Never>?
+    @ObservationIgnored private var syncTask: Task<SyncResult?, Never>?
     @ObservationIgnored private let source: HealthRecordSource
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let now: () -> Date
@@ -190,9 +190,10 @@ final class HealthLink {
         connected.connected = true
         setStatus(.loaded(connected), for: userId)
         let before = revision
-        await sync(using: environment, force: true)
+        let result = await sync(using: environment, force: true)
         // 리포트는 동기화가 끝난 뒤 한 번만 다시 불러오게 한다
         if revision == before { revision += 1 }
+        recordLinkResult(result, using: environment)
         Haptics.commit()
         step = .linked(justConnected: true, lastSyncedDay: currentLink(userId)?.lastSyncedDay, needsPermission: false)
     }
@@ -207,8 +208,17 @@ final class HealthLink {
             step = .failed("건강 앱 권한을 요청하지 못했어요. 잠시 후 다시 시도해 주세요.")
             return
         }
-        await sync(using: environment, force: true)
+        recordLinkResult(await sync(using: environment, force: true), using: environment)
         step = .linked(justConnected: false, lastSyncedDay: currentLink(userId)?.lastSyncedDay, needsPermission: false)
+    }
+
+    /// 이용 기록 `health_link_result`: 연결 시도(권한 창을 거친 뒤 첫 동기화)가 끝났을 때.
+    /// iOS 는 읽기 권한을 허용했는지 알 수 없어 「권한 거부」는 남기지 않는다. 읽기·올리기가 실패하면 남기지 않는다.
+    private func recordLinkResult(_ result: SyncResult?, using environment: AppEnvironment) {
+        guard let result else { return }
+        environment.usage.record(
+            .healthLinkResult, code: result == .uploaded ? "CONNECTED" : "CONNECTED_NO_RECORDS", using: environment
+        )
     }
 
     /// 연결 끊기: 서버가 요약을 지운다. HealthKit 권한은 앱에서 거둘 수 없어 건강 앱 설정에 남지만, 더는 읽지 않는다.
@@ -239,46 +249,56 @@ final class HealthLink {
         await sync(using: environment, force: false)
     }
 
+    private enum SyncResult {
+        case uploaded
+        case noRecords
+    }
+
     /// 동기화는 한 번에 하나만 돈다. 먼저 돌던 것이 끝나기를 기다린 뒤 이어서 돈다.
-    private func sync(using environment: AppEnvironment, force: Bool) async {
-        while let running = syncTask { await running.value }
+    @discardableResult
+    private func sync(using environment: AppEnvironment, force: Bool) async -> SyncResult? {
+        while let running = syncTask { _ = await running.value }
         let task = Task {
-            await performSync(using: environment, force: force)
+            let result = await performSync(using: environment, force: force)
             syncTask = nil
+            return result
         }
         syncTask = task
-        await task.value
+        return await task.value
     }
 
     /// 최근 14일을 다시 계산해 기록이 있는 날만 올린다. 기록이 하나도 없으면(권한을 허용하지 않았거나 정말 없음)
     /// 보내지 않고 오늘 보냈다고 적지도 않는다. 건강 앱 권한을 나중에 켜도 앱을 다시 열 때 보내게 하려는 것이다.
-    private func performSync(using environment: AppEnvironment, force: Bool) async {
-        guard let userId = userId(environment) else { return }
+    /// 올렸으면 `.uploaded`, 올릴 기록이 없으면 `.noRecords`, 건너뛰었거나 실패하면 nil.
+    private func performSync(using environment: AppEnvironment, force: Bool) async -> SyncResult? {
+        guard let userId = userId(environment) else { return nil }
         let today = todayKey
-        if !force, defaults.string(forKey: Self.syncKey(userId)) == today { return }
-        guard source.isAvailable else { return }
+        if !force, defaults.string(forKey: Self.syncKey(userId)) == today { return nil }
+        guard source.isAvailable else { return nil }
 
         let days = HealthDailyCalculator.syncDays(today: now())
         let summaries: [HealthDayDTO]
         do {
             summaries = HealthDailyCalculator.summaries(days: days, records: try await source.read(days: days))
         } catch {
-            return
+            return nil
         }
         let sending = summaries.filter(\.hasAnyValue)
-        guard !sending.isEmpty, environment.session.user?.id == userId else { return }
+        guard environment.session.user?.id == userId else { return nil }
+        guard !sending.isEmpty else { return .noRecords }
 
         do {
             let result = try await environment.api.uploadHealthDaily(days: sending)
-            guard environment.session.user?.id == userId else { return }
+            guard environment.session.user?.id == userId else { return nil }
             if var link = currentLink(userId) {
                 link.lastSyncedDay = result.lastSyncedDay ?? link.lastSyncedDay
                 setStatus(.loaded(link), for: userId)
             }
             defaults.set(today, forKey: Self.syncKey(userId))
             revision += 1
+            return .uploaded
         } catch {
-            guard environment.session.user?.id == userId else { return }
+            guard environment.session.user?.id == userId else { return nil }
             if Self.isUnsupported(error) {
                 setStatus(.unsupported, for: userId)
             } else if case let .server(_, code, _) = error as? APIError, code == "HEALTH_LINK_REQUIRED" {
@@ -290,6 +310,7 @@ final class HealthLink {
             if case let .server(status, _, _) = error as? APIError, (400..<500).contains(status) {
                 defaults.set(today, forKey: Self.syncKey(userId))
             }
+            return nil
         }
     }
 

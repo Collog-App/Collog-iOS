@@ -128,10 +128,12 @@ struct HealthLinkTests {
         #expect(link.step == .linked(justConnected: true, lastSyncedDay: "2026-11-08", needsPermission: false))
         #expect(link.rowText(for: "me") == "연결됨")
         #expect(link.revision > 0)
+        #expect(linkResults(fixture) == ["CONNECTED"])
 
         // 같은 날 앱이 다시 앞으로 와도 또 올리지 않는다
         await link.syncIfDue(using: fixture.environment)
         #expect(server.uploads.count == 1)
+        #expect(linkResults(fixture) == ["CONNECTED"])
     }
 
     @Test func linkWithoutRecordsStaysLinkedAndRetriesOnNextForeground() async throws {
@@ -152,12 +154,14 @@ struct HealthLinkTests {
         #expect(server.links.count == 1)
         #expect(server.uploads.isEmpty)
         #expect(link.step == .linked(justConnected: true, lastSyncedDay: nil, needsPermission: false))
+        #expect(linkResults(fixture) == ["CONNECTED_NO_RECORDS"])
 
-        // 나중에 권한을 켜면 그날 다시 앞으로 올 때 보낸다
+        // 나중에 권한을 켜면 그날 다시 앞으로 올 때 보낸다. 하루 동기화는 연결 시도가 아니라 남기지 않는다
         source.records = HealthRecords(stepsByDay: [day("2026-11-08"): 500])
         await link.syncIfDue(using: fixture.environment)
         #expect(source.reads == 2)
         #expect(server.uploads.count == 1)
+        #expect(linkResults(fixture) == ["CONNECTED_NO_RECORDS"])
     }
 
     @Test func disconnectDeletesAndShowsNotLinked() async throws {
@@ -175,6 +179,7 @@ struct HealthLinkTests {
         #expect(link.rowText(for: "me") == "연결 안 됨")
         #expect(!link.isPresented)
         #expect(link.shouldShowHint(using: fixture.environment))
+        #expect(linkResults(fixture).isEmpty)
     }
 
     @Test func linkedOnAnotherPhoneAsksForPermissionHere() async throws {
@@ -194,6 +199,7 @@ struct HealthLinkTests {
         #expect(source.authorizationRequests == 1)
         #expect(server.uploads.count == 1)
         #expect(link.step == .linked(justConnected: false, lastSyncedDay: "2026-11-08", needsPermission: false))
+        #expect(linkResults(fixture) == ["CONNECTED"])
     }
 
     @Test func hintShowsOnceUntilDismissedAndOnlyWhereHealthIsAvailable() async throws {
@@ -239,6 +245,12 @@ struct HealthLinkTests {
         #expect(source.reads == 0)
         #expect(!link.shouldShowHint(using: fixture.environment))
         #expect(link.rowText(for: "me") == nil)
+        #expect(fixture.environment.usage.pendingEvents.isEmpty)
+    }
+
+    /// 이용 기록 `health_link_result`의 코드들.
+    private func linkResults(_ fixture: TestEnvironment) -> [String?] {
+        fixture.environment.usage.pendingEvents.filter { $0.name == "health_link_result" }.map(\.code)
     }
 
     private func day(_ string: String) -> Date {
