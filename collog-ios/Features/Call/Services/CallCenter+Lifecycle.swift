@@ -58,7 +58,10 @@ extension CallCenter {
             let permitted = await AVAudioApplication.requestRecordPermission()
             guard pendingOutgoing?.uuid == uuid else { return }
             guard permitted else {
-                failCall(uuid: uuid, message: "통화하려면 iPhone 설정에서 마이크를 허용해주세요", microphone: true)
+                failCall(
+                    uuid: uuid, message: "통화하려면 iPhone 설정에서 마이크를 허용해주세요", microphone: true,
+                    failure: .microphonePermission
+                )
                 return
             }
             let action = CXStartCallAction(call: uuid, handle: CXHandle(type: .generic, value: name))
@@ -67,7 +70,7 @@ extension CallCenter {
                 try prepareCallAudio()
                 try await callController.request(CXTransaction(action: action))
             } catch {
-                failCall(uuid: uuid, message: error.localizedDescription)
+                failCall(uuid: uuid, message: error.localizedDescription, failure: .other)
             }
         }
     }
@@ -175,14 +178,15 @@ extension CallCenter {
         Task { await previousRoom.disconnect() }
     }
 
-    /// `failure`: 연결되지 못한 채 끝났을 때 이용 기록에 남길 코드. 스스로 끊은 경우처럼 실패가 아니면 nil.
+    /// `failure`: 연결되지 못한 채 끝났을 때 이용 기록에 남길 코드. 스스로 끊었거나 시스템이 걸러 낸 수신처럼
+    /// 실패가 아니면 nil. 기본값을 두지 않아 부르는 곳마다 실패인지 정한다.
     func failCall(
-        uuid: UUID, message: String, microphone: Bool = false, failure: CallConnectFailure? = .other
+        uuid: UUID, message: String, microphone: Bool = false, failure: CallConnectFailure?
     ) {
         guard activeCall?.uuid == uuid || pendingOutgoing?.uuid == uuid else { return }
         let call = activeCall
         let acceptedHere = call.map { answeredCallIds.contains($0.id) } ?? false
-        if let failure { recordConnectFailure(microphone ? .microphonePermission : failure) }
+        if let failure { recordConnectFailure(failure) }
         callError = message
         needsMicrophoneSettings = microphone
         provider.reportCall(with: uuid, endedAt: nil, reason: .failed)

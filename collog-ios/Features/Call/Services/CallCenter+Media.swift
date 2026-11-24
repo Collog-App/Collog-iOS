@@ -153,7 +153,7 @@ extension CallCenter: RoomDelegate {
                         _ = try await room.localParticipant.setMicrophone(enabled: !call.isMuted)
                         guard self.room === room, activeCall?.uuid == call.uuid else { return }
                     } catch {
-                        failCall(uuid: call.uuid, message: "마이크 상태를 복구하지 못해 통화를 종료했어요.")
+                        failCall(uuid: call.uuid, message: "마이크 상태를 복구하지 못해 통화를 종료했어요.", failure: .other)
                         return
                     }
                 }

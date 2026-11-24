@@ -22,7 +22,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
     func providerDidReset(_: CXProvider) {
         for response in Array(actionResponses.values) { response.invalidate() }
         if let uuid = activeCall?.uuid ?? pendingOutgoing?.uuid {
-            failCall(uuid: uuid, message: "통화 서비스가 중단되었어요. 다시 시도해주세요")
+            failCall(uuid: uuid, message: "통화 서비스가 중단되었어요. 다시 시도해주세요", failure: .other)
         } else {
             teardown()
         }
@@ -31,7 +31,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
     func provider(_: CXProvider, timedOutPerforming action: CXAction) {
         actionResponses[action.uuid]?.invalidate()
         guard let action = action as? CXCallAction else { return }
-        failCall(uuid: action.callUUID, message: "통화 요청 시간이 초과되었어요. 다시 시도해주세요")
+        failCall(uuid: action.callUUID, message: "통화 요청 시간이 초과되었어요. 다시 시도해주세요", failure: .other)
     }
 
     func provider(_: CXProvider, perform action: CXStartCallAction) {
@@ -126,7 +126,8 @@ extension CallCenter: @MainActor CXProviderDelegate {
                     failCall(
                         uuid: call.uuid,
                         message: "통화하려면 iPhone 설정에서 마이크를 허용해주세요",
-                        microphone: true
+                        microphone: true,
+                        failure: .microphonePermission
                     )
                     return
                 }
@@ -212,7 +213,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
                 response.fulfill()
             } catch {
                 response.fail()
-                failCall(uuid: call.uuid, message: "마이크 상태를 바꾸지 못해 통화를 종료했어요.")
+                failCall(uuid: call.uuid, message: "마이크 상태를 바꾸지 못해 통화를 종료했어요.", failure: .other)
             }
         }
     }
@@ -255,7 +256,7 @@ extension CallCenter: @MainActor CXProviderDelegate {
         }
         guard setEngine(.default) else {
             if let call = activeCall {
-                failCall(uuid: call.uuid, message: "통화 오디오를 시작할 수 없어요. 다시 시도해주세요")
+                failCall(uuid: call.uuid, message: "통화 오디오를 시작할 수 없어요. 다시 시도해주세요", failure: .other)
             }
             return
         }

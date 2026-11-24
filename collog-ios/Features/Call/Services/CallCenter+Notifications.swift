@@ -188,7 +188,10 @@ extension CallCenter: @MainActor PKPushRegistryDelegate {
                     return
                 }
                 if let error {
-                    self?.failCall(uuid: uuid, message: error.localizedDescription)
+                    self?.failCall(
+                        uuid: uuid, message: error.localizedDescription,
+                        failure: CallConnectFailure(incomingCallReport: error)
+                    )
                 } else {
                     self?.incomingCallReported = true
                     self?.log("수신 통화 표시: \(callerName)")

@@ -3,6 +3,7 @@
 //  collog-ios
 //
 
+import CallKit
 import Foundation
 import LiveKit
 import Testing
@@ -38,13 +39,41 @@ struct CallConnectEventTests {
         center.callOwnerId = "me"
         center.activeCall = .fixture(id: "incoming", direction: .incoming, phase: .ringing)
 
-        center.failCall(uuid: try #require(center.activeCall?.uuid), message: "마이크", microphone: true)
+        center.failCall(
+            uuid: try #require(center.activeCall?.uuid), message: "마이크", microphone: true,
+            failure: .microphonePermission
+        )
         let event = try #require(fixture.environment.usage.pendingEvents.first)
         #expect(event.name == "call_connect_failed")
         #expect(event.code == "MIC_PERMISSION")
         #expect(event.callId == "incoming")
         #expect(center.activeCall == nil)
-        await waitForRequests(fixture, ["/v1/calls/incoming/decline"])
+        await fixture.waitForRequests(["/v1/calls/incoming/decline"])
+    }
+
+    /// 방해 금지·집중 모드·차단 목록처럼 시스템이 걸러 낸 수신은 연결 실패가 아니다.
+    @Test func incomingCallsFilteredBySystemAreNotConnectFailures() async throws {
+        let filtered: [CXErrorCodeIncomingCallError.Code] = [
+            .filteredByDoNotDisturb, .filteredByBlockList,
+            .filteredDuringRestrictedSharingMode, .filteredBySensitiveParticipants
+        ]
+        for code in filtered {
+            #expect(CallConnectFailure(incomingCallReport: CXErrorCodeIncomingCallError(code)) == nil)
+        }
+        #expect(CallConnectFailure(incomingCallReport: CXErrorCodeIncomingCallError(.unknown)) == .other)
+        #expect(CallConnectFailure(incomingCallReport: URLError(.unknown)) == .other)
+
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        fixture.respond = { _ in (204, "") }
+        let center = CallCenter(environment: fixture.environment)
+        center.activeCall = .fixture(id: "dnd", direction: .incoming, phase: .ringing)
+        center.failCall(
+            uuid: try #require(center.activeCall?.uuid), message: "x",
+            failure: CallConnectFailure(incomingCallReport: CXErrorCodeIncomingCallError(.filteredByDoNotDisturb))
+        )
+        #expect(fixture.environment.usage.pendingEvents.isEmpty)
+        await fixture.waitForRequests(["/v1/calls/dnd/decline"])
     }
 
     @Test func hangUpsAndDropsAfterConnectingAreNotConnectFailures() async throws {
@@ -69,17 +98,7 @@ struct CallConnectEventTests {
         center.finishRemoteCall(reason: .unanswered)
 
         #expect(fixture.environment.usage.pendingEvents.isEmpty)
-        await waitForRequests(fixture, ["/v1/calls/cancelled/end", "/v1/calls/dropped/end"])
-    }
-
-    /// 통화를 정리하며 띄운 서버 요청이 나갈 때까지 기다린다. 시험이 끝나 닫힌 세션에 요청을 만들면 시험 앱이 죽는다.
-    private func waitForRequests(_ fixture: TestEnvironment, _ paths: [String]) async {
-        var attempts = 0
-        while !paths.allSatisfy(fixture.paths.contains), attempts < 300 {
-            attempts += 1
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(paths.allSatisfy(fixture.paths.contains))
+        await fixture.waitForRequests(["/v1/calls/cancelled/end", "/v1/calls/dropped/end"])
     }
 }
 
@@ -93,5 +112,17 @@ extension CallCenter.ActiveCall {
         )
         call.wasConnected = connected
         return call
+    }
+}
+
+extension TestEnvironment {
+    /// 통화를 정리하며 띄운 서버 요청이 나갈 때까지 기다린다. 시험이 끝나 닫힌 세션에 요청을 만들면 시험 앱이 죽는다.
+    func waitForRequests(_ expected: [String]) async {
+        var attempts = 0
+        while !expected.allSatisfy(paths.contains), attempts < 300 {
+            attempts += 1
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(expected.allSatisfy(paths.contains))
     }
 }

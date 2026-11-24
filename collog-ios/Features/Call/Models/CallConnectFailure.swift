@@ -3,6 +3,7 @@
 //  collog-ios
 //
 
+import CallKit
 import Foundation
 import LiveKit
 
@@ -27,6 +28,17 @@ enum CallConnectFailure: String {
         default:
             self = .other
         }
+    }
+
+    /// CallKit 이 수신 전화를 띄우지 못했을 때. 방해 금지·집중 모드·차단 목록처럼 시스템이 걸러 낸 수신은
+    /// 연결 실패가 아니라 nil.
+    init?(incomingCallReport error: Error) {
+        let filtered: [CXErrorCodeIncomingCallError.Code] = [
+            .filteredByDoNotDisturb, .filteredByBlockList,
+            .filteredDuringRestrictedSharingMode, .filteredBySensitiveParticipants
+        ]
+        if let error = error as? CXErrorCodeIncomingCallError, filtered.contains(error.code) { return nil }
+        self = .other
     }
 
     /// LiveKit 접속 실패. 토큰 검증(4xx)은 `.validation`, 서버 오류·연결 문제는 `.network`로 온다.
