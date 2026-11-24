@@ -22,6 +22,7 @@ final class TimelineViewModel {
     @ObservationIgnored private var contentGeneration = 0
     @ObservationIgnored private var choseSelf = false
     @ObservationIgnored private var recordedReportEntry = false
+    @ObservationIgnored private var reportEntrySource: UsageEventLog.ReportSource?
 
     static let selfSubjectId = "self"
     /// 한 주에 불러오는 통화 카드 수.
@@ -70,11 +71,16 @@ final class TimelineViewModel {
     }
 
     /// 이용 기록 `report_view`: 리포트 화면에 들어왔을 때 화면마다 한 번(탭을 누름·알림을 누름).
+    /// 가족 목록을 아직 읽기 전이면 보는 사람이 정해지지 않아(곧 첫 가족으로 바뀐다) 미루고, 목록이 정해진 뒤 다시 부르면 남긴다.
     /// 자동 새로 고침·주 넘기기·당겨서 새로 고침·분석 화면에서 돌아옴에서는 남기지 않는다. 타임라인은 대상이 아니다.
     func recordReportEntry(using environment: AppEnvironment) {
         guard selectedTabIndex == 0, !recordedReportEntry else { return }
+        // 알림을 눌러 들어왔는지는 들어온 순간에 정한다
+        let source = reportEntrySource ?? (environment.takeReportNotificationEntry() ? .notification : .direct)
+        reportEntrySource = source
+        guard environment.family.memberUserIds != nil else { return }
         recordedReportEntry = true
-        recordReportView(environment.takeReportNotificationEntry() ? .notification : .direct, using: environment)
+        recordReportView(source, using: environment)
     }
 
     /// 이용 기록 `report_view`: 리포트에서 보는 사람을 바꿨을 때.

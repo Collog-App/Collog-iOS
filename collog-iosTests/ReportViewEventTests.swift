@@ -43,11 +43,13 @@ struct ReportViewEventTests {
         #expect(usage.pendingEvents.map(\.code) == ["DIRECT", "DIRECT"])
     }
 
-    @Test func notificationTapMarksOnlyTheReportItOpened() throws {
-        let fixture = try TestEnvironment(role: "CHILD")
+    @Test func notificationTapMarksOnlyTheReportItOpened() async throws {
+        // 아직 아무 가족과도 연결되지 않은 사람: 가족 목록을 읽으면 보는 사람은 「나」뿐이다
+        let fixture = try TestEnvironment(role: "CHILD", familyId: nil)
         defer { fixture.cleanUp() }
         let environment = fixture.environment
         let usage = environment.usage
+        await environment.family.refresh(using: environment)
 
         environment.receiveReportNotification(callId: "call", title: "리포트", message: "", openReport: true)
         // 타임라인 탭은 대상이 아니고, 알림 표시도 가져가지 않는다
@@ -64,6 +66,28 @@ struct ReportViewEventTests {
 
         #expect(usage.pendingEvents.map(\.code) == ["NOTIFICATION", "DIRECT", "DIRECT"])
         #expect(usage.pendingEvents.allSatisfy { $0.subjectId == "me" })
+    }
+
+    /// 앱이 막 떠서 가족 목록을 읽기 전에 들어오면 보는 사람이 곧 첫 가족으로 바뀐다. 목록이 정해진 뒤 한 번 남긴다.
+    @Test func reportEntryWaitsForTheFamilyList() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        fixture.respond = reportResponses(contacts: ["mom"])
+        let environment = fixture.environment
+        let usage = environment.usage
+        let model = TimelineViewModel(selectedTabIndex: 0)
+
+        environment.receiveReportNotification(callId: "call", title: "리포트", message: "", openReport: true)
+        model.recordReportEntry(using: environment)
+        #expect(environment.family.memberUserIds == nil)
+        #expect(usage.pendingEvents.isEmpty)
+
+        await environment.family.refresh(using: environment)
+        model.recordReportEntry(using: environment)
+        model.recordReportEntry(using: environment)
+        #expect(usage.pendingEvents.map(\.subjectId) == ["mom"])
+        // 알림으로 들어왔다는 것은 들어온 순간에 정해 둔다
+        #expect(usage.pendingEvents.map(\.code) == ["NOTIFICATION"])
     }
 
     private func reportResponses(contacts: [String]) -> (URLRequest) throws -> (Int, String) {

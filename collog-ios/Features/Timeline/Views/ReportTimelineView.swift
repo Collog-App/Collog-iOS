@@ -98,6 +98,10 @@ struct ReportTimelineView: View {
                 viewModel.recordReportEntry(using: environment)
                 await viewModel.refresh(using: environment)
             }
+            // 가족 목록을 읽기 전에 들어왔으면 목록이 정해진 뒤 이용 기록을 남긴다
+            .onChange(of: environment.family.memberUserIds) {
+                viewModel.recordReportEntry(using: environment)
+            }
             // 내 건강 앱을 연결·동기화·끊으면 내 리포트의 「생활 기록」을 다시 불러온다
             .onChange(of: environment.health.revision) {
                 guard tab == .report, viewModel.isSelfSelected else { return }
