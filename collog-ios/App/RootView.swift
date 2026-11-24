@@ -67,6 +67,9 @@ struct RootView: View {
             if !environment.session.isAuthenticated {
                 callCenter.endActiveCall()
                 launcher.dismiss()
+            } else if scenePhase == .active {
+                // 이용 기록: 앱이 앞에 있는 동안 로그인이 끝났으면 그날 app_open 을 남긴다(가입·로그인한 날이 빠지지 않게)
+                environment.usage.appDidBecomeActive(using: environment)
             }
             Task { await authFlow.resolve(using: environment) }
         }

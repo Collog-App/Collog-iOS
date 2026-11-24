@@ -324,6 +324,22 @@ struct UsageEventLogTests {
         #expect(usage.pendingEvents.allSatisfy { $0.code == nil && $0.subjectId == nil && $0.callId == nil })
     }
 
+    /// 앱이 앞에 있는 동안 로그인이 끝나도(화면이 부르는 같은 함수) 그날 app_open 이 남고, 하루 한 번은 그대로다.
+    @Test func appOpenIsRecordedWhenSignInFinishesInTheForeground() throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let morning = seoul(2026, 11, 24, hour: 9)
+        let usage = UsageEventLog(defaults: fixture.defaults, sendsAutomatically: false, now: { morning })
+        fixture.environment.session.signOut()
+        usage.appDidBecomeActive(using: fixture.environment)
+        #expect(usage.pendingEvents.isEmpty)
+
+        try fixture.signIn(as: "me")
+        usage.appDidBecomeActive(using: fixture.environment)
+        usage.appDidBecomeActive(using: fixture.environment)
+        #expect(usage.pendingEvents.map(\.name) == ["app_open"])
+    }
+
     /// 사용자마다 키를 만들지 않고 키 하나에 덮어써, 계정을 지운 뒤 사용자 ID 가 기기에 쌓이지 않는다.
     @Test func appOpenKeepsOneMarkerForTheLastUser() throws {
         let fixture = try TestEnvironment()
