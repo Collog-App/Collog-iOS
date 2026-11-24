@@ -46,6 +46,24 @@ struct UsageEventLogTests {
         #expect(usage.pendingEvents.isEmpty)
     }
 
+    /// 서버는 `code`가 없어야 하는 이벤트(`app_open`·`incoming_call_shown`)에 값이 있으면 그 줄을 버린다.
+    @Test func eventsWithoutACodeSendNoCodeField() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let server = EventServer()
+        fixture.respond = { request in try server.respond(request) }
+        let usage = fixture.environment.usage
+        usage.appDidBecomeActive(using: fixture.environment)
+        usage.record(.incomingCallShown, callId: "call", using: fixture.environment)
+
+        await usage.flush(using: fixture.environment)
+        let events = try #require(server.requests.first?.events)
+        #expect(events.map { $0["name"] as? String } == ["app_open", "incoming_call_shown"])
+        #expect(events.allSatisfy { $0["code"] == nil && $0["subjectId"] == nil })
+        #expect(events.first?["callId"] == nil)
+        #expect(events.last?["callId"] as? String == "call")
+    }
+
     @Test(arguments: [EventServer.Failure.offline, .status(500), .status(503)])
     func connectionAndServerErrorsKeepEventsForNextTime(failure: EventServer.Failure) async throws {
         let fixture = try TestEnvironment()
