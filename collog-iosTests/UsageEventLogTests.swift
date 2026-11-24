@@ -64,7 +64,8 @@ struct UsageEventLogTests {
         #expect(events.last?["callId"] as? String == "call")
     }
 
-    @Test(arguments: [EventServer.Failure.offline, .status(500), .status(503)])
+    /// HTTP 응답이 아니거나(3xx 등) 5xx 면 버리지 않는다.
+    @Test(arguments: [EventServer.Failure.offline, .status(302), .status(500), .status(503)])
     func connectionAndServerErrorsKeepEventsForNextTime(failure: EventServer.Failure) async throws {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }
@@ -107,7 +108,7 @@ struct UsageEventLogTests {
         #expect(usage.pendingEvents.isEmpty)
     }
 
-    @Test(arguments: [400, 404, 422, 429])
+    @Test(arguments: [400, 404, 413, 422, 429])
     func otherClientErrorsDropTheBatch(status: Int) async throws {
         let fixture = try TestEnvironment()
         defer { fixture.cleanUp() }

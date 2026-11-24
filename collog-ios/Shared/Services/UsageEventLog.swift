@@ -207,7 +207,7 @@ final class UsageEventLog {
     }
 
     /// `userId`가 nil 이면 로그인 전 단계를 익명 주소로, 아니면 그 사용자 것을 로그인 주소로 보낸다.
-    /// 2xx 면 지운다. 연결 오류·5xx·401 이면 남겨 두고 멈춘다. 그 밖의 4xx 는 그 묶음을 버린다.
+    /// 2xx 면 지운다. 연결 오류·5xx·401(그 밖에 HTTP 응답이 아닌 것) 이면 남겨 두고 멈춘다. 그 밖의 4xx 는 그 묶음을 버린다.
     private func send(for userId: String?, limit: Int, using environment: AppEnvironment) async {
         while true {
             if let userId, Self.recordingUser(environment) != userId { return }
@@ -215,7 +215,7 @@ final class UsageEventLog {
             guard !batch.isEmpty else { return }
             do {
                 try await environment.api.sendEvents(batch.map(\.event), anonymous: userId == nil)
-            } catch APIError.server(let status, _, _) where status < 500 {
+            } catch APIError.server(let status, _, _) where (400..<500).contains(status) {
                 // 서버가 받지 않는 묶음(404 = 아직 이 주소가 없음 포함)은 버린다
             } catch {
                 return
