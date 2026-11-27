@@ -9,17 +9,24 @@ import Foundation
 protocol SubscriptionStore {
     /// 로그인한 서버 사용자 ID 로 맞춘다. 처음이면 configure, 이미 configure 됐으면 logIn. logOut 은 부르지 않는다.
     func identify(userId: String) async throws
-    /// 월 구독 상품의 스토어 가격 문자열(예 「₩13,000」). 상품이 없으면 nil.
-    func monthlyPrice() async throws -> String?
+    /// 월 구독 상품의 스토어 가격. 상품이 없으면 nil.
+    func monthlyPrice() async throws -> StorePrice?
     /// 월 구독을 산다. 사용자가 취소하면 false.
     func purchaseMonthly() async throws -> Bool
     func restore() async throws
 }
 
+/// 스토어 상품 가격. KRW 는 숫자로 「13,000원」을 만들고(스토어 문자열은 「₩13,000」), 다른 통화는 스토어 문자열 그대로 쓴다.
+struct StorePrice: Equatable {
+    let amount: Decimal
+    let currencyCode: String?
+    let localizedString: String
+}
+
 /// 결제 화면 상태 줄. 서버 값(`EntitlementDTO`)으로만 정한다.
 enum SubscriptionStatus: Equatable {
-    /// 내가 결제했다. 다음 결제일 = 가족 유료 구독 만료.
-    case paidByMe(nextBilling: Date?)
+    /// 내가 결제했다. `until` = 가족 유료 구독 만료, `willRenew` = 그 구독이 자동 갱신 중인가(해지해 뒀으면 false).
+    case paidByMe(until: Date?, willRenew: Bool)
     /// 가족 중 다른 사람이 결제했다. 가족 안 중복 결제를 막으려고 구매 버튼을 숨긴다.
     case paidByFamily(payerName: String?)
     case trial(endsAt: Date)
@@ -35,7 +42,7 @@ enum SubscriptionStatus: Equatable {
 
 extension EntitlementDTO {
     var subscriptionStatus: SubscriptionStatus {
-        if paidByMe == true { return .paidByMe(nextBilling: paidUntil) }
+        if paidByMe == true { return .paidByMe(until: paidUntil, willRenew: willRenew == true) }
         if let payerName, !payerName.isEmpty { return .paidByFamily(payerName: payerName) }
         if source == "PAID" { return .paidByFamily(payerName: nil) }
         if source == "TRIAL", let trialEndsAt { return .trial(endsAt: trialEndsAt) }
@@ -53,7 +60,8 @@ enum AnalysisQuota {
 }
 
 /// 결제(구독) 1차: 서버 요금제 값, 스토어 가격·구매·복원. 앱 전체에서 하나다(`AppEnvironment.billing`).
-/// 둘러보기(게스트)에서는 서버도 스토어도 부르지 않는다.
+/// 둘러보기(게스트)에서는 서버도 스토어도 부르지 않는다. 스토어 SDK 는 서버가 `billingEnabled=true` 라고 할 때만 켠다
+/// (결제가 꺼져 있으면 키가 있는 빌드라도 RevenueCat 에 아무것도 보내지 않는다).
 @Observable
 final class BillingStore {
     static let infoPlistKey = "RevenueCatAPIKey"
@@ -65,7 +73,7 @@ final class BillingStore {
     static let learnMoreTitle = "프리미엄 알아보기"
 
     private(set) var entitlement: EntitlementDTO?
-    /// 「월 ₩13,000」처럼 스토어 가격 앞에 「월」을 붙인 글자. 못 불러왔으면 nil.
+    /// 「월 13,000원」. 못 불러왔으면 nil.
     private(set) var monthlyPrice: String?
     private(set) var isLoadingPrice = false
     private(set) var isWorking = false
@@ -99,36 +107,31 @@ final class BillingStore {
         errorText = nil
     }
 
-    /// 로그인 뒤 본 화면에 들어올 때: 스토어에 사용자를 알리고 서버 값을 읽는다.
-    func start(using environment: AppEnvironment) async {
-        guard let userId = signedInUserId(environment) else { return }
-        if let store { try? await store.identify(userId: userId) }
-        await refresh(using: environment)
-    }
-
-    /// 서버 값을 다시 읽는다(앱 시작·앞으로 올 때). 실패하면 가진 값을 그대로 둔다.
+    /// 서버 값을 다시 읽는다(본 화면 진입·앞으로 올 때·결제 화면을 열 때). 실패하면 가진 값을 그대로 둔다.
+    /// 결제가 켜져 있으면 스토어에 로그인한 서버 사용자를 알린다(처음이면 configure, 아니면 logIn).
     func refresh(using environment: AppEnvironment) async {
         guard let userId = signedInUserId(environment) else { return }
         let api = environment.api
         guard let value = try? await api.entitlement(), environment.session.user?.id == userId else { return }
         entitlement = value
+        if let store = activeStore { try? await store.identify(userId: userId) }
     }
 
     /// 결제 화면을 열 때 스토어 가격을 한 번 불러온다.
     func loadPrice(using environment: AppEnvironment) async {
-        guard let store, monthlyPrice == nil, !isLoadingPrice,
+        guard let store = activeStore, monthlyPrice == nil, !isLoadingPrice,
               let userId = signedInUserId(environment) else { return }
         isLoadingPrice = true
         defer { isLoadingPrice = false }
         try? await store.identify(userId: userId)
         if let price = try? await store.monthlyPrice() {
-            monthlyPrice = "월 \(price)"
+            monthlyPrice = Self.priceText(price)
         }
     }
 
     /// 구매 → 서버에 다시 읽게 함 → 화면 갱신. 사용자가 취소하면 아무 안내 없이 그대로 둔다.
     func purchase(using environment: AppEnvironment) async {
-        guard let store, !isWorking, let userId = signedInUserId(environment) else { return }
+        guard let store = activeStore, !isWorking, let userId = signedInUserId(environment) else { return }
         isWorking = true
         errorText = nil
         defer { isWorking = false }
@@ -143,7 +146,7 @@ final class BillingStore {
     }
 
     func restore(using environment: AppEnvironment) async {
-        guard let store, !isWorking, let userId = signedInUserId(environment) else { return }
+        guard let store = activeStore, !isWorking, let userId = signedInUserId(environment) else { return }
         isWorking = true
         errorText = nil
         defer { isWorking = false }
@@ -166,6 +169,11 @@ final class BillingStore {
         entitlement = value
     }
 
+    /// 키가 있고 서버가 결제를 켰을 때만 스토어를 쓴다.
+    private var activeStore: (any SubscriptionStore)? {
+        entitlement?.billingEnabled == true ? store : nil
+    }
+
     private func signedInUserId(_ environment: AppEnvironment) -> String? {
         guard !environment.settings.isGuestMode, environment.session.isAuthenticated else { return nil }
         return environment.session.user?.id
@@ -186,11 +194,31 @@ final class BillingStore {
         return formatter
     }()
 
+    /// 결제 화면 가격 줄. KRW 는 「월 13,000원」, 다른 통화는 「월 」 + 스토어 가격 문자열.
+    static func priceText(_ price: StorePrice) -> String {
+        guard price.currencyCode == "KRW", let amount = wonFormatter.string(from: price.amount as NSDecimalNumber) else {
+            return "월 \(price.localizedString)"
+        }
+        return "월 \(amount)원"
+    }
+
+    private static let wonFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+        return formatter
+    }()
+
     /// 결제 화면 상태 줄. 상태가 없으면 nil.
     static func statusText(_ status: SubscriptionStatus) -> String? {
         switch status {
-        case let .paidByMe(nextBilling):
-            nextBilling.map { "프리미엄 이용 중 · 다음 결제 \(dayText($0))" } ?? "프리미엄 이용 중"
+        case let .paidByMe(until, willRenew):
+            switch (until, willRenew) {
+            case let (until?, true): "프리미엄 이용 중 · 다음 결제 \(dayText(until))"
+            case let (until?, false): "프리미엄 이용 중 · \(dayText(until))까지"
+            case (nil, _): "프리미엄 이용 중"
+            }
         case let .paidByFamily(payerName):
             payerName.map { "\($0)님 덕분에 가족 모두 프리미엄을 쓰고 있어요" } ?? "가족 모두 프리미엄을 쓰고 있어요"
         case let .trial(endsAt):

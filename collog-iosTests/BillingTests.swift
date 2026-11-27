@@ -29,6 +29,7 @@ struct BillingTests {
         #expect(value.trialEndsAt == Date.fromCollogTimestamp("2026-12-15T00:00:00+00:00"))
         #expect(value.paidUntil == nil)
         #expect(value.paidByMe == false)
+        #expect(value.willRenew == nil)
         #expect(value.payerName == nil)
         #expect(value.analysis == EntitlementDTO.Analysis(
             month: "2026-12", usedSec: 1260, limitSec: 15000,
@@ -239,7 +240,7 @@ struct BillingTests {
         await billing.refresh(using: fixture.environment)
         await billing.loadPrice(using: fixture.environment)
 
-        #expect(billing.monthlyPrice == "월 ₩13,000")
+        #expect(billing.monthlyPrice == "월 13,000원")
         #expect(billing.status == .paidByFamily(payerName: "엄마"))
         #expect(!billing.showsPurchaseButton)
         #expect(BillingStore.statusText(billing.status) == "엄마님 덕분에 가족 모두 프리미엄을 쓰고 있어요")
@@ -267,11 +268,29 @@ struct BillingTests {
     }
 
     @Test
-    func myOwnSubscriptionShowsTheNextBillingDay() throws {
-        let value = try entitlement(source: "PAID", trialEndsAt: nil, paidUntil: "2026-12-27T03:00:00+00:00", paidByMe: true)
-        #expect(value.subscriptionStatus == .paidByMe(nextBilling: Date.fromCollogTimestamp("2026-12-27T03:00:00+00:00")))
-        #expect(!value.subscriptionStatus.allowsPurchase)
-        #expect(BillingStore.statusText(value.subscriptionStatus) == "프리미엄 이용 중 · 다음 결제 12월 27일")
+    func myOwnSubscriptionShowsTheNextBillingDayOnlyWhileItRenews() throws {
+        let until = "2026-12-27T03:00:00+00:00"
+        let renewing = try entitlement(source: "PAID", trialEndsAt: nil, paidUntil: until, paidByMe: true, willRenew: true)
+        #expect(renewing.subscriptionStatus == .paidByMe(until: Date.fromCollogTimestamp(until), willRenew: true))
+        #expect(!renewing.subscriptionStatus.allowsPurchase)
+        #expect(BillingStore.statusText(renewing.subscriptionStatus) == "프리미엄 이용 중 · 다음 결제 12월 27일")
+
+        // 해지해 뒀거나(false) 서버가 모르면(null) 다음 결제라고 하지 않는다
+        for willRenew in [false, nil] as [Bool?] {
+            let value = try entitlement(source: "PAID", trialEndsAt: nil, paidUntil: until, paidByMe: true, willRenew: willRenew)
+            #expect(BillingStore.statusText(value.subscriptionStatus) == "프리미엄 이용 중 · 12월 27일까지")
+        }
+        let noDate = try entitlement(source: "PAID", trialEndsAt: nil, paidByMe: true, willRenew: true)
+        #expect(BillingStore.statusText(noDate.subscriptionStatus) == "프리미엄 이용 중")
+    }
+
+    @Test
+    func priceLineUsesWonForKRWAndTheStoreStringOtherwise() {
+        #expect(BillingStore.priceText(StorePrice(amount: 13000, currencyCode: "KRW", localizedString: "₩13,000")) == "월 13,000원")
+        #expect(BillingStore.priceText(StorePrice(amount: 1_234_567, currencyCode: "KRW", localizedString: "₩1,234,567")) == "월 1,234,567원")
+        #expect(BillingStore.priceText(StorePrice(amount: Decimal(string: "9.99")!, currencyCode: "USD", localizedString: "$9.99")) == "월 $9.99")
+        #expect(BillingStore.priceText(StorePrice(amount: 1300, currencyCode: "JPY", localizedString: "¥1,300")) == "월 ¥1,300")
+        #expect(BillingStore.priceText(StorePrice(amount: 13000, currencyCode: nil, localizedString: "₩13,000")) == "월 ₩13,000")
     }
 
     @Test
@@ -312,7 +331,7 @@ struct BillingTests {
         let billing = fixture.environment.billing
         fixture.respond = { _ in (200, self.entitlementBody(plan: "FREE", source: nil, trialEndsAt: nil)) }
 
-        await billing.start(using: fixture.environment)
+        await billing.refresh(using: fixture.environment)
         await billing.loadPrice(using: fixture.environment)
         await billing.purchase(using: fixture.environment)
 
@@ -332,15 +351,55 @@ struct BillingTests {
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
         fixture.respond = { _ in (200, self.entitlementBody()) }
-        await fixture.environment.billing.start(using: fixture.environment)
+        await fixture.environment.billing.refresh(using: fixture.environment)
         #expect(store.identified == ["me"])
 
         fixture.environment.settings.isGuestMode = true
         let requests = fixture.paths.count
-        await fixture.environment.billing.start(using: fixture.environment)
+        await fixture.environment.billing.refresh(using: fixture.environment)
         await fixture.environment.billing.loadPrice(using: fixture.environment)
         #expect(store.identified == ["me"])
         #expect(fixture.paths.count == requests)
+    }
+
+    @Test
+    func billingOffSendsNothingToTheStoreEvenWithAKey() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        fixture.respond = { _ in (200, self.entitlementBody(billing: false, source: nil, trialEndsAt: nil)) }
+
+        await billing.refresh(using: fixture.environment)
+        await billing.loadPrice(using: fixture.environment)
+        await billing.purchase(using: fixture.environment)
+        await billing.restore(using: fixture.environment)
+
+        #expect(store.identified.isEmpty)
+        #expect(store.priceRequests == 0)
+        #expect(store.purchases == 0)
+        #expect(store.restores == 0)
+        #expect(billing.monthlyPrice == nil)
+        #expect(!billing.showsEntryPoints)
+    }
+
+    @Test
+    func openingThePaywallAfterBillingTurnsOnConfiguresTheStore() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        fixture.respond = { _ in (200, self.entitlementBody(billing: false, source: nil, trialEndsAt: nil)) }
+        await billing.refresh(using: fixture.environment)
+        #expect(store.identified.isEmpty)
+
+        // 결제 화면이 열릴 때 하는 일: 서버 값을 다시 읽고 가격을 불러온다
+        fixture.respond = { _ in (200, self.entitlementBody(plan: "FREE", source: nil, trialEndsAt: nil)) }
+        await billing.refresh(using: fixture.environment)
+        await billing.loadPrice(using: fixture.environment)
+        #expect(store.identified == ["me"])
+        #expect(billing.monthlyPrice == "월 13,000원")
+        #expect(billing.showsPurchaseButton)
     }
 
     // MARK: - 구매·복원
@@ -350,6 +409,7 @@ struct BillingTests {
         let store = FakeStore()
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
+        try await billingOn(fixture)
         fixture.respond = { request in
             request.url?.path == "/v1/account/entitlement/refresh" && request.httpMethod == "POST"
                 ? (200, self.entitlementBody(source: "PAID", trialEndsAt: nil, paidUntil: "2026-12-27T03:00:00+00:00", paidByMe: true))
@@ -370,6 +430,7 @@ struct BillingTests {
         store.purchaseResult = .success(false)
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
+        try await billingOn(fixture)
         await fixture.environment.billing.purchase(using: fixture.environment)
 
         #expect(store.purchases == 1)
@@ -383,6 +444,7 @@ struct BillingTests {
         store.purchaseResult = .failure(URLError(.notConnectedToInternet))
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
+        try await billingOn(fixture)
         await fixture.environment.billing.purchase(using: fixture.environment)
 
         #expect(fixture.paths.isEmpty)
@@ -394,6 +456,7 @@ struct BillingTests {
         let store = FakeStore()
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
+        try await billingOn(fixture)
         fixture.respond = { request in
             request.url?.path == "/v1/account/entitlement"
                 ? (200, self.entitlementBody(source: "PAID", trialEndsAt: nil, paidByMe: true))
@@ -408,6 +471,14 @@ struct BillingTests {
 
     // MARK: - Fixtures
 
+    /// 결제가 켜진 체험 중 요금제를 읽어 두고(스토어를 켬) 요청 기록은 비운다.
+    private func billingOn(_ fixture: TestEnvironment) async throws {
+        fixture.respond = { _ in (200, self.entitlementBody()) }
+        await fixture.environment.billing.refresh(using: fixture.environment)
+        try #require(fixture.environment.billing.showsEntryPoints)
+        fixture.paths = []
+    }
+
     private var mom: FamilyContact {
         FamilyContact(id: "mom", userId: "mom", name: "mom", relation: "MOTHER", lastCallText: "")
     }
@@ -415,7 +486,7 @@ struct BillingTests {
     private func entitlement(
         billing: Bool = true, plan: String = "PREMIUM", source: String? = "TRIAL",
         trialEndsAt: String? = "2026-12-15T00:00:00+00:00", paidUntil: String? = nil,
-        paidByMe: Bool = false, payerName: String? = nil
+        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil
     ) throws -> EntitlementDTO {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
@@ -425,19 +496,20 @@ struct BillingTests {
         }
         return try decoder.decode(EntitlementDTO.self, from: Data(entitlementBody(
             billing: billing, plan: plan, source: source, trialEndsAt: trialEndsAt,
-            paidUntil: paidUntil, paidByMe: paidByMe, payerName: payerName
+            paidUntil: paidUntil, paidByMe: paidByMe, willRenew: willRenew, payerName: payerName
         ).utf8))
     }
 
     private func entitlementBody(
         billing: Bool = true, plan: String = "PREMIUM", source: String? = "TRIAL",
         trialEndsAt: String? = "2026-12-15T00:00:00+00:00", paidUntil: String? = nil,
-        paidByMe: Bool = false, payerName: String? = nil
+        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil
     ) -> String {
         func json(_ value: String?) -> String { value.map { "\"\($0)\"" } ?? "null" }
         return """
         {"billingEnabled":\(billing),"plan":"\(plan)","source":\(json(source)),
          "trialEndsAt":\(json(trialEndsAt)),"paidUntil":\(json(paidUntil)),"paidByMe":\(paidByMe),
+         "willRenew":\(willRenew.map(String.init) ?? "null"),
          "payerName":\(json(payerName)),
          "analysis":{"month":"2026-12","usedSec":1260,"limitSec":15000,"resetsAt":"2027-01-01T00:00:00+09:00"}}
         """
@@ -484,14 +556,18 @@ private final class FakeStore: SubscriptionStore {
     var identified: [String] = []
     var purchases = 0
     var restores = 0
-    var price: String? = "₩13,000"
+    var priceRequests = 0
+    var price: StorePrice? = StorePrice(amount: 13000, currencyCode: "KRW", localizedString: "₩13,000")
     var purchaseResult: Result<Bool, Error> = .success(true)
 
     func identify(userId: String) async throws {
         if identified.last != userId { identified.append(userId) }
     }
 
-    func monthlyPrice() async throws -> String? { price }
+    func monthlyPrice() async throws -> StorePrice? {
+        priceRequests += 1
+        return price
+    }
 
     func purchaseMonthly() async throws -> Bool {
         purchases += 1

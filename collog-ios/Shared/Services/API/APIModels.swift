@@ -389,6 +389,8 @@ struct EntitlementDTO: Decodable, Equatable {
     let paidUntil: Date?
     /// 내가 결제한 구독이 유효한가
     let paidByMe: Bool?
+    /// `paidUntil` 을 준 구독이 자동 갱신 중인가. 유료가 아니면 nil.
+    let willRenew: Bool?
     /// 가족 중 다른 사람이 결제했으면 그 사람 이름
     let payerName: String?
     let analysis: Analysis?

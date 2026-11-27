@@ -209,8 +209,8 @@ struct RootView: View {
             await environment.health.ensureStatus(using: environment)
             await environment.health.syncIfDue(using: environment)
         }
-        // 결제 약속: 로그인한 사용자가 정해진 뒤 스토어 SDK 를 맞추고 요금제를 읽는다(계정이 바뀌면 화면이 새로 만들어져 다시 돈다)
-        .task { await environment.billing.start(using: environment) }
+        // 결제 약속: 로그인한 사용자가 정해진 뒤 요금제를 읽는다. 결제가 켜져 있으면 스토어 SDK 도 맞춘다(계정이 바뀌면 화면이 새로 만들어져 다시 돈다)
+        .task { await environment.billing.refresh(using: environment) }
         .sheet(isPresented: healthLinkPresentation) {
             HealthLinkSheet()
         }
