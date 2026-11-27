@@ -19,12 +19,16 @@ struct ReportTimelineView: View {
     @State private var activeVerticalWeek = 0
     @State private var weekHeaderMinYs: [Int: CGFloat] = [:]
     @State private var memberSelectionCount = 0
+    @State private var showsPaywall = false
 
     private let tab: MainTab
     private let pageOffsets = Array(-25...0)
     private let verticalPageOffsets = Array((-25...0).reversed())
 
     private var subjects: [FamilyContact] { viewModel.subjects(using: environment) }
+
+    /// 결제 약속: 결제가 켜져 있고 무료면 리포트·타임라인 탭 본문 대신 잠금 화면.
+    private var isLocked: Bool { environment.billing.locksReports }
 
     /// 가족 = 기존 그린, 나 = 주황. 게스트처럼 선택된 사람이 없으면 그린
     private var accent: ViewerAccent {
@@ -65,18 +69,20 @@ struct ReportTimelineView: View {
                     ViewerBadgeChip(name: viewModel.selectedMember)
                 },
                 sticky: {
-                if tab == .timeline {
+                if tab == .timeline, !isLocked {
                     timelineSectionHeader(for: activeVerticalWeek)
                 }
                 },
                 pinnedSticky: {
-                    if tab == .timeline {
+                    if tab == .timeline, !isLocked {
                         stickyTimelineWeekHeader
                     }
                 },
                 content: {
                 VStack(spacing: Spacing.x3) {
-                    if tab == .timeline {
+                    if isLocked {
+                        premiumLocked
+                    } else if tab == .timeline {
                         verticalTimeline
                             .simultaneousGesture(personSwipe)
                     } else {
@@ -93,6 +99,14 @@ struct ReportTimelineView: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: CallAnalysisRoute.self) { route in
                 CallAnalysisView(callId: route.callId)
+            }
+            .sheet(isPresented: $showsPaywall) {
+                PaywallView()
+            }
+            // 구매·복원 등으로 프리미엄이 되면 402 로 잠겨 있던 주를 다시 읽는다
+            .onChange(of: environment.billing.entitlement) {
+                guard !environment.billing.locksReports, viewModel.hasLockedPage else { return }
+                Task { await viewModel.reloadAll(using: environment) }
             }
             .task {
                 viewModel.recordReportEntry(using: environment)
@@ -324,7 +338,9 @@ struct ReportTimelineView: View {
                 safetyNotices(page.report.safetyNotices)
             }
 
-            if page.reportNotShared {
+            if page.reportLocked {
+                premiumLocked
+            } else if page.reportNotShared {
                 NotSharedStateView()
             } else if let error = page.reportError {
                 errorContent(error, offset: page.offset)
@@ -341,7 +357,7 @@ struct ReportTimelineView: View {
             }
 
             // 생활 기록(건강 앱 연결). 내 리포트에서만 「연결하기」를 보인다
-            if let record = page.lifeRecord {
+            if !page.reportLocked, let record = page.lifeRecord {
                 LifeRecordCardView(
                     record: record,
                     onConnect: viewModel.isSelfSelected ? { environment.health.present() } : nil
@@ -372,7 +388,9 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private func timelineEntries(_ page: TimelineWeekPage) -> some View {
-        if page.timelineNotShared {
+        if page.reportLocked {
+            premiumLocked
+        } else if page.timelineNotShared {
             NotSharedStateView()
         } else if let error = page.timelineError {
             errorContent(error, offset: page.offset)
@@ -393,6 +411,10 @@ struct ReportTimelineView: View {
                 }
             }
         }
+    }
+
+    private var premiumLocked: some View {
+        PremiumLockedStateView { showsPaywall = true }
     }
 
     private func emptyAnalysisContent(_ page: TimelineWeekPage) -> some View {

@@ -21,6 +21,8 @@ struct TimelineWeekPage: Identifiable {
     var reportNotShared = false
     /// 대상 가족이 나에게 타임라인 공유를 껐다(서버 403).
     var timelineNotShared = false
+    /// 내 가족이 프리미엄이 아니라 리포트가 막혔다(서버 402 `PREMIUM_REQUIRED`). 리포트·타임라인 탭 모두 잠금 화면.
+    var reportLocked = false
 
     var id: Int { offset }
 

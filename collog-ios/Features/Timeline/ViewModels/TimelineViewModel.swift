@@ -165,6 +165,17 @@ final class TimelineViewModel {
         await refresh(using: environment)
     }
 
+    /// 402 로 잠긴 주가 있는지. 프리미엄이 되면 화면이 불러 둔 주를 모두 다시 읽는다.
+    var hasLockedPage: Bool { pages.values.contains(where: \.reportLocked) }
+
+    /// 요금제가 바뀌었을 때(구매·복원 등) 불러 둔 주를 모두 버리고 다시 읽는다.
+    func reloadAll(using environment: AppEnvironment) async {
+        pages.removeAll()
+        loading.removeAll()
+        contentGeneration += 1
+        await refresh(using: environment)
+    }
+
     func loadPage(_ offset: Int, using environment: AppEnvironment, forceReload: Bool = false) async {
         resolveSelection(using: environment)
         let generation = contentGeneration
@@ -287,6 +298,7 @@ final class TimelineViewModel {
         page.timelineError = nil
         page.reportNotShared = false
         page.timelineNotShared = false
+        page.reportLocked = false
         page.isLoaded = false
         pages[offset] = page
 
@@ -305,6 +317,10 @@ final class TimelineViewModel {
             // 공유를 끈 가족의 리포트는 오류가 아니다
             page.report = .empty
             page.reportNotShared = true
+        } catch let error as APIError where error.isPremiumRequired {
+            // 무료 요금제의 리포트는 오류가 아니라 잠금이다(공유 꺼짐과 따로 둔다)
+            page.report = .empty
+            page.reportLocked = true
         } catch {
             page.reportError = error.localizedDescription
         }

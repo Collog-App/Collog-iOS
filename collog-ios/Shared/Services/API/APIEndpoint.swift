@@ -50,6 +50,13 @@ enum APIError: LocalizedError, Equatable {
         return false
     }
 
+    /// 402 `PREMIUM_REQUIRED`: 결제가 켜져 있고 보는 사람의 가족이 프리미엄이 아니다(리포트).
+    /// 403(가족이 공유를 껐다)과 섞지 않는다.
+    var isPremiumRequired: Bool {
+        if case let .server(status, _, _) = self { return status == 402 }
+        return false
+    }
+
     /// 404: 찾는 것이 이미 없다.
     var isNotFound: Bool {
         if case let .server(status, _, _) = self { return status == 404 }

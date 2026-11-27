@@ -59,6 +59,9 @@ struct HomeView: View {
                         ProgressView("통화 기록을 불러오고 있어요")
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.x8)
+                    } else if viewModel.isReportLocked {
+                        // 결제 약속: 무료 요금제(402)면 리포트 기반 카드를 숨긴다
+                        EmptyView()
                     } else if viewModel.isReportNotShared {
                         NotSharedStateView()
                             .cardSurface()
@@ -127,6 +130,11 @@ struct HomeView: View {
             }
             // 분석 완료 알림을 받으면(누르지 않고 배너로만 봐도) 건강 요약을 다시 읽는다
             .onChange(of: environment.reportDataRevision) {
+                Task { await refresh() }
+            }
+            // 구매·복원 등으로 프리미엄이 되면 숨겨 둔 리포트 카드를 다시 읽는다
+            .onChange(of: environment.billing.entitlement) {
+                guard !environment.billing.locksReports, viewModel.isReportLocked else { return }
                 Task { await refresh() }
             }
             .environment(\.navigationManager, navigator)

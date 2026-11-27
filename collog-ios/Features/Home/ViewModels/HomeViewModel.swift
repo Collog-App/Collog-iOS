@@ -20,6 +20,8 @@ final class HomeViewModel {
     private(set) var isReportNotShared = false
     /// 고른 가족이 나에게 타임라인 공유를 껐다(서버 403).
     private(set) var isCallHistoryNotShared = false
+    /// 내 가족이 프리미엄이 아니라 리포트가 막혔다(서버 402). 리포트 기반 카드를 숨긴다.
+    private(set) var isReportLocked = false
     @ObservationIgnored private var generation = UUID()
 
     static let callsNotSharedText = "통화 기록을 공유하지 않았어요"
@@ -43,7 +45,8 @@ final class HomeViewModel {
             recentCalls = calls
             recentCallsError = nil
             lastCallText = Self.lastCallText(calls: calls)
-            if calls.filter(\.isAnalyzed).count != analyzedBefore || (healthSummary == nil && !isReportNotShared) {
+            if calls.filter(\.isAnalyzed).count != analyzedBefore
+                || (healthSummary == nil && !isReportNotShared && !isReportLocked) {
                 await refresh(using: environment, contact: contact)
                 return
             }
@@ -75,6 +78,7 @@ final class HomeViewModel {
         recentCallsError = nil
         isReportNotShared = false
         isCallHistoryNotShared = false
+        isReportLocked = false
         lastCallText = "아직 통화 기록이 없어요"
         if environment.settings.isGuestMode {
             healthSummary = .sample(for: contact)
@@ -121,6 +125,9 @@ final class HomeViewModel {
             dto = try await api.report(parentId: parentId)
         } catch let error as APIError where error.isForbidden {
             if self.generation == generation { isReportNotShared = true }
+            return
+        } catch let error as APIError where error.isPremiumRequired {
+            if self.generation == generation { isReportLocked = true }
             return
         } catch {
             if self.generation == generation { loadError = error.localizedDescription }
