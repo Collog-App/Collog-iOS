@@ -77,6 +77,8 @@ struct PaywallView: View {
         }
         .presentationDragIndicator(.visible)
         .task {
+            // 지난번 오류·안내를 지우고, 가격 자리는 처음부터 불러오는 중으로 보인다
+            billing.preparePaywall()
             await billing.refresh(using: environment)
             await billing.loadPrice(using: environment)
         }
@@ -114,7 +116,7 @@ struct PaywallView: View {
                     .body_02_medium(.gray700)
                     .fixedSize(horizontal: false, vertical: true)
             }
-        } else if billing.isLoadingPrice {
+        } else if billing.isPriceLoading {
             ProgressView()
                 .frame(maxWidth: .infinity)
         } else {

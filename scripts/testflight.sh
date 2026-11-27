@@ -30,6 +30,8 @@ AUTH=(-allowProvisioningUpdates
 EXTRA=()
 [[ -n "${BUILD_NUMBER:-}" ]] && EXTRA+=(CURRENT_PROJECT_VERSION="$BUILD_NUMBER")
 [[ -n "${REVENUECAT_API_KEY:-}" ]] && EXTRA+=(REVENUECAT_API_KEY="$REVENUECAT_API_KEY")
+[[ -z "${REVENUECAT_API_KEY:-}" ]] && echo "경고: REVENUECAT_API_KEY 가 비어 있어요. 이 빌드의 결제 화면은 「결제를 준비하고 있어요」만 보여요." >&2
+[[ -n "${REVENUECAT_API_KEY:-}" && "$REVENUECAT_API_KEY" != appl_* ]] && echo "경고: REVENUECAT_API_KEY 가 appl_ 로 시작하지 않아 앱이 키 없음으로 봐요." >&2
 
 xcodebuild archive \
   -project collog-ios.xcodeproj -scheme collog-ios -configuration Release \

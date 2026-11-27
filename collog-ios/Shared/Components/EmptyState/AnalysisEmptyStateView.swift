@@ -10,6 +10,11 @@ import SwiftUI
 enum AnalysisEmptyAction: Equatable {
     case processing, excluded, quotaExceeded, failed, family, call, currentWeek, none
 
+    /// 최근 통화로 정한 안내(분석 중·제외·분량 초과·실패). 리포트가 잠겨도(402) 홈에 그대로 보인다.
+    var isAboutRecentCall: Bool {
+        [.processing, .excluded, .quotaExceeded, .failed].contains(self)
+    }
+
     static func resolve(
         calls: [CallSummaryDTO], canCall: Bool, isCurrentWeek: Bool, isGuest: Bool, isSelf: Bool = false
     ) -> Self {
@@ -60,14 +65,12 @@ struct AnalysisEmptyStateView: View {
         )
     }
 
-    /// 분량 초과 안내는 보는 사람의 요금제에 따라 다르다(이미 프리미엄이면 버튼 없이 다음 달 안내).
-    private var isPremium: Bool { environment.billing.entitlement?.isPremium == true }
-
     private var message: String {
         switch action {
         case .processing: "통화 분석을 준비하고 있어요. 해당 통화의 상태를 확인할 수 있어요."
         case .excluded: "부모님이 말씀하신 시간이 짧았거나(20초 미만), 두 분의 최신 동의가 확인되지 않으면 분석에서 빠져요. 조금 더 길게 통화해 보시고, 계속되면 동의 상태를 확인해 주세요."
-        case .quotaExceeded: AnalysisQuota.text(isPremium: isPremium)
+        // 분량 초과 안내는 보는 사람의 요금제에 따라 다르다(프리미엄·모름이면 버튼 없음)
+        case .quotaExceeded: AnalysisQuota.text(for: environment.billing.entitlement)
         case .failed: "분석 중 문제가 생겼어요. 잠시 뒤 다시 확인해 주세요."
         case .family: "가족을 초대하거나 받은 초대 코드를 입력해 첫 통화를 시작해 보세요."
         case .call: "가족과 통화하고 분석에 동의하면 대화 내용을 다시 살펴볼 수 있어요."
@@ -80,7 +83,7 @@ struct AnalysisEmptyStateView: View {
         switch action {
         case .processing: "통화 상태 보기"
         case .excluded, .failed: "다시 확인하기"
-        case .quotaExceeded: isPremium ? nil : BillingStore.learnMoreTitle
+        case .quotaExceeded: environment.billing.offersPremium ? BillingStore.learnMoreTitle : nil
         case .family: "가족 초대하기"
         case .call: "\(contact?.name ?? "가족")에게 전화하기"
         case .currentWeek: "이번 주 보기"

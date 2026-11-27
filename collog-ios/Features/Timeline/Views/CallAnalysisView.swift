@@ -64,13 +64,12 @@ struct CallAnalysisView: View {
                 }
             }
         case .quotaExceeded:
-            // 이미 프리미엄이면 버튼 없이 다음 달 안내
-            let isPremium = environment.billing.entitlement?.isPremium == true
+            // 이미 프리미엄이거나 요금제를 모르면 버튼을 두지 않는다
             EmptyStateView(
                 symbol: "exclamationmark.circle",
                 title: "분석 대상에서 제외된 통화예요.",
-                message: AnalysisQuota.text(isPremium: isPremium),
-                actionTitle: isPremium ? nil : BillingStore.learnMoreTitle,
+                message: AnalysisQuota.text(for: environment.billing.entitlement),
+                actionTitle: environment.billing.offersPremium ? BillingStore.learnMoreTitle : nil,
                 action: { showsPaywall = true }
             )
         case let .error(message):
