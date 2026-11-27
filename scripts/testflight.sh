@@ -10,6 +10,7 @@
 #   ASC_ISSUER_ID  Issuer ID (팀 키는 필수, 개인 키는 생략)
 # 선택:
 #   BUILD_NUMBER   지정하면 CURRENT_PROJECT_VERSION 을 이 값으로 아카이브 (지난 업로드보다 커야 함)
+#   REVENUECAT_API_KEY  RevenueCat 공개 SDK 키(appl_…). 비우면 결제 화면이 「결제를 준비하고 있어요」만 보인다
 set -euo pipefail
 cd "${0:A:h}/.."
 
@@ -28,6 +29,7 @@ AUTH=(-allowProvisioningUpdates
 
 EXTRA=()
 [[ -n "${BUILD_NUMBER:-}" ]] && EXTRA+=(CURRENT_PROJECT_VERSION="$BUILD_NUMBER")
+[[ -n "${REVENUECAT_API_KEY:-}" ]] && EXTRA+=(REVENUECAT_API_KEY="$REVENUECAT_API_KEY")
 
 xcodebuild archive \
   -project collog-ios.xcodeproj -scheme collog-ios -configuration Release \
