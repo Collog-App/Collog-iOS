@@ -59,7 +59,7 @@ final class TestEnvironment {
         throw URLError(.unsupportedURL)
     }
 
-    init(role: String = "PARENT", familyId: String? = "family") throws {
+    init(role: String = "PARENT", familyId: String? = "family", billing: BillingStore? = nil) throws {
         defaults = try #require(UserDefaults(suiteName: id))
         defaults.set(true, forKey: AppSettings.Key.productionServerConfigured)
         defaults.set(true, forKey: AppSettings.Key.onboardingCompleted)
@@ -78,6 +78,7 @@ final class TestEnvironment {
             settings: AppSettings(defaults: defaults), session: session,
             family: FamilyStore(defaults: defaults),
             usage: UsageEventLog(defaults: defaults, sendsAutomatically: false),
+            billing: billing ?? BillingStore(apiKey: nil),
             networkSession: networkSession
         )
         FixtureURLProtocol.handlers[id] = { [weak self] request in
