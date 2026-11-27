@@ -364,3 +364,36 @@ struct ParentHealthDailyDTO: Decodable {
     let days: [HealthDayDTO]
     let disclaimer: String?
 }
+
+// MARK: - 결제(구독) (2026-11-27 서버·안드로이드 공통 약속)
+
+/// `GET /v1/account/entitlement`·`POST /v1/account/entitlement/refresh`.
+/// 잠금·요금제 표시는 이 서버 값만 쓴다(가족 결제·체험은 서버만 안다. 스토어 SDK 값으로 잠금을 풀지 않는다).
+struct EntitlementDTO: Decodable, Equatable {
+    struct Analysis: Decodable, Equatable {
+        /// "YYYY-MM"(한국 시간)
+        let month: String
+        let usedSec: Int
+        let limitSec: Int
+        let resetsAt: Date?
+    }
+
+    let billingEnabled: Bool
+    /// "PREMIUM" | "FREE"
+    let plan: String
+    /// "PAID" | "TRIAL" | nil(무료)
+    let source: String?
+    /// 가족 체험 끝
+    let trialEndsAt: Date?
+    /// 가족 유료 구독 만료(가장 늦은 것)
+    let paidUntil: Date?
+    /// 내가 결제한 구독이 유효한가
+    let paidByMe: Bool?
+    /// 가족 중 다른 사람이 결제했으면 그 사람 이름
+    let payerName: String?
+    let analysis: Analysis?
+
+    var isPremium: Bool { plan == "PREMIUM" }
+    /// 결제가 켜져 있고 무료면 리포트·타임라인 탭이 잠긴다.
+    var locksReports: Bool { billingEnabled && plan == "FREE" }
+}

@@ -22,6 +22,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var showsInvitationCode = false
+    @State private var showsPaywall = false
 
     private let privacyPolicyURL = URL(string: "https://collog-app.github.io/Collog-Privacy/")!
 
@@ -99,6 +100,9 @@ struct SettingsView: View {
             .sheet(isPresented: $showsInvitationCode) {
                 InvitationAcceptSheet()
             }
+            .sheet(isPresented: $showsPaywall) {
+                PaywallView()
+            }
         }
     }
 
@@ -160,6 +164,17 @@ struct SettingsView: View {
                     value: environment.health.rowText(for: environment.session.user?.id)
                 ) {
                     environment.health.present()
+                }
+            }
+            // 결제 약속: 결제가 켜져 있을 때만(꺼져 있으면 지금과 같은 앱). 체험 모드에는 서버가 없어 두지 않는다
+            if !environment.settings.isGuestMode, environment.billing.showsEntryPoints,
+               let entitlement = environment.billing.entitlement {
+                DividerLine()
+                SettingsSubscriptionRow(
+                    plan: BillingStore.planText(entitlement),
+                    usage: entitlement.analysis.map(BillingStore.usageText)
+                ) {
+                    showsPaywall = true
                 }
             }
         }

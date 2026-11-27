@@ -53,6 +53,40 @@ struct SettingsNavigationRow: View {
     }
 }
 
+/// 설정 「계정」의 「구독 관리」 줄(결제 약속 2026-11-27): 지금 요금제 + 이번 달 분석, 누르면 결제 화면.
+struct SettingsSubscriptionRow: View {
+    let plan: String
+    /// 「12분 / 40분」
+    var usage: String?
+    var action: () -> Void = {}
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Spacing.x2) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("구독 관리")
+                        .body_02_medium(.gray900)
+                    Text(plan)
+                        .caption_01_medium(.gray700)
+                    if let usage {
+                        Text("이번 달 분석 \(usage)")
+                            .caption_01_medium(.gray700)
+                    }
+                }
+
+                Spacer(minLength: Spacing.x2)
+
+                Icon(name: "chevron.right", size: IconSize.small, color: .gray600)
+            }
+            .padding(.horizontal, Spacing.x4)
+            .padding(.vertical, Spacing.x3)
+            .frame(minHeight: 52)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SettingsToggleRow: View {
     let label: String
     var caption: String?

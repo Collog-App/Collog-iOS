@@ -298,6 +298,16 @@ struct CollogAPI {
         return response.shares
     }
 
+    /// 결제 약속(2026-11-27): 가족 기준 요금제와 이번 달 분석 분량.
+    func entitlement() async throws -> EntitlementDTO {
+        try await client.send(APIEndpoint(path: "/v1/account/entitlement"))
+    }
+
+    /// 구매·복원 직후: 서버가 스토어에서 내 구독을 다시 읽어 저장한 뒤 같은 본문을 돌려준다.
+    func refreshEntitlement() async throws -> EntitlementDTO {
+        try await client.send(APIEndpoint(path: "/v1/account/entitlement/refresh", method: .post))
+    }
+
     func deleteAccount(authorization: AppleDeletionBody? = nil) async throws {
         try await client.sendRaw(APIEndpoint(path: "/v1/account", method: .delete, body: authorization))
     }

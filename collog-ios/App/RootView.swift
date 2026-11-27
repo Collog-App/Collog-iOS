@@ -102,6 +102,8 @@ struct RootView: View {
                 callCenter.updateNotificationAuthorization()
                 callCenter.expirePostCallQuestion()
                 Task { await environment.session.checkAppleCredential(using: environment.settings.resolvedBaseURL) }
+                // 결제 약속: 앞으로 올 때 요금제를 다시 읽는다(그사이 가족이 결제했거나 체험이 끝났을 수 있다)
+                if authFlow.step == .ready { Task { await environment.billing.refresh(using: environment) } }
                 // 건강 앱 요약은 앱이 앞으로 올 때 하루 한 번 이하로 보낸다(가입을 마친 뒤에만)
                 if authFlow.step == .ready { Task { await environment.health.syncIfDue(using: environment) } }
             }
@@ -207,6 +209,8 @@ struct RootView: View {
             await environment.health.ensureStatus(using: environment)
             await environment.health.syncIfDue(using: environment)
         }
+        // 결제 약속: 로그인한 사용자가 정해진 뒤 스토어 SDK 를 맞추고 요금제를 읽는다(계정이 바뀌면 화면이 새로 만들어져 다시 돈다)
+        .task { await environment.billing.start(using: environment) }
         .sheet(isPresented: healthLinkPresentation) {
             HealthLinkSheet()
         }

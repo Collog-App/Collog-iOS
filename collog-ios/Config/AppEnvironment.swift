@@ -14,6 +14,7 @@ final class AppEnvironment {
     let family: FamilyStore
     let health: HealthLink
     let usage: UsageEventLog
+    let billing: BillingStore
     private let networkSession: URLSession
     @ObservationIgnored var beforeSignOut: (() async -> Void)?
     var reportNotificationRevision = 0
@@ -33,6 +34,7 @@ final class AppEnvironment {
         family: FamilyStore = FamilyStore(),
         health: HealthLink = HealthLink(),
         usage: UsageEventLog = UsageEventLog(),
+        billing: BillingStore = BillingStore(),
         networkSession: URLSession = .shared
     ) {
         self.settings = settings
@@ -40,9 +42,11 @@ final class AppEnvironment {
         self.family = family
         self.health = health
         self.usage = usage
+        self.billing = billing
         self.networkSession = networkSession
         session.onAccountChanged = { [weak self] in
             self?.family.reset()
+            self?.billing.reset()
             self?.reportNotifications = []
             self?.reportNotificationOpenedAt = nil
         }
