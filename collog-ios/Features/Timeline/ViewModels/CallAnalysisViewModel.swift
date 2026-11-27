@@ -15,6 +15,8 @@ final class CallAnalysisViewModel {
         case pending
         /// 분석에서 빠졌거나(ANALYSIS_EXCLUDED) 분석하지 못한(ANALYSIS_FAILED) 통화.
         case unavailable(title: String, message: String?, safetyNotice: String?, summary: String?)
+        /// 이번 달 분석 시간을 다 써서 분석하지 않은 통화(결제 약속). 문구는 보는 사람의 요금제에 따라 화면이 고른다.
+        case quotaExceeded
         case error(String)
         case ready(CallTimelineEntry)
     }
@@ -40,6 +42,8 @@ final class CallAnalysisViewModel {
         switch call.state {
         case "ANALYZED":
             break
+        case "ANALYSIS_EXCLUDED" where call.isAnalysisQuotaExceeded:
+            return .quotaExceeded
         case "ANALYSIS_EXCLUDED":
             // 짧아서 제외된 통화도 요약이나 응급 안내는 서버가 남길 수 있다. 없거나(404) 실패하면 조용히 넘긴다.
             let extraction = try? await api.extraction(callId: callId)

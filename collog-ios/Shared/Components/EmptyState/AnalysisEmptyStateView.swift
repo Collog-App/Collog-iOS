@@ -8,7 +8,7 @@
 import SwiftUI
 
 enum AnalysisEmptyAction: Equatable {
-    case processing, excluded, failed, family, call, currentWeek, none
+    case processing, excluded, quotaExceeded, failed, family, call, currentWeek, none
 
     static func resolve(
         calls: [CallSummaryDTO], canCall: Bool, isCurrentWeek: Bool, isGuest: Bool, isSelf: Bool = false
@@ -19,6 +19,7 @@ enum AnalysisEmptyAction: Equatable {
         // 실제로 통화가 이어진(1초 이상) 가장 최근 통화가 분석에서 빠졌거나 실패했을 때. 안 받은 통화는 제외한다.
         if let latest = calls.filter({ ($0.durationSec ?? 0) > 0 }).max(by: { $0.startedAt < $1.startedAt }) {
             if latest.state == "ANALYSIS_FAILED" { return .failed }
+            if latest.isAnalysisQuotaExceeded { return .quotaExceeded }
             if latest.state == "ANALYSIS_EXCLUDED" { return .excluded }
         }
         if !isCurrentWeek { return .currentWeek }
@@ -43,6 +44,7 @@ struct AnalysisEmptyStateView: View {
     @Environment(CallCenter.self) private var callCenter
     @State private var showsFamily = false
     @State private var showsCalls = false
+    @State private var showsPaywall = false
 
     var contact: FamilyContact?
     var isSelf = false
@@ -58,10 +60,14 @@ struct AnalysisEmptyStateView: View {
         )
     }
 
+    /// 분량 초과 안내는 보는 사람의 요금제에 따라 다르다(이미 프리미엄이면 버튼 없이 다음 달 안내).
+    private var isPremium: Bool { environment.billing.entitlement?.isPremium == true }
+
     private var message: String {
         switch action {
         case .processing: "통화 분석을 준비하고 있어요. 해당 통화의 상태를 확인할 수 있어요."
         case .excluded: "부모님이 말씀하신 시간이 짧았거나(20초 미만), 두 분의 최신 동의가 확인되지 않으면 분석에서 빠져요. 조금 더 길게 통화해 보시고, 계속되면 동의 상태를 확인해 주세요."
+        case .quotaExceeded: AnalysisQuota.text(isPremium: isPremium)
         case .failed: "분석 중 문제가 생겼어요. 잠시 뒤 다시 확인해 주세요."
         case .family: "가족을 초대하거나 받은 초대 코드를 입력해 첫 통화를 시작해 보세요."
         case .call: "가족과 통화하고 분석에 동의하면 대화 내용을 다시 살펴볼 수 있어요."
@@ -74,6 +80,7 @@ struct AnalysisEmptyStateView: View {
         switch action {
         case .processing: "통화 상태 보기"
         case .excluded, .failed: "다시 확인하기"
+        case .quotaExceeded: isPremium ? nil : BillingStore.learnMoreTitle
         case .family: "가족 초대하기"
         case .call: "\(contact?.name ?? "가족")에게 전화하기"
         case .currentWeek: "이번 주 보기"
@@ -84,7 +91,7 @@ struct AnalysisEmptyStateView: View {
     private var symbol: String {
         switch action {
         case .processing: "waveform"
-        case .excluded, .failed: "exclamationmark.circle"
+        case .excluded, .quotaExceeded, .failed: "exclamationmark.circle"
         default: "doc.text.magnifyingglass"
         }
     }
@@ -92,7 +99,7 @@ struct AnalysisEmptyStateView: View {
     private var title: String {
         switch action {
         case .processing: "통화를 분석하고 있어요."
-        case .excluded: "이 통화는 분석에서 제외됐어요."
+        case .excluded, .quotaExceeded: "이 통화는 분석에서 제외됐어요."
         case .failed: "통화 분석에 실패했어요."
         default: "아직 분석된 데이터가 없어요."
         }
@@ -113,12 +120,16 @@ struct AnalysisEmptyStateView: View {
         .sheet(isPresented: $showsCalls, onDismiss: { Task { await onRefresh() } }) {
             AnalysisCallStatusView(calls: calls)
         }
+        .sheet(isPresented: $showsPaywall) {
+            PaywallView()
+        }
     }
 
     private func performAction() {
         switch action {
         case .processing: showsCalls = true
         case .excluded, .failed: Task { await onRefresh() }
+        case .quotaExceeded: showsPaywall = true
         case .family: showsFamily = true
         case .call:
             guard let contact, let userId = contact.userId else { return }

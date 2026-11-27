@@ -72,11 +72,17 @@ struct CallSummaryDTO: Decodable, Identifiable {
     let parentSpeechSec: Int?
     /// 통화의 다른 한쪽. 서버가 보내지 않으면 nil.
     var childId: String? = nil
+    /// 녹음·분석을 하지 않은 까닭(예: `ANALYSIS_QUOTA_EXCEEDED`). 서버가 보내지 않으면 nil.
+    var recordingDisabledReason: String? = nil
 
     var id: String { callId }
     var isAnalyzed: Bool { state == "ANALYZED" }
     /// 받는 분 말씀이 짧거나 녹음하지 않아 목소리·건강 분석에서 빠진 통화.
     var isAnalysisExcluded: Bool { state == "ANALYSIS_EXCLUDED" }
+    /// 이번 달 분석 시간을 다 써서 분석하지 않은 통화(결제 약속 2026-11-27).
+    var isAnalysisQuotaExceeded: Bool {
+        isAnalysisExcluded && recordingDisabledReason == AnalysisQuota.exceededReason
+    }
 
     /// 그 사람이 이 통화의 한쪽인지. 통화별 분석 결과는 참여한 두 사람에게만 열린다(다른 가족의 통화는 403).
     func involves(_ userId: String?) -> Bool {

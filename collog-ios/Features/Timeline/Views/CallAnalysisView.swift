@@ -14,6 +14,7 @@ struct CallAnalysisRoute: Hashable {
 struct CallAnalysisView: View {
     @Environment(AppEnvironment.self) private var environment
     @State private var viewModel: CallAnalysisViewModel
+    @State private var showsPaywall = false
 
     init(callId: String) {
         _viewModel = State(initialValue: CallAnalysisViewModel(callId: callId))
@@ -29,6 +30,7 @@ struct CallAnalysisView: View {
             .toolbar(.hidden, for: .navigationBar)
             .interactivePopGestureEnabled()
             .task { await viewModel.load(using: environment) }
+            .sheet(isPresented: $showsPaywall) { PaywallView() }
     }
 
     @ViewBuilder
@@ -61,6 +63,16 @@ struct CallAnalysisView: View {
                     EmptyStateView(symbol: "exclamationmark.circle", title: title, message: message)
                 }
             }
+        case .quotaExceeded:
+            // 이미 프리미엄이면 버튼 없이 다음 달 안내
+            let isPremium = environment.billing.entitlement?.isPremium == true
+            EmptyStateView(
+                symbol: "exclamationmark.circle",
+                title: "분석 대상에서 제외된 통화예요.",
+                message: AnalysisQuota.text(isPremium: isPremium),
+                actionTitle: isPremium ? nil : BillingStore.learnMoreTitle,
+                action: { showsPaywall = true }
+            )
         case let .error(message):
             EmptyStateView(
                 symbol: "exclamationmark.circle",
