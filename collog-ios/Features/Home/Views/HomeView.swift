@@ -60,8 +60,15 @@ struct HomeView: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Spacing.x8)
                     } else if viewModel.isReportLocked {
-                        // 결제 약속: 무료 요금제(402)면 리포트 기반 카드를 숨긴다
-                        EmptyView()
+                        // 결제 약속: 무료 요금제(402)면 리포트 기반 카드와 「아직 분석된 데이터가 없어요」류는 숨기고,
+                        // 최근 통화 안내(분석 중·제외·분량 초과·실패)만 둔다
+                        if viewModel.lockedCallStatus != nil {
+                            AnalysisEmptyStateView(
+                                contact: selectedContact, calls: viewModel.recentCalls, onRefresh: refresh
+                            )
+                                .cardSurface()
+                                .padding(.bottom, Spacing.x5)
+                        }
                     } else if viewModel.isReportNotShared {
                         NotSharedStateView()
                             .cardSurface()

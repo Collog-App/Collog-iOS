@@ -27,8 +27,8 @@ struct ReportTimelineView: View {
 
     private var subjects: [FamilyContact] { viewModel.subjects(using: environment) }
 
-    /// 결제 약속: 결제가 켜져 있고 무료면 리포트·타임라인 탭 본문 대신 잠금 화면.
-    private var isLocked: Bool { environment.billing.locksReports }
+    /// 결제 약속: 결제가 켜져 있고 무료이거나 리포트가 402 면 리포트·타임라인 탭 본문 대신 잠금 화면 하나.
+    private var isLocked: Bool { viewModel.isLocked(using: environment) }
 
     /// 가족 = 기존 그린, 나 = 주황. 게스트처럼 선택된 사람이 없으면 그린
     private var accent: ViewerAccent {
@@ -103,10 +103,14 @@ struct ReportTimelineView: View {
             .sheet(isPresented: $showsPaywall) {
                 PaywallView()
             }
-            // 구매·복원 등으로 프리미엄이 되면 402 로 잠겨 있던 주를 다시 읽는다
-            .onChange(of: environment.billing.entitlement) {
-                guard !environment.billing.locksReports, viewModel.hasLockedPage else { return }
-                Task { await viewModel.reloadAll(using: environment) }
+            // 구매·복원 등으로 잠금이 풀리면 처음부터 다시 읽고, 건너뛰었던 이용 기록도 남긴다
+            .onChange(of: environment.billing.entitlement) { previous, current in
+                let wasLocked = previous?.locksReports == true || viewModel.hasLockedPage
+                guard wasLocked, current?.locksReports != true else { return }
+                Task {
+                    await viewModel.reloadAll(using: environment)
+                    viewModel.recordReportEntry(using: environment)
+                }
             }
             .task {
                 viewModel.recordReportEntry(using: environment)
@@ -338,9 +342,7 @@ struct ReportTimelineView: View {
                 safetyNotices(page.report.safetyNotices)
             }
 
-            if page.reportLocked {
-                premiumLocked
-            } else if page.reportNotShared {
+            if page.reportNotShared {
                 NotSharedStateView()
             } else if let error = page.reportError {
                 errorContent(error, offset: page.offset)
@@ -357,7 +359,7 @@ struct ReportTimelineView: View {
             }
 
             // 생활 기록(건강 앱 연결). 내 리포트에서만 「연결하기」를 보인다
-            if !page.reportLocked, let record = page.lifeRecord {
+            if let record = page.lifeRecord {
                 LifeRecordCardView(
                     record: record,
                     onConnect: viewModel.isSelfSelected ? { environment.health.present() } : nil
@@ -388,9 +390,7 @@ struct ReportTimelineView: View {
 
     @ViewBuilder
     private func timelineEntries(_ page: TimelineWeekPage) -> some View {
-        if page.reportLocked {
-            premiumLocked
-        } else if page.timelineNotShared {
+        if page.timelineNotShared {
             NotSharedStateView()
         } else if let error = page.timelineError {
             errorContent(error, offset: page.offset)
@@ -414,7 +414,7 @@ struct ReportTimelineView: View {
     }
 
     private var premiumLocked: some View {
-        PremiumLockedStateView { showsPaywall = true }
+        PremiumLockedStateView(onLearnMore: environment.billing.offersPremium ? { showsPaywall = true } : nil)
     }
 
     private func emptyAnalysisContent(_ page: TimelineWeekPage) -> some View {

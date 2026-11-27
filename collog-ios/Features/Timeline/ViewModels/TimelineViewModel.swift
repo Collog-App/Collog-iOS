@@ -79,6 +79,8 @@ final class TimelineViewModel {
         let source = reportEntrySource ?? (environment.takeReportNotificationEntry() ? .notification : .direct)
         reportEntrySource = source
         guard environment.family.memberUserIds != nil else { return }
+        // 잠긴 탭(무료 요금제)은 남기지 않는다. 풀리면 다시 불러 남긴다
+        guard !isLocked(using: environment) else { return }
         recordedReportEntry = true
         recordReportView(source, using: environment)
     }
@@ -106,6 +108,8 @@ final class TimelineViewModel {
                 .forEach(loadGuestPage)
             return
         }
+        // 잠긴 탭은 아무것도 불러오지 않는다
+        guard !isLocked(using: environment) else { return }
 
         guard let context = await loadContext(using: environment) else {
             guard generation == contentGeneration else { return }
@@ -122,6 +126,8 @@ final class TimelineViewModel {
         let anchor = weekOffset
         let offsets = forceReload ? [anchor] : [anchor, anchor - 1, anchor + 1]
         for offset in offsets where offset <= 0 {
+            // 요금제를 몰라 리포트로 잠금을 알게 됐으면(402) 나머지 주는 묻지 않는다
+            if hasLockedPage { break }
             await load(
                 offset,
                 parentId: context.parentId,
@@ -137,7 +143,7 @@ final class TimelineViewModel {
     /// 앱으로 돌아왔을 때: 그사이 가족이 공유를 껐거나 다시 켰으면 불러 둔 주를 모두 버리고 다시 읽는다.
     /// 바뀌지 않았으면 화면을 건드리지 않게, 지금 주의 리포트와 통화 목록이 열리는지만 조용히 묻는다.
     func revalidateSharing(using environment: AppEnvironment) async {
-        guard !environment.settings.isGuestMode, !isSelfSelected,
+        guard !environment.settings.isGuestMode, !isSelfSelected, !isLocked(using: environment),
               let parentId = selectedContact(using: environment)?.userId,
               let page = pages[weekOffset], page.isLoaded else { return }
         let generation = contentGeneration
@@ -168,6 +174,11 @@ final class TimelineViewModel {
     /// 402 로 잠긴 주가 있는지. 프리미엄이 되면 화면이 불러 둔 주를 모두 다시 읽는다.
     var hasLockedPage: Bool { pages.values.contains(where: \.reportLocked) }
 
+    /// 탭 전체 잠금: 결제가 켜져 있고 무료이거나, 한 주라도 리포트가 402 였다.
+    func isLocked(using environment: AppEnvironment) -> Bool {
+        environment.billing.locksReports || hasLockedPage
+    }
+
     /// 요금제가 바뀌었을 때(구매·복원 등) 불러 둔 주를 모두 버리고 다시 읽는다.
     func reloadAll(using environment: AppEnvironment) async {
         pages.removeAll()
@@ -185,7 +196,7 @@ final class TimelineViewModel {
             return
         }
 
-        guard offset <= 0 else { return }
+        guard offset <= 0, !isLocked(using: environment) else { return }
         guard let context = await loadContext(using: environment) else {
             guard generation == contentGeneration else { return }
             pages[offset] = TimelineWeekPage(
@@ -318,9 +329,13 @@ final class TimelineViewModel {
             page.report = .empty
             page.reportNotShared = true
         } catch let error as APIError where error.isPremiumRequired {
-            // 무료 요금제의 리포트는 오류가 아니라 잠금이다(공유 꺼짐과 따로 둔다)
+            // 무료 요금제의 리포트는 오류가 아니라 잠금이다(공유 꺼짐과 따로 둔다). 탭 전체가 잠겨 통화·생활 기록은 묻지 않는다
+            guard generation == contentGeneration else { return }
             page.report = .empty
             page.reportLocked = true
+            page.isLoaded = true
+            pages[offset] = page
+            return
         } catch {
             page.reportError = error.localizedDescription
         }

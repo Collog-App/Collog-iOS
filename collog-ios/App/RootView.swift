@@ -80,6 +80,8 @@ struct RootView: View {
         .onChange(of: environment.session.user) { previous, current in
             callCenter.sessionDidChange()
             environment.usage.forgetOtherUsers(using: environment)
+            // 결제 약속: 가족 합류·나가기·내보내짐으로 가족이 바뀌면 요금제(가족 기준)를 다시 읽는다
+            Task { await environment.billing.refreshIfFamilyChanged(using: environment) }
             guard let previous, let current,
                   previous.role != current.role || previous.familyId != current.familyId else { return }
             launcher.dismiss()

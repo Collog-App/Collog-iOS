@@ -52,13 +52,31 @@ final class HomeViewModel {
             }
         }
 
-        // 리포트 공유는 타임라인과 따로 켜고 끈다
-        guard healthSummary != nil || isReportNotShared,
-              let report = await APIError.accessCheck({ try await api.report(parentId: parentId) }),
-              self.generation == generation else { return }
-        if report.denied != isReportNotShared {
+        // 리포트 공유는 타임라인과 따로 켜고 끈다. 무료 요금제가 돼 402 가 오면 보이던 리포트 카드를 내린다
+        guard healthSummary != nil || isReportNotShared else { return }
+        let denied: Bool
+        do {
+            _ = try await api.report(parentId: parentId)
+            denied = false
+        } catch let error as APIError where error.isForbidden {
+            denied = true
+        } catch let error as APIError where error.isPremiumRequired {
+            if self.generation == generation { await refresh(using: environment, contact: contact) }
+            return
+        } catch {
+            return
+        }
+        guard self.generation == generation else { return }
+        if denied != isReportNotShared {
             await refresh(using: environment, contact: contact)
         }
+    }
+
+    /// 리포트가 잠겼을 때(402)도 홈에 남는 최근 통화 안내(분석 중·제외·분량 초과·실패). 「아직 분석된 데이터가 없어요」류는 숨긴다.
+    var lockedCallStatus: AnalysisEmptyAction? {
+        guard isReportLocked else { return nil }
+        let action = AnalysisEmptyAction.resolve(calls: recentCalls, canCall: true, isCurrentWeek: true, isGuest: false)
+        return action.isAboutRecentCall ? action : nil
     }
 
     func refresh(
