@@ -68,6 +68,7 @@ final class BillingStore {
     static let preparingText = "결제를 준비하고 있어요"
     static let purchaseFailedText = "결제를 마치지 못했어요. 잠시 뒤 다시 시도해 주세요."
     static let restoreFailedText = "구매를 복원하지 못했어요. 잠시 뒤 다시 시도해 주세요."
+    static let pendingText = "결제는 완료됐어요. 반영까지 잠시 걸릴 수 있어요."
     static let lockTitle = "주간 리포트와 타임라인은 프리미엄에서 볼 수 있어요"
     static let lockMessage = "통화가 쌓이면 부모님의 변화를 한 주, 한 달 단위로 모아 보여드려요."
     static let learnMoreTitle = "프리미엄 알아보기"
@@ -78,6 +79,8 @@ final class BillingStore {
     private(set) var isLoadingPrice = false
     private(set) var isWorking = false
     private(set) var errorText: String?
+    /// 구매·복원은 됐는데 서버가 아직 반영하지 못했을 때의 안내(오류 아님).
+    private(set) var noticeText: String?
     @ObservationIgnored private let store: (any SubscriptionStore)?
 
     init(
@@ -105,6 +108,7 @@ final class BillingStore {
     func reset() {
         entitlement = nil
         errorText = nil
+        noticeText = nil
     }
 
     /// 서버 값을 다시 읽는다(본 화면 진입·앞으로 올 때·결제 화면을 열 때). 실패하면 가진 값을 그대로 둔다.
@@ -114,6 +118,7 @@ final class BillingStore {
         let api = environment.api
         guard let value = try? await api.entitlement(), environment.session.user?.id == userId else { return }
         entitlement = value
+        if value.source == "PAID" { noticeText = nil }
         if let store = activeStore { try? await store.identify(userId: userId) }
     }
 
@@ -134,6 +139,7 @@ final class BillingStore {
         guard let store = activeStore, !isWorking, let userId = signedInUserId(environment) else { return }
         isWorking = true
         errorText = nil
+        noticeText = nil
         defer { isWorking = false }
         do {
             try await store.identify(userId: userId)
@@ -149,6 +155,7 @@ final class BillingStore {
         guard let store = activeStore, !isWorking, let userId = signedInUserId(environment) else { return }
         isWorking = true
         errorText = nil
+        noticeText = nil
         defer { isWorking = false }
         do {
             try await store.identify(userId: userId)
@@ -160,13 +167,19 @@ final class BillingStore {
         await refreshAfterStoreChange(using: environment, userId: userId)
     }
 
-    /// 구매·복원 직후는 `POST …/refresh`. 그것이 실패하면 저장된 값이라도 다시 읽는다.
+    /// 구매·복원 직후는 `POST …/refresh`. 서버가 스토어 확인에 실패했거나(502 `UPSTREAM_ERROR`) 연결이 끊겨도
+    /// 결제 실패로 보이지 않는다: 저장된 값을 한 번 더 읽고, 아직 유료가 아니면 반영 중이라고 알린다(웹훅이 곧 반영).
     private func refreshAfterStoreChange(using environment: AppEnvironment, userId: String) async {
         let api = environment.api
-        var value = try? await api.refreshEntitlement()
-        if value == nil { value = try? await api.entitlement() }
-        guard let value, environment.session.user?.id == userId else { return }
-        entitlement = value
+        if let value = try? await api.refreshEntitlement() {
+            guard environment.session.user?.id == userId else { return }
+            entitlement = value
+            return
+        }
+        let value = try? await api.entitlement()
+        guard environment.session.user?.id == userId else { return }
+        if let value { entitlement = value }
+        if value?.source != "PAID" { noticeText = Self.pendingText }
     }
 
     /// 키가 있고 서버가 결제를 켰을 때만 스토어를 쓴다.

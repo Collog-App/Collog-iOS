@@ -49,6 +49,12 @@ struct PaywallView: View {
 
                     actionSection
 
+                    if let notice = billing.noticeText {
+                        Text(notice)
+                            .body_02_medium(.gray800)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
                     if let error = billing.errorText {
                         Text(error)
                             .body_02_medium(.red500)

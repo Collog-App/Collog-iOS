@@ -467,6 +467,51 @@ struct BillingTests {
         #expect(store.restores == 1)
         #expect(fixture.paths == ["/v1/account/entitlement/refresh", "/v1/account/entitlement"])
         #expect(fixture.environment.billing.entitlement?.paidByMe == true)
+        // 다시 읽은 값이 이미 유료면 반영 중 안내도 없다
+        #expect(fixture.environment.billing.noticeText == nil)
+        #expect(fixture.environment.billing.errorText == nil)
+    }
+
+    @Test
+    func upstreamErrorAfterPurchaseSaysItIsPaidButNotYetReflected() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        try await billingOn(fixture)
+        fixture.respond = { request in
+            request.url?.path == "/v1/account/entitlement/refresh"
+                ? (502, #"{"code":"UPSTREAM_ERROR","message":"구독 정보를 확인하지 못했어요"}"#)
+                : (200, self.entitlementBody())
+        }
+        await billing.purchase(using: fixture.environment)
+
+        #expect(fixture.paths == ["/v1/account/entitlement/refresh", "/v1/account/entitlement"])
+        #expect(billing.errorText == nil)
+        #expect(billing.noticeText == "결제는 완료됐어요. 반영까지 잠시 걸릴 수 있어요.")
+
+        // 웹훅이 반영된 뒤 다시 읽으면 안내가 사라진다
+        fixture.respond = { _ in (200, self.entitlementBody(source: "PAID", trialEndsAt: nil, paidByMe: true, willRenew: true)) }
+        await billing.refresh(using: fixture.environment)
+        #expect(billing.noticeText == nil)
+        #expect(billing.status == .paidByMe(until: nil, willRenew: true))
+    }
+
+    @Test
+    func connectionLostAfterRestoreIsNotAFailureEither() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        try await billingOn(fixture)
+        // 다시 읽기까지 연결이 끊겨도 실패 문구가 아니라 반영 중 안내
+        fixture.respond = { _ in throw URLError(.networkConnectionLost) }
+        await billing.restore(using: fixture.environment)
+
+        #expect(store.restores == 1)
+        #expect(billing.errorText == nil)
+        #expect(billing.noticeText == "결제는 완료됐어요. 반영까지 잠시 걸릴 수 있어요.")
+        #expect(billing.showsEntryPoints)
     }
 
     // MARK: - Fixtures
@@ -519,7 +564,8 @@ struct BillingTests {
         """
         {"callId":"\(id)","parentId":"mom","childId":"me","state":"\(state)","timeSlot":null,
          "startedAt":"2026-12-05T03:00:00Z","endedAt":"2026-12-05T03:30:00Z","durationSec":1800,
-         "recorded":true,"recordingEnabled":true,"recordingDisabledReason":\(reason.map { "\"\($0)\"" } ?? "null"),
+         "recorded":\(reason == nil),"recordingEnabled":\(reason == nil),
+         "recordingDisabledReason":\(reason.map { "\"\($0)\"" } ?? "null"),
          "recordingDisabledMessage":null,"parentSpeechSec":600}
         """
     }
