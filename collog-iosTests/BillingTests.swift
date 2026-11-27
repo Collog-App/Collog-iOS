@@ -144,7 +144,13 @@ struct BillingTests {
         let model = TimelineViewModel()
         await model.refresh(using: fixture.environment)
         #expect(model.page(for: 0).reportLocked)
-        #expect(model.page(for: -1).reportLocked)
+        // 요금제를 몰라도 리포트 한 건으로 잠금을 알면 나머지 주·통화는 묻지 않는다
+        #expect(!model.page(for: -1).isLoaded)
+        #expect(fixture.paths.filter { $0 == "/v1/parents/mom/reports" }.count == 1)
+        #expect(!fixture.paths.contains("/v1/parents/mom/calls"))
+        #expect(model.isLocked(using: fixture.environment))
+        await model.loadPage(-1, using: fixture.environment)
+        #expect(fixture.paths.filter { $0 == "/v1/parents/mom/reports" }.count == 1)
 
         serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (200, reportBody()))
         await model.reloadAll(using: fixture.environment)
@@ -178,10 +184,36 @@ struct BillingTests {
     // MARK: - 분석 분량 초과
 
     @Test
-    func quotaCopyFollowsTheContract() {
-        #expect(AnalysisQuota.text(isPremium: false) == "이번 달 무료 분석 시간(40분)을 다 써서 이 통화는 분석하지 않았어요.")
-        #expect(AnalysisQuota.text(isPremium: true) == "이번 달 분석 시간을 다 썼어요. 다음 달 1일에 다시 채워져요.")
+    func quotaCopyFollowsTheContract() throws {
+        #expect(AnalysisQuota.text(for: try entitlement(plan: "FREE", source: nil, trialEndsAt: nil, limitSec: 2400))
+            == "이번 달 무료 분석 시간(40분)을 다 써서 이 통화는 분석하지 않았어요.")
+        // 무료 한도는 서버 값을 따르고, 없으면 40분
+        #expect(AnalysisQuota.text(for: try entitlement(plan: "FREE", source: nil, trialEndsAt: nil, limitSec: 3600))
+            == "이번 달 무료 분석 시간(60분)을 다 써서 이 통화는 분석하지 않았어요.")
+        #expect(AnalysisQuota.freeText(limitSec: nil) == "이번 달 무료 분석 시간(40분)을 다 써서 이 통화는 분석하지 않았어요.")
+        #expect(AnalysisQuota.text(for: try entitlement()) == "이번 달 분석 시간을 다 썼어요. 다음 달 1일에 다시 채워져요.")
+        // 요금제를 모르면 중립 문구
+        #expect(AnalysisQuota.text(for: nil) == "이번 달 분석 시간을 다 써서 이 통화는 분석하지 않았어요.")
         #expect(BillingStore.learnMoreTitle == "프리미엄 알아보기")
+    }
+
+    @Test
+    func learnMoreIsOfferedOnlyToAKnownFreePlanWithBillingOn() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        #expect(!billing.offersPremium)
+
+        for (body, offers) in [
+            (entitlementBody(plan: "FREE", source: nil, trialEndsAt: nil), true),
+            (entitlementBody(), false),
+            (entitlementBody(source: "PAID", trialEndsAt: nil, payerName: "엄마"), false),
+            (entitlementBody(billing: false, source: nil, trialEndsAt: nil), false),
+        ] {
+            fixture.respond = { _ in (200, body) }
+            await billing.refresh(using: fixture.environment)
+            #expect(billing.offersPremium == offers)
+        }
     }
 
     @Test
@@ -320,7 +352,7 @@ struct BillingTests {
 
     // MARK: - 공개 SDK 키
 
-    @Test(arguments: [nil, "", "  ", "$(REVENUECAT_API_KEY)"])
+    @Test(arguments: [nil, "", "  ", "$(REVENUECAT_API_KEY)", "test_abc", "goog_abc", "sk_abc"])
     func missingKeyNeverTouchesTheStore(key: String?) async throws {
         var made = 0
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: key) { _ in
@@ -427,7 +459,7 @@ struct BillingTests {
     @Test
     func cancelledPurchaseStaysQuiet() async throws {
         let store = FakeStore()
-        store.purchaseResult = .success(false)
+        store.purchaseResult = .success(.cancelled)
         let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
         defer { fixture.cleanUp() }
         try await billingOn(fixture)
@@ -447,8 +479,74 @@ struct BillingTests {
         try await billingOn(fixture)
         await fixture.environment.billing.purchase(using: fixture.environment)
 
-        #expect(fixture.paths.isEmpty)
+        // 실패로 보여도 결제가 됐을 수 있어 서버 값을 한 번 확인한다(아직 유료가 아니라 실패 문구)
+        #expect(fixture.paths == ["/v1/account/entitlement"])
         #expect(fixture.environment.billing.errorText == "결제를 마치지 못했어요. 잠시 뒤 다시 시도해 주세요.")
+    }
+
+    @Test
+    func failedPurchaseThatWentThroughShowsNoError() async throws {
+        let store = FakeStore()
+        store.purchaseResult = .failure(URLError(.timedOut))
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        try await billingOn(fixture)
+        fixture.respond = { _ in (200, self.entitlementBody(source: "PAID", trialEndsAt: nil, paidByMe: true, willRenew: true)) }
+        await fixture.environment.billing.purchase(using: fixture.environment)
+
+        #expect(fixture.environment.billing.errorText == nil)
+        #expect(fixture.environment.billing.status == .paidByMe(until: nil, willRenew: true))
+    }
+
+    @Test
+    func pendingApprovalAndAlreadyPurchasedAreToldApart() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        try await billingOn(fixture)
+
+        store.purchaseResult = .success(.pending)
+        await billing.purchase(using: fixture.environment)
+        #expect(billing.noticeText == "결제 승인을 기다리고 있어요. 승인되면 자동으로 반영돼요.")
+        #expect(billing.errorText == nil)
+
+        store.purchaseResult = .success(.alreadyPurchased)
+        await billing.purchase(using: fixture.environment)
+        #expect(billing.noticeText == "이미 구매한 구독이 있어요. 구매 복원을 눌러 주세요.")
+        #expect(billing.errorText == nil)
+        // 둘 다 서버에 다시 읽게 하지 않는다
+        #expect(fixture.paths.isEmpty)
+    }
+
+    @Test
+    func refreshThatIsNotPaidYetStillSaysItIsBeingReflected() async throws {
+        let store = FakeStore()
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        try await billingOn(fixture)
+        // refresh 가 200 이어도 아직 체험(유료 아님)이면 반영 중 안내
+        fixture.respond = { _ in (200, self.entitlementBody()) }
+        await fixture.environment.billing.purchase(using: fixture.environment)
+
+        #expect(fixture.paths == ["/v1/account/entitlement/refresh"])
+        #expect(fixture.environment.billing.noticeText == "결제는 완료됐어요. 반영까지 잠시 걸릴 수 있어요.")
+        #expect(fixture.environment.billing.errorText == nil)
+    }
+
+    @Test
+    func restoreWithoutAnActivePremiumSaysThereIsNothingToRestore() async throws {
+        let store = FakeStore()
+        store.restoreResult = false
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        try await billingOn(fixture)
+        await fixture.environment.billing.restore(using: fixture.environment)
+
+        #expect(store.restores == 1)
+        #expect(fixture.paths.isEmpty)
+        #expect(fixture.environment.billing.noticeText == "복원할 구매가 없어요.")
+        #expect(fixture.environment.billing.errorText == nil)
     }
 
     @Test
@@ -514,6 +612,185 @@ struct BillingTests {
         #expect(billing.showsEntryPoints)
     }
 
+    // MARK: - 검토(11-28)
+
+    @Test
+    func homeKeepsRecentCallNoticesWhileTheReportIsLocked() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let model = HomeViewModel()
+
+        let quota = "{\"calls\":[\(callJSON(id: "quota", reason: "ANALYSIS_QUOTA_EXCEEDED"))]}"
+        serveFamily(fixture, calls: (200, quota), report: (402, premiumRequired))
+        await model.refresh(using: fixture.environment, contact: mom)
+        #expect(model.isReportLocked)
+        #expect(model.lockedCallStatus == .quotaExceeded)
+
+        let processing = "{\"calls\":[\(callJSON(id: "p", state: "PROCESSING", reason: nil))]}"
+        serveFamily(fixture, calls: (200, processing), report: (402, premiumRequired))
+        await model.refresh(using: fixture.environment, contact: mom)
+        #expect(model.lockedCallStatus == .processing)
+
+        // 「아직 분석된 데이터가 없어요」류(통화 없음)는 숨긴다
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (402, premiumRequired))
+        await model.refresh(using: fixture.environment, contact: mom)
+        #expect(model.lockedCallStatus == nil)
+
+        // 잠기지 않았으면 이 안내는 쓰지 않는다
+        serveFamily(fixture, calls: (200, quota), report: (200, reportBody()))
+        await model.refresh(using: fixture.environment, contact: mom)
+        #expect(model.lockedCallStatus == nil)
+    }
+
+    @Test
+    func homeQuietCheckDropsTheOldReportCardOn402() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let model = HomeViewModel()
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (200, reportBody()))
+        await model.refresh(using: fixture.environment, contact: mom)
+        #expect(model.healthSummary != nil)
+
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (402, premiumRequired))
+        await model.refreshCalls(using: fixture.environment, contact: mom)
+        #expect(model.isReportLocked)
+        #expect(model.healthSummary == nil)
+        #expect(model.healthFeedback == nil)
+    }
+
+    @Test
+    func untilDatesShowTheLastUsableDay() throws {
+        // 한국 시간 12월 15일 00:00 에 끝나면 마지막으로 쓸 수 있는 날은 12월 14일
+        let midnight = "2026-12-14T15:00:00+00:00"
+        let trial = try entitlement(trialEndsAt: midnight)
+        #expect(BillingStore.statusText(trial.subscriptionStatus) == "무료 체험 중 · 12월 14일까지")
+        #expect(BillingStore.planText(trial) == "프리미엄 · 무료 체험 12월 14일까지")
+
+        let cancelled = try entitlement(source: "PAID", trialEndsAt: nil, paidUntil: midnight, paidByMe: true, willRenew: false)
+        #expect(BillingStore.statusText(cancelled.subscriptionStatus) == "프리미엄 이용 중 · 12월 14일까지")
+        // 다음 결제일은 그대로
+        let renewing = try entitlement(source: "PAID", trialEndsAt: nil, paidUntil: midnight, paidByMe: true, willRenew: true)
+        #expect(BillingStore.statusText(renewing.subscriptionStatus) == "프리미엄 이용 중 · 다음 결제 12월 15일")
+    }
+
+    @Test
+    func familyChangeReadsThePlanAgain() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        let session = fixture.environment.session
+        fixture.respond = { _ in (200, self.entitlementBody()) }
+        let reads = { fixture.paths.filter { $0 == "/v1/account/entitlement" }.count }
+        await billing.refresh(using: fixture.environment)
+        #expect(reads() == 1)
+
+        await billing.refreshIfFamilyChanged(using: fixture.environment)
+        #expect(reads() == 1)
+
+        try session.joinFamily("other-family")
+        await billing.refreshIfFamilyChanged(using: fixture.environment)
+        await billing.refreshIfFamilyChanged(using: fixture.environment)
+        #expect(reads() == 2)
+
+        try session.leaveFamily()
+        await billing.refreshIfFamilyChanged(using: fixture.environment)
+        #expect(reads() == 3)
+    }
+
+    @Test
+    func revenueCatStoreDoesNotTouchTheSDKBeforeConfigure() async throws {
+        // 시험 프로세스에서는 configure 하지 않는다. Purchases.shared 를 부르면 멈추므로 가드가 먼저 막아야 한다
+        let store = RevenueCatStore(apiKey: "appl_not_configured")
+        #expect(try await store.monthlyPrice() == nil)
+        await #expect(throws: (any Error).self) { try await store.purchaseMonthly() }
+        await #expect(throws: (any Error).self) { try await store.restore() }
+    }
+
+    @Test
+    func knownFreePlanLoadsNothingAndRecordsNoReportViewUntilItUnlocks() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (200, reportBody()))
+        await environment.family.refresh(using: environment)
+        let free = try entitlement(plan: "FREE", source: nil, trialEndsAt: nil)
+        environment.billing.apply(free, request: environment.billing.beginRequest(environment))
+        fixture.paths = []
+
+        let model = TimelineViewModel(selectedTabIndex: 0)
+        model.recordReportEntry(using: environment)
+        await model.refresh(using: environment)
+        await model.loadPage(-1, using: environment)
+        await model.revalidateSharing(using: environment)
+        #expect(model.isLocked(using: environment))
+        #expect(fixture.paths.isEmpty)
+        #expect(environment.usage.pendingEvents.isEmpty)
+
+        // 결제로 풀리면 처음부터 읽고 그때 한 번 남긴다
+        environment.billing.apply(try entitlement(), request: environment.billing.beginRequest(environment))
+        await model.reloadAll(using: environment)
+        model.recordReportEntry(using: environment)
+        #expect(!model.isLocked(using: environment))
+        #expect(model.page(for: 0).report.state != .empty)
+        #expect(environment.usage.pendingEvents.map(\.name) == ["report_view"])
+    }
+
+    @Test
+    func openingThePaywallClearsTheLastMessageAndShowsLoadingFromTheStart() async throws {
+        let store = FakeStore()
+        store.purchaseResult = .failure(URLError(.notConnectedToInternet))
+        let fixture = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in store })
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        try await billingOn(fixture)
+        await billing.purchase(using: fixture.environment)
+        #expect(billing.errorText != nil)
+
+        billing.preparePaywall()
+        #expect(billing.errorText == nil)
+        #expect(billing.noticeText == nil)
+        // 가격을 받기 전부터 불러오는 중
+        #expect(billing.isPriceLoading)
+        await billing.loadPrice(using: fixture.environment)
+        #expect(!billing.isPriceLoading)
+        #expect(billing.monthlyPrice == "월 13,000원")
+
+        // 상품을 못 받으면 불러오는 중에서 「결제를 준비하고 있어요」로
+        let empty = FakeStore()
+        empty.price = nil
+        let other = try TestEnvironment(billing: BillingStore(apiKey: "appl_test") { _ in empty })
+        defer { other.cleanUp() }
+        try await billingOn(other)
+        other.environment.billing.preparePaywall()
+        #expect(other.environment.billing.isPriceLoading)
+        await other.environment.billing.loadPrice(using: other.environment)
+        #expect(!other.environment.billing.isPriceLoading)
+        #expect(other.environment.billing.monthlyPrice == nil)
+        // 키가 없으면 처음부터 불러오는 중이 아니다
+        #expect(!BillingStore(apiKey: nil).isPriceLoading)
+    }
+
+    @Test
+    func anOlderSlowerResponseDoesNotOverwriteANewerOne() async throws {
+        let fixture = try TestEnvironment()
+        defer { fixture.cleanUp() }
+        let billing = fixture.environment.billing
+        let paid = try entitlement(source: "PAID", trialEndsAt: nil, paidByMe: true, willRenew: true)
+        let free = try entitlement(plan: "FREE", source: nil, trialEndsAt: nil)
+
+        let older = billing.beginRequest(fixture.environment)
+        let newer = billing.beginRequest(fixture.environment)
+        #expect(billing.apply(paid, request: newer))
+        #expect(!billing.apply(free, request: older))
+        #expect(billing.entitlement == paid)
+
+        // 계정이 바뀌기 전에 출발한 요청은 적용하지 않는다
+        let stale = billing.beginRequest(fixture.environment)
+        billing.reset()
+        #expect(!billing.apply(free, request: stale))
+        #expect(billing.entitlement == nil)
+    }
+
     // MARK: - Fixtures
 
     /// 결제가 켜진 체험 중 요금제를 읽어 두고(스토어를 켬) 요청 기록은 비운다.
@@ -531,7 +808,7 @@ struct BillingTests {
     private func entitlement(
         billing: Bool = true, plan: String = "PREMIUM", source: String? = "TRIAL",
         trialEndsAt: String? = "2026-12-15T00:00:00+00:00", paidUntil: String? = nil,
-        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil
+        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil, limitSec: Int = 15000
     ) throws -> EntitlementDTO {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
@@ -541,14 +818,14 @@ struct BillingTests {
         }
         return try decoder.decode(EntitlementDTO.self, from: Data(entitlementBody(
             billing: billing, plan: plan, source: source, trialEndsAt: trialEndsAt,
-            paidUntil: paidUntil, paidByMe: paidByMe, willRenew: willRenew, payerName: payerName
+            paidUntil: paidUntil, paidByMe: paidByMe, willRenew: willRenew, payerName: payerName, limitSec: limitSec
         ).utf8))
     }
 
     private func entitlementBody(
         billing: Bool = true, plan: String = "PREMIUM", source: String? = "TRIAL",
         trialEndsAt: String? = "2026-12-15T00:00:00+00:00", paidUntil: String? = nil,
-        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil
+        paidByMe: Bool = false, willRenew: Bool? = nil, payerName: String? = nil, limitSec: Int = 15000
     ) -> String {
         func json(_ value: String?) -> String { value.map { "\"\($0)\"" } ?? "null" }
         return """
@@ -556,7 +833,7 @@ struct BillingTests {
          "trialEndsAt":\(json(trialEndsAt)),"paidUntil":\(json(paidUntil)),"paidByMe":\(paidByMe),
          "willRenew":\(willRenew.map(String.init) ?? "null"),
          "payerName":\(json(payerName)),
-         "analysis":{"month":"2026-12","usedSec":1260,"limitSec":15000,"resetsAt":"2027-01-01T00:00:00+09:00"}}
+         "analysis":{"month":"2026-12","usedSec":1260,"limitSec":\(limitSec),"resetsAt":"2027-01-01T00:00:00+09:00"}}
         """
     }
 
@@ -604,7 +881,8 @@ private final class FakeStore: SubscriptionStore {
     var restores = 0
     var priceRequests = 0
     var price: StorePrice? = StorePrice(amount: 13000, currencyCode: "KRW", localizedString: "₩13,000")
-    var purchaseResult: Result<Bool, Error> = .success(true)
+    var purchaseResult: Result<PurchaseOutcome, Error> = .success(.purchased)
+    var restoreResult = true
 
     func identify(userId: String) async throws {
         if identified.last != userId { identified.append(userId) }
@@ -615,10 +893,13 @@ private final class FakeStore: SubscriptionStore {
         return price
     }
 
-    func purchaseMonthly() async throws -> Bool {
+    func purchaseMonthly() async throws -> PurchaseOutcome {
         purchases += 1
         return try purchaseResult.get()
     }
 
-    func restore() async throws { restores += 1 }
+    func restore() async throws -> Bool {
+        restores += 1
+        return restoreResult
+    }
 }
