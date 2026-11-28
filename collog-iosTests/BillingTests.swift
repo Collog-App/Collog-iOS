@@ -147,7 +147,9 @@ struct BillingTests {
         // 요금제를 몰라도 리포트 한 건으로 잠금을 알면 나머지 주·통화는 묻지 않는다
         #expect(!model.page(for: -1).isLoaded)
         #expect(fixture.paths.filter { $0 == "/v1/parents/mom/reports" }.count == 1)
-        #expect(!fixture.paths.contains("/v1/parents/mom/calls"))
+        // 주별 통화는 묻지 않고, 잠긴 타임라인 탭의 「최근 통화」 한 번만 읽는다
+        #expect(fixture.paths.filter { $0 == "/v1/parents/mom/calls" }.count == 1)
+        #expect(model.lockedContent.isLoaded)
         #expect(model.isLocked(using: fixture.environment))
         await model.loadPage(-1, using: fixture.environment)
         #expect(fixture.paths.filter { $0 == "/v1/parents/mom/reports" }.count == 1)
@@ -723,7 +725,10 @@ struct BillingTests {
         await model.loadPage(-1, using: environment)
         await model.revalidateSharing(using: environment)
         #expect(model.isLocked(using: environment))
-        #expect(fixture.paths.isEmpty)
+        // 잠긴 리포트 탭은 응급 안내만 묻는다(이 서버는 404 라 조용히 비운다)
+        #expect(fixture.paths == ["/v1/parents/mom/safety-notices"])
+        #expect(model.lockedContent.isLoaded)
+        #expect(model.lockedContent.safetyNotices.isEmpty)
         #expect(environment.usage.pendingEvents.isEmpty)
 
         // 결제로 풀리면 처음부터 읽고 그때 한 번 남긴다
@@ -791,6 +796,146 @@ struct BillingTests {
         #expect(billing.entitlement == nil)
     }
 
+    // MARK: - 무료 진입로·응급 안내(용진 결정 11-28)
+
+    @Test
+    func freeTimelineTabListsTheRecentTwentyCallsNewestFirst() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+        let calls = (1...25).map { day in
+            datedCallJSON(id: "c\(day)", startedAt: String(format: "2026-11-%02dT03:00:00Z", day))
+        }
+        let listBody = "{\"calls\":[\(calls.joined(separator: ","))]}"
+        serveFamily(fixture, calls: (200, listBody), report: (200, reportBody()))
+        let plain = fixture.respond
+        // 날짜 없이 불러야 한다
+        fixture.respond = { request in
+            if request.url?.path == "/v1/parents/mom/calls", request.url?.query != nil {
+                return (500, #"{"code":"ERROR","message":"날짜를 넣으면 안 돼요"}"#)
+            }
+            return try plain(request)
+        }
+        await environment.family.refresh(using: environment)
+        environment.billing.apply(
+            try entitlement(plan: "FREE", source: nil, trialEndsAt: nil), request: environment.billing.beginRequest(environment)
+        )
+        fixture.paths = []
+
+        let model = TimelineViewModel(selectedTabIndex: 1)
+        await model.refresh(using: environment)
+
+        let content = model.lockedContent
+        #expect(content.isLoaded)
+        #expect(content.callsError == nil)
+        #expect(content.calls.count == 20)
+        #expect(content.calls.first?.callId == "c25")
+        #expect(content.calls.last?.callId == "c6")
+        #expect(fixture.paths == ["/v1/parents/mom/calls"])
+        #expect(RecentCallListView.title == "최근 통화")
+        #expect(RecentCallListView.emptyText == "아직 통화 기록이 없어요")
+    }
+
+    @Test
+    func freeTimelineTabWithoutCallsOrWithSharingOff() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (200, reportBody()))
+        await environment.family.refresh(using: environment)
+        environment.billing.apply(
+            try entitlement(plan: "FREE", source: nil, trialEndsAt: nil), request: environment.billing.beginRequest(environment)
+        )
+        let model = TimelineViewModel(selectedTabIndex: 1)
+        await model.refresh(using: environment)
+        #expect(model.lockedContent.isLoaded)
+        #expect(model.lockedContent.calls.isEmpty)
+        #expect(!model.lockedContent.callsNotShared)
+
+        serveFamily(fixture, calls: (403, denied), report: (200, reportBody()))
+        await model.refresh(using: environment, forceReload: true)
+        #expect(model.lockedContent.callsNotShared)
+        #expect(model.lockedContent.callsError == nil)
+    }
+
+    @Test
+    func recentCallRowsShowSeoulTimeDurationAndStatus() throws {
+        // 한국 시간 11월 26일(목) 15:12. 자정 넘는 시각은 한국 날짜로 센다
+        let date = try #require(Date.fromCollogTimestamp("2026-11-26T06:12:00Z"))
+        #expect(RecentCallListView.dateText(date) == "11월 26일 (목) 오후 3:12")
+        let lateNight = try #require(Date.fromCollogTimestamp("2026-11-26T15:05:00Z"))
+        #expect(RecentCallListView.dateText(lateNight) == "11월 27일 (금) 오전 12:05")
+        #expect(RecentCallListView.durationText(45) == "45초")
+        #expect(RecentCallListView.durationText(59) == "59초")
+        #expect(RecentCallListView.durationText(125) == "2분")
+        #expect(RecentCallListView.durationText(nil) == nil)
+
+        func call(_ state: String, recorded: Bool = true, reason: String? = nil) -> CallSummaryDTO {
+            CallSummaryDTO(
+                callId: "c", parentId: "mom", state: state, timeSlot: nil, startedAt: date, endedAt: nil,
+                durationSec: 60, recorded: recorded, parentSpeechSec: nil, recordingDisabledReason: reason
+            )
+        }
+        #expect(RecentCallListView.statusText(call("ANALYZED")) == "분석 완료")
+        #expect(RecentCallListView.statusText(call("PROCESSING")) == "분석 중")
+        #expect(RecentCallListView.statusText(call("ENDED")) == "분석 중")
+        #expect(RecentCallListView.statusText(call("ANALYSIS_EXCLUDED")) == "짧아서 분석 제외")
+        // 서버는 분량 초과 통화에 recorded=false 를 준다. 사유 칸을 먼저 본다
+        #expect(RecentCallListView.statusText(call("ANALYSIS_EXCLUDED", recorded: false, reason: "ANALYSIS_QUOTA_EXCEEDED"))
+            == "이번 달 분석 시간 초과")
+        #expect(RecentCallListView.statusText(call("ANALYSIS_FAILED")) == "분석 실패")
+        #expect(RecentCallListView.statusText(call("ANALYSIS_EXCLUDED", recorded: false, reason: "CONSENT_DENIED")) == "분석 안 함")
+        #expect(RecentCallListView.statusText(call("ENDED", recorded: false)) == "분석 안 함")
+    }
+
+    @Test
+    func freeReportTabShowsOnlyTheSafetyNotices() async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (402, premiumRequired))
+        let plain = fixture.respond
+        let notices = #"{"safetyNotices":[{"callId":"call-1","observedAt":"2026-11-26T23:30:00Z","text":"바로 확인이 필요할 수 있어요"}]}"#
+        fixture.respond = { request in
+            guard request.url?.path == "/v1/parents/mom/safety-notices" else { return try plain(request) }
+            return request.url?.query == "days=14" ? (200, notices) : (500, #"{"code":"ERROR","message":"14일"}"#)
+        }
+        await environment.family.refresh(using: environment)
+        fixture.paths = []
+
+        // 요금제를 몰라도 리포트 402 한 건으로 잠금을 알면 응급 안내만 읽는다
+        let model = TimelineViewModel(selectedTabIndex: 0)
+        await model.refresh(using: environment)
+        #expect(model.isLocked(using: environment))
+        #expect(fixture.paths == ["/v1/parents/mom/baseline", "/v1/parents/mom/reports", "/v1/parents/mom/safety-notices"])
+        let shown = model.lockedContent.safetyNotices
+        #expect(shown.map(\.callId) == ["call-1"])
+        #expect(shown.map(\.text) == ["바로 확인이 필요할 수 있어요"])
+        #expect(shown.map(\.dayText) == ["11월 27일 통화"])
+    }
+
+    @Test(arguments: [404, 403, 503])
+    func safetyNoticeFailuresStayQuiet(status: Int) async throws {
+        let fixture = try TestEnvironment(role: "CHILD")
+        defer { fixture.cleanUp() }
+        let environment = fixture.environment
+        serveFamily(fixture, calls: (200, #"{"calls":[]}"#), report: (200, reportBody()))
+        let plain = fixture.respond
+        fixture.respond = { request in
+            request.url?.path == "/v1/parents/mom/safety-notices"
+                ? (status, #"{"code":"ERROR","message":"안 돼요"}"#)
+                : try plain(request)
+        }
+        await environment.family.refresh(using: environment)
+        environment.billing.apply(
+            try entitlement(plan: "FREE", source: nil, trialEndsAt: nil), request: environment.billing.beginRequest(environment)
+        )
+        let model = TimelineViewModel(selectedTabIndex: 0)
+        await model.refresh(using: environment)
+        #expect(model.lockedContent.isLoaded)
+        #expect(model.lockedContent.safetyNotices.isEmpty)
+    }
+
     // MARK: - Fixtures
 
     /// 결제가 켜진 체험 중 요금제를 읽어 두고(스토어를 켬) 요청 기록은 비운다.
@@ -844,6 +989,13 @@ struct BillingTests {
          "recorded":\(reason == nil),"recordingEnabled":\(reason == nil),
          "recordingDisabledReason":\(reason.map { "\"\($0)\"" } ?? "null"),
          "recordingDisabledMessage":null,"parentSpeechSec":600}
+        """
+    }
+
+    private func datedCallJSON(id: String, startedAt: String) -> String {
+        """
+        {"callId":"\(id)","parentId":"mom","childId":"me","state":"ANALYZED","timeSlot":null,
+         "startedAt":"\(startedAt)","endedAt":null,"durationSec":180,"recorded":true,"parentSpeechSec":60}
         """
     }
 
