@@ -16,6 +16,8 @@ final class TimelineViewModel {
     private(set) var selectedContactId: String?
     private(set) var selectedRelation: String?
     private(set) var weekOffset = 0
+    /// 무료로 잠긴 탭에 보이는 것(결제 약속 11-28): 타임라인 = 고른 사람의 최근 통화, 리포트 = 응급 안내.
+    private(set) var lockedContent = LockedContent()
 
     @ObservationIgnored private var baselineCache: [String: [String: BaselineDTO]] = [:]
     @ObservationIgnored private var loading: Set<Int> = []
@@ -27,6 +29,16 @@ final class TimelineViewModel {
     static let selfSubjectId = "self"
     /// 한 주에 불러오는 통화 카드 수.
     static let weeklyEntryLimit = 5
+    /// 잠긴 타임라인 탭의 「최근 통화」 수.
+    static let lockedCallLimit = 20
+
+    struct LockedContent {
+        var calls: [CallSummaryDTO] = []
+        var callsNotShared = false
+        var callsError: String?
+        var safetyNotices: [SafetyNotice] = []
+        var isLoaded = false
+    }
 
     var title: String { selectedTabIndex == 0 ? "리포트" : "타임라인" }
 
@@ -65,6 +77,7 @@ final class TimelineViewModel {
         selectedMember = contact.name
         selectedRelation = contact.relation
         weekOffset = 0
+        lockedContent = LockedContent()
         pages.removeAll()
         loading.removeAll()
         contentGeneration += 1
@@ -108,8 +121,11 @@ final class TimelineViewModel {
                 .forEach(loadGuestPage)
             return
         }
-        // 잠긴 탭은 아무것도 불러오지 않는다
-        guard !isLocked(using: environment) else { return }
+        // 잠긴 탭은 주별 내용 대신 가벼운 것만 읽는다(타임라인 = 최근 통화, 리포트 = 응급 안내)
+        if isLocked(using: environment) {
+            await loadLockedContent(using: environment, generation: generation)
+            return
+        }
 
         guard let context = await loadContext(using: environment) else {
             guard generation == contentGeneration else { return }
@@ -138,6 +154,30 @@ final class TimelineViewModel {
                 forceReload: forceReload
             )
         }
+        if hasLockedPage { await loadLockedContent(using: environment, generation: generation) }
+    }
+
+    /// 잠긴 탭: 타임라인은 고른 사람의 통화 목록(날짜 없이)에서 최근 20건, 리포트는 최근 14일 응급 안내.
+    /// 응급 안내는 없거나 못 받으면(옛 서버 404·공유 꺼짐 403·오류) 조용히 비운다.
+    private func loadLockedContent(using environment: AppEnvironment, generation: Int) async {
+        guard let parentId = selectedContact(using: environment)?.userId else { return }
+        let api = environment.api
+        var content = LockedContent()
+        if selectedTabIndex == 1 {
+            do {
+                let calls = try await api.calls(parentId: parentId)
+                content.calls = Array(calls.sorted { $0.startedAt > $1.startedAt }.prefix(Self.lockedCallLimit))
+            } catch let error as APIError where error.isForbidden {
+                content.callsNotShared = true
+            } catch {
+                content.callsError = error.localizedDescription
+            }
+        } else {
+            content.safetyNotices = SafetyNotice.list(from: (try? await api.safetyNotices(parentId: parentId)) ?? [])
+        }
+        guard generation == contentGeneration else { return }
+        content.isLoaded = true
+        lockedContent = content
     }
 
     /// 앱으로 돌아왔을 때: 그사이 가족이 공유를 껐거나 다시 켰으면 불러 둔 주를 모두 버리고 다시 읽는다.
@@ -181,6 +221,7 @@ final class TimelineViewModel {
 
     /// 요금제가 바뀌었을 때(구매·복원 등) 불러 둔 주를 모두 버리고 다시 읽는다.
     func reloadAll(using environment: AppEnvironment) async {
+        lockedContent = LockedContent()
         pages.removeAll()
         loading.removeAll()
         contentGeneration += 1
@@ -260,6 +301,7 @@ final class TimelineViewModel {
             if selectedContactId != nil {
                 selectedContactId = nil
                 selectedRelation = nil
+                lockedContent = LockedContent()
                 pages.removeAll()
                 loading.removeAll()
                 contentGeneration += 1
@@ -268,6 +310,7 @@ final class TimelineViewModel {
             return
         }
         if selectedContactId != contact.id {
+            lockedContent = LockedContent()
             pages.removeAll()
             loading.removeAll()
             contentGeneration += 1

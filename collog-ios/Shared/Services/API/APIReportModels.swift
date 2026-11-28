@@ -180,6 +180,11 @@ struct SafetyNoticeDTO: Decodable {
     }
 }
 
+/// `GET /v1/parents/{id}/safety-notices`: 리포트 `safetyNotices` 와 같은 항목.
+struct SafetyNoticesResponse: Decodable {
+    let safetyNotices: [SafetyNoticeDTO]?
+}
+
 struct AcousticFeatureDTO: Decodable {
     let metric: String
     let value: Double?

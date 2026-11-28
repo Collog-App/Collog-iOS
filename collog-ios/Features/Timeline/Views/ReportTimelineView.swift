@@ -81,7 +81,7 @@ struct ReportTimelineView: View {
                 content: {
                 VStack(spacing: Spacing.x3) {
                     if isLocked {
-                        premiumLocked
+                        lockedContent
                     } else if tab == .timeline {
                         verticalTimeline
                             .simultaneousGesture(personSwipe)
@@ -106,10 +106,14 @@ struct ReportTimelineView: View {
             // 구매·복원 등으로 잠금이 풀리면 처음부터 다시 읽고, 건너뛰었던 이용 기록도 남긴다
             .onChange(of: environment.billing.entitlement) { previous, current in
                 let wasLocked = previous?.locksReports == true || viewModel.hasLockedPage
-                guard wasLocked, current?.locksReports != true else { return }
-                Task {
-                    await viewModel.reloadAll(using: environment)
-                    viewModel.recordReportEntry(using: environment)
+                if wasLocked, current?.locksReports != true {
+                    Task {
+                        await viewModel.reloadAll(using: environment)
+                        viewModel.recordReportEntry(using: environment)
+                    }
+                } else if current?.locksReports == true, !viewModel.lockedContent.isLoaded {
+                    // 보는 사이 무료가 됐으면 잠긴 탭에 보일 것(최근 통화·응급 안내)을 읽는다
+                    Task { await viewModel.refresh(using: environment) }
                 }
             }
             .task {
@@ -415,6 +419,40 @@ struct ReportTimelineView: View {
 
     private var premiumLocked: some View {
         PremiumLockedStateView(onLearnMore: environment.billing.offersPremium ? { showsPaywall = true } : nil)
+    }
+
+    /// 무료로 잠긴 탭(용진 결정 11-28): 리포트 = 응급 안내(있으면 맨 위) + 잠금 안내,
+    /// 타임라인 = 잠금 안내 + 고른 사람의 「최근 통화」(누르면 통화별 분석 화면).
+    @ViewBuilder
+    private var lockedContent: some View {
+        let content = viewModel.lockedContent
+        if tab == .report {
+            if !content.safetyNotices.isEmpty {
+                safetyNotices(content.safetyNotices)
+            }
+            premiumLocked
+        } else {
+            premiumLocked
+            if !content.isLoaded {
+                loadingContent
+            } else if content.callsNotShared {
+                NotSharedStateView()
+            } else if let error = content.callsError {
+                EmptyStateView(
+                    symbol: "exclamationmark.circle",
+                    title: "데이터를 불러오지 못했어요.",
+                    message: error,
+                    actionTitle: "다시 시도"
+                ) {
+                    Task { await viewModel.refresh(using: environment, forceReload: true) }
+                }
+            } else {
+                RecentCallListView(calls: content.calls, userId: environment.session.user?.id) { call in
+                    navigation.manager(for: tab).push(CallAnalysisRoute(callId: call.callId))
+                }
+                .padding(.horizontal, Spacing.x5)
+            }
+        }
     }
 
     private func emptyAnalysisContent(_ page: TimelineWeekPage) -> some View {

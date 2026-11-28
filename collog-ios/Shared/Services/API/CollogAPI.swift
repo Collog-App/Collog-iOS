@@ -213,6 +213,17 @@ struct CollogAPI {
         )
     }
 
+    /// 최근 응급 안내(결제 약속 11-28): 요금제와 상관없이 열린다. 공유 꺼짐이면 403, 옛 서버면 404.
+    func safetyNotices(parentId: String, days: Int = 14) async throws -> [SafetyNoticeDTO] {
+        let response: SafetyNoticesResponse = try await client.send(
+            APIEndpoint(
+                path: "/v1/parents/\(parentId)/safety-notices",
+                query: [URLQueryItem(name: "days", value: String(days))]
+            )
+        )
+        return response.safetyNotices ?? []
+    }
+
     func baselines(parentId: String) async throws -> [BaselineDTO] {
         let response: BaselinesResponse = try await client.send(
             APIEndpoint(path: "/v1/parents/\(parentId)/baseline")
